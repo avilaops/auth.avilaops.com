@@ -5,10 +5,13 @@ falta, em ordem de prioridade.
 
 ## Agora
 
-- **Sistemas consumindo a conexão da Meta.** A API existe
-  (`GET /api/meta/ativos`), mas nenhum sistema a chama ainda. Próximo passo é
-  no CRM/Messageria: cadastrar a integração em `/admin/integracoes` com a
-  permissão de ler a Meta e usar o token para enviar e receber mensagens.
+- **Sistemas consumindo a conexão da Meta.** O CRM é o primeiro: lê
+  `GET /api/meta/ativos` por `POST /api/meta/sincronizar`
+  (avilaops/crm.avilaops.com#1), mostra a conta e descobre os números. Falta
+  cadastrar a integração do CRM em `/admin/integracoes` com a permissão de ler
+  a Meta quando ele for para o servidor, e exercitar a rota com uma conexão
+  real. Receber mensagem por essa conexão continua em aberto: o webhook da Meta
+  pede um segredo por app, e hoje o recebimento é da Messageria.
 - **Análise do app na Meta.** Cadastrar no painel da Meta a redirect URI e os
   callbacks, conectar uma conta real em `/conta/meta` e gravar o screencast.
   Pedir só as permissões que a tela mostra (tabela no README).
