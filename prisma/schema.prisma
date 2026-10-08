@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Pessoa que já logou pelo SSO ao menos uma vez.
+///
+/// O papel não é gravado aqui de propósito: ele é derivado do claim `hd` do
+/// Google a cada login. Guardar o papel no banco criaria uma segunda fonte de
+/// verdade que silenciosamente diverge quando alguém sai do Workspace.
+model Usuario {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  nome       String
+  foto       String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  ultimoLogin DateTime? @map("ultimo_login")
+
+  identidades   Identidade[]
+  codigosTroca  CodigoTroca[]
+
+  @@map("usuarios")
+}
+
+/// Vínculo com o provedor externo. Modelado por provedor + id do provedor para
+/// aceitar Apple/Microsoft depois sem migração destrutiva.
+model Identidade {
+  id             String   @id @default(uuid())
+  usuarioId      String   @map("usuario_id")
+  provedor       String
+  provedorUserId String   @map("provedor_user_id")
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([provedor, provedorUserId])
+  @@index([usuarioId])
+  @@map("identidades")
+}
+
+/// Código de uso único para entregar a sessão a quem não recebe o cookie de
+/// `.avilaops.com` — app nativo (deep link) e qualquer domínio fora de
+/// avilaops.com. Guardado como hash: se o banco vazar, os códigos não são
+/// reutilizáveis.
+model CodigoTroca {
+  id        String    @id @default(uuid())
+  codigoHash String   @unique @map("codigo_hash")
+  usuarioId String    @map("usuario_id")
+  papel     String
+  expiraEm  DateTime  @map("expira_em")
+  usadoEm   DateTime? @map("usado_em")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("codigos_troca")
+}
+
+/// Código de autorização OAuth 2.0 / OIDC entregue a aplicativo de terceiro.
+///
+/// Separado de `CodigoTroca` porque aquele tem chave estrangeira para
+/// `Usuario` — e quem entra por senha é conta de `portal_clients`, que vive em
+/// outro banco. Aqui a identidade é **congelada** no momento do consentimento:
+/// o token trocado depois vale pelo que era verdade quando o usuário aprovou,
+/// e não depende de o outro banco estar de pé na hora da troca.
+///
+/// Só o hash do código vai ao banco, como no `CodigoTroca`: um dump não permite
+/// resgatar sessão nenhuma.
+model CodigoOAuth {
+  id                  String    @id @default(uuid())
+  codigoHash          String    @unique @map("codigo_hash")
+  clienteId           String    @map("cliente_id")
+  redirectUri         String    @map("redirect_uri")
+  nonce               String?
+  /// PKCE. Nulos quando o cliente é confidencial e não mandou desafio.
+  codeChallenge       String?   @map("code_challenge")
+  codeChallengeMethod String?   @map("code_challenge_method")
+
+  sub   String
+  email String
+  nome  String
+  foto  String?
+  papel String
+
+  expiraEm DateTime  @map("expira_em")
+  usadoEm  DateTime? @map("usado_em")
+  criadoEm DateTime  @default(now()) @map("criado_em")
+
+  @@index([expiraEm])
+  @@map("codigos_oauth")
+}
+
+/// Acesso explícito de uma conta a um app. Necessário para app com
+/// `restrito: true` em `apps.ts`; ADMIN nunca precisa.
+model Permissao {
+  id           String   @id @default(uuid())
+  email        String
+  appId        String   @map("app_id")
+  concedidoPor String   @map("concedido_por")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  @@unique([email, appId])
+  @@index([email])
+  @@map("permissoes")
+}
+
+/// Trilha de auditoria do login: quem entrou, de onde, o que o admin mexeu.
+model Evento {
+  id       String   @id @default(uuid())
+  tipo     String
+  email    String?
+  appId    String?  @map("app_id")
+  ip       String?
+  detalhe  String?
+  autor    String?
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([email])
+  @@index([criadoEm])
+  @@map("eventos")
+}
+
+/// Link de recuperação de senha. Só o hash fica no banco.
+model TokenRecuperacao {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique @map("token_hash")
+  email     String
+  expiraEm  DateTime  @map("expira_em")
+  usadoEm   DateTime? @map("usado_em")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  @@index([email])
+  @@map("tokens_recuperacao")
+}
+
+/// Conector de login (Google, Apple, GitHub…). Uma linha por provedor; o
+/// segredo fica cifrado com `AUTH_ENCRYPTION_KEY` (só no .env do servidor).
+model Conector {
+  id             String   @id
+  ligado         Boolean  @default(false)
+  clientId       String?  @map("client_id")
+  clientSecretEnc String? @map("client_secret_enc")
+  /// Campos extras do provedor (tenant da Microsoft, team/key id da Apple…), JSON.
+  extras         String?
+  atualizadoEm   DateTime @default(now()) @updatedAt @map("atualizado_em")
+  atualizadoPor  String?  @map("atualizado_por")
+
+  @@map("conectores")
+}
+
+/// Identidade externa ligada a uma conta de `portal_clients`. É o que faz
+/// "entrou com Google" e "entrou com senha" serem a mesma pessoa.
+model Vinculo {
+  id             String    @id @default(uuid())
+  provedor       String
+  provedorUserId String    @map("provedor_user_id")
+  contaId        String    @map("conta_id")
+  email          String?
+  nome           String?
+  foto           String?
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  ultimoLogin    DateTime? @map("ultimo_login")
+
+  @@unique([provedor, provedorUserId])
+  @@index([contaId])
+  @@map("vinculos")
+}
+
+/// Segundo fator TOTP de uma conta.
+///
+/// Mora no banco do `auth` e não em `portal_clients`: fator de autenticação é
+/// assunto do SSO, e a chave é o e-mail — mesmo critério de `permissoes` e
+/// `eventos`. Assim a equipe ganha 2FA sem migração no banco do
+/// `app.avilaops.com`, e uma conta que troca de e-mail não arrasta o fator
+/// junto por acidente.
+///
+/// O segredo vai cifrado com `AUTH_ENCRYPTION_KEY` (AES-256-GCM, `cripto.ts`):
+/// um dump do banco não gera código nenhum sem a chave, que só existe no .env
+/// do servidor.
+model SegundoFator {
+  id         String @id @default(uuid())
+  email      String @unique
+  segredoEnc String @map("segredo_enc")
+  /// Nulo enquanto o cadastro não foi confirmado com um código do aplicativo.
+  /// Fator não confirmado não desafia ninguém e não tranca ninguém fora: é só
+  /// um segredo esperando prova de que o celular conseguiu lê-lo.
+  confirmadoEm DateTime? @map("confirmado_em")
+  /// Maior contador TOTP já aceito. Um código vale uma vez só — sem isto ele
+  /// continua bom pelos 30 segundos inteiros para quem o viu de relance.
+  ultimoContador BigInt?   @map("ultimo_contador")
+  ultimoUsoEm    DateTime? @map("ultimo_uso_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+
+  codigos CodigoBackup[]
+
+  @@map("segundos_fatores")
+}
+
+/// Código de recuperação de uso único, para o dia em que o celular sumir. Só o
+/// hash vai ao banco, como no `CodigoTroca`: dump não vira entrada.
+model CodigoBackup {
+  id         String    @id @default(uuid())
+  fatorId    String    @map("fator_id")
+  codigoHash String    @unique @map("codigo_hash")
+  usadoEm    DateTime? @map("usado_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+
+  fator SegundoFator @relation(fields: [fatorId], references: [id], onDelete: Cascade)
+
+  @@index([fatorId])
+  @@map("codigos_backup")
+}
+
+/// Cadastro do que a casa publica: aplicações e sites.
+///
+/// Substitui a lista que ficava fixa em `apps.ts`. `login` separa as duas
+/// perguntas que a lista antiga misturava: "isto existe?" e "isto recebe
+/// sessão do login único?". Site estático existe e não recebe.
+///
+/// Papel, tipo, publicação e situação são texto, e não enum do banco, para que
+/// um valor novo não exija migração. Quem lê confere contra as listas de
+/// `apps.ts` e cai no valor mais restrito quando não reconhece.
+model Aplicacao {
+  /// Identificador usado em `?app=` e em `permissoes.app_id`. Não muda depois
+  /// de criado: mudar deixaria as permissões concedidas apontando para nada.
+  id   String @id
+  /// Host exato. É o que valida o `returnTo`.
+  host String @unique
+  nome String
+  /// `app` | `site`
+  tipo String @default("app")
+  /// Recebe sessão do login único.
+  login Boolean @default(false)
+  /// `ADMIN` = só equipe. Nulo = qualquer conta que passe em `restrito`.
+  papelExigido String? @map("papel_exigido")
+  /// Cliente só entra com permissão concedida na ficha da conta. Nasce ligado:
+  /// esquecer de configurar fecha o acesso, em vez de abrir.
+  restrito          Boolean @default(true)
+  exigeSegundoFator Boolean @default(false) @map("exige_segundo_fator")
+  dicaDominioGoogle String? @map("dica_dominio_google")
+  deepLink          String? @map("deep_link")
+
+  /// `dono/repositorio` no GitHub.
+  repositorio String?
+  servidor    String?
+  /// `estatico` | `container` | `systemd` | `externo`
+  publicacao  String?
+  /// `no_ar` | `fora_do_ar` | `planejado` | `desativado`
+  situacao    String  @default("planejado")
+  observacao  String?
+
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
+  atualizadoPor String?  @map("atualizado_por")
+
+  @@map("aplicacoes")
+}
+
+/// Conexão de uma conta com a Meta (Facebook, Instagram, WhatsApp, anúncios).
+///
+/// Não é o login com Facebook — esse mora em `vinculos` e não guarda token
+/// nenhum. Aqui a pessoa, já logada, autorizou a casa a enxergar os ativos
+/// dela, e o token de longa duração fica cifrado com `AUTH_ENCRYPTION_KEY`:
+/// um dump do banco não publica na Página de ninguém.
+///
+/// Uma conexão por conta. Sem chave estrangeira para a conta pelo mesmo motivo
+/// de `vinculos`: ela vive em `portal_clients`, em outro banco.
+model ConexaoMeta {
+  id       String  @id @default(uuid())
+  contaId  String  @unique @map("conta_id")
+  email    String
+  fbUserId String  @map("fb_user_id")
+  nome     String?
+  tokenEnc String  @map("token_enc")
+  /// Permissões concedidas e recusadas no diálogo, separadas por espaço.
+  escopos   String @default("")
+  recusados String @default("")
+  /// Nulo quando a Meta não informa validade.
+  expiraEm       DateTime? @map("expira_em")
+  sincronizadoEm DateTime? @map("sincronizado_em")
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  atualizadoEm   DateTime  @default(now()) @updatedAt @map("atualizado_em")
+
+  ativos AtivoMeta[]
+
+  @@index([fbUserId])
+  @@map("conexoes_meta")
+}
+
+/// O que a conexão alcança: Página, Instagram, negócio, conta de anúncio,
+/// conta de WhatsApp, catálogo. `tipo` é texto, como em `aplicacoes`, para um
+/// tipo novo não exigir migração.
+model AtivoMeta {
+  id        String  @id @default(uuid())
+  conexaoId String  @map("conexao_id")
+  tipo      String
+  externoId String  @map("externo_id")
+  nome      String
+  /// JSON com o que a tela mostra (categoria, moeda, números…).
+  detalhe   String?
+  /// Token próprio do ativo (Página), cifrado.
+  tokenEnc       String?  @map("token_enc")
+  sincronizadoEm DateTime @default(now()) @map("sincronizado_em")
+
+  conexao ConexaoMeta @relation(fields: [conexaoId], references: [id], onDelete: Cascade)
+
+  @@unique([conexaoId, tipo, externoId])
+  @@map("ativos_meta")
+}
+
+/// Comprovante de um pedido de exclusão de dados vindo da Meta.
+///
+/// Guarda só o código e a hora: a Meta exige uma página onde a pessoa confira
+/// o pedido, e o comprovante não pode ser ele mesmo um dado pessoal.
+model ExclusaoMeta {
+  codigo      String   @id
+  concluidaEm DateTime @default(now()) @map("concluida_em")
+
+  @@map("exclusoes_meta")
+}
+
+/// Cliente OIDC / de API cadastrado pelo painel (`/admin/integracoes`).
+///
+/// Antes a lista vivia só em `oidc.ts` e cada sistema novo pedia commit e
+/// deploy. A lista do código continua valendo como reserva (Notas, TMS), com
+/// segredo em variável de ambiente; o que nasce pelo painel fica aqui.
+///
+/// Só o hash do segredo vai ao banco. Ele é gerado aqui (256 bits aleatórios),
+/// mostrado uma vez e nunca mais: SHA-256 basta, porque não é senha escolhida
+/// por gente.
+model ClienteOidc {
+  /// `client_id` mandado pelo sistema.
+  id          String  @id
+  /// Linha de `aplicacoes` que decide quem pode entrar por este cliente.
+  appId       String  @map("app_id")
+  nome        String
+  /// Endereços de retorno, um por linha. Igualdade exata.
+  redirectUris String @map("redirect_uris")
+  segredoHash String  @map("segredo_hash")
+  /// Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`).
+  acessoMeta  Boolean @default(false) @map("acesso_meta")
+  ativo       Boolean @default(true)
+
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
+  atualizadoPor String?  @map("atualizado_por")
+
+  @@index([appId])
+  @@map("clientes_oidc")
+}
+
+/// Contador do limite de tentativas (login, 2FA, recuperação, token OIDC).
+///
+/// Era um `Map` em memória: zerava a cada deploy e não valeria com duas
+/// instâncias. Aqui sobrevive ao reinício e é o mesmo para todas.
+model Tentativa {
+  chave      String   @id
+  conta      Int      @default(1)
+  reiniciaEm DateTime @map("reinicia_em")
+
+  @@index([reiniciaEm])
+  @@map("tentativas")
+}

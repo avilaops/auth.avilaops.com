@@ -1,0 +1,47 @@
+# Conforme a Norma de Plataforma AvilaOps.
+# Ver NORMA-PLATAFORMA.md no repositorio infra-observabilidade.
+name: auth-avilaops-com
+
+services:
+  web:
+    build: .
+    image: ${APP_IMAGE:-auth-avilaops-com-web}
+    container_name: auth-avilaops-com-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    # Sem "ports": quem publica e o Caddy. O acesso e pelo nome do container
+    # na rede edge.
+    expose:
+      - "3010"
+    networks:
+      edge:
+        # IP fixo enquanto o Caddy roda no host e nao resolve nome de container.
+        # Quando o Caddy for para a rede edge, isto vira "reverse_proxy web:3010"
+        # e o endereco fixo pode sair.
+        ipv4_address: 172.31.0.10
+    # host.docker.internal aponta para o gateway da bridge padrao (172.17.0.1),
+    # onde o Postgres do host escuta. Independe da rede do container.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      avilaops.domain: auth.avilaops.com
+      avilaops.stack: auth
+      avilaops.tier: web
+      avilaops.backup: "false"
+      avilaops.owner: nicolas
+    healthcheck:
+      # Pergunta pelo `/api/saude`, nao pelo `/login` anonimo. Em 19/09 o
+      # healthcheck antigo ficou verde durante uma queda inteira: o trecho que
+      # explodia so rodava com cookie de sessao, entao o container parecia sao
+      # enquanto a equipe nao conseguia entrar. O `/api/saude` responde 503 so
+      # quando o banco nao responde — que e a unica falha que reiniciar resolve.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3010/api/saude >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  edge:
+    external: true

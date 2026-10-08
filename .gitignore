@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+build/
+
+# Env
+.env
+.env.local
+.env.production
+.env*.local
+
+# Misc
+.DS_Store
+*.pem
+*.p12
+npm-debug.log*
+tsconfig.tsbuildinfo

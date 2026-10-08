@@ -1,0 +1,58 @@
+name: Build e deploy
+
+# Padrão da casa, igual em todos os repositórios: valida, constrói a imagem pelo
+# workflow compartilhado do avilaops/infra e, na main, implanta pelo despachante
+# do servidor. Push direto na main publica; PR entra sozinho depois do build
+# (merge-automatico.yml).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  verify:
+    name: Validar tipos, lint e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+  image:
+    needs: verify
+    permissions:
+      contents: read
+      packages: write
+    uses: avilaops/infra/.github/workflows/container.yml@5de9dd168d6db14764d9ca9a9338f72929652eb5
+    with:
+      publish: ${{ github.event_name != 'pull_request' }}
+  deploy:
+    permissions:
+      contents: read
+      packages: read
+    needs: image
+    if: github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    uses: avilaops/infra/.github/workflows/deploy-ssh.yml@5de9dd168d6db14764d9ca9a9338f72929652eb5
+    with:
+      application: auth.avilaops.com
+      image: ${{ needs.image.outputs.image }}
+    secrets:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}

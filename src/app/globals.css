@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Identidade visual da Ávila Ops no auth
+   -------------------------------------------------------------------------
+   Esta tela é a porta de entrada de todos os apps da casa, então ela usa a
+   mesma escala do painel, não uma paleta própria. O canônico está em
+   `app.avilaops.com/docs/design-system.md` e nos tokens no fim do
+   `globals.css` de lá; o que estiver aqui tem que bater com aquilo.
+
+   Princípio: claro primeiro, pouca borda, muito espaço. A profundidade vem do
+   contraste entre o fundo cinza e a superfície branca, não de contorno ou
+   sombra pesada. Cerca de 85% da tela é neutra, e as três cores da marca
+   (azul opera, vermelho fala com o cliente, amarelo faz crescer) aparecem em
+   doses pequenas.
+
+   Os nomes `--color-*` no bloco `@theme` são os que as 30 telas já usam. Eles
+   continuam valendo: mudou só para onde apontam. Assim a identidade entra sem
+   reescrever cada arquivo, e o Tailwind segue gerando `bg-fundo`,
+   `text-texto` e companhia.
+   ========================================================================= */
+
+/*
+ * Tema escuro é o valor de base, e o claro sobrescreve logo abaixo. É a mesma
+ * ordem do painel: o `<html>` nasce com `data-theme="light"` e o script do
+ * modo noturno troca para `dark` entre 18h e 6h, antes da primeira pintura.
+ */
+:root {
+  --fundo: #0b0d10;
+  --superficie: #101318;
+  --superficie-suave: #161a21;
+  --linha: #232831;
+  --separador: #191d24;
+  --texto: #e9ecf1;
+  --texto-secundario: #98a1ae;
+  --texto-terciario: #737c8a;
+
+  /*
+   * Marca: os matizes vêm medidos do símbolo oficial (azul #0054fe, vermelho
+   * #f82926, amarelo #fdc401), mas estes tokens pintam TEXTO, e cor de marca
+   * crua quase nunca passa no contraste. Cada um entra na luminosidade que o
+   * fundo do tema permite, sem sair do matiz. Aqui é o escuro.
+   */
+  --marca-azul: #4d88ff;
+  --marca-vermelho: #fa6361;
+  --marca-amarelo: #fdc401;
+  --marca-azul-suave: rgba(0, 84, 254, 0.16);
+  --marca-vermelho-suave: rgba(248, 41, 38, 0.14);
+  --marca-amarelo-suave: rgba(253, 196, 1, 0.16);
+
+  /*
+   * Azul de preenchimento, para botão e item ativo. Não é o mesmo token do
+   * texto: `--marca-azul` no escuro é claro demais para receber texto branco
+   * em cima (daria 2,9:1). Este aqui é escurecido até o branco passar com
+   * folga, e é o único lugar em que a marca aparece como área grande.
+   */
+  --marca-solida: #2f6fe4;
+  --marca-contraste: #ffffff;
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-2: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+/*
+ * A marca no tema claro. Mesmos matizes, escurecidos até passar em texto sobre
+ * fundo branco: azul 5,68:1, vermelho 5,63:1 e amarelo 4,79:1. Sem isto os
+ * três ficariam com o valor do tema escuro e o amarelo sumiria na tela clara.
+ */
+:root[data-theme="light"] {
+  --fundo: #f7f8fa;
+  --superficie: #ffffff;
+  --superficie-suave: #f4f6f9;
+  --linha: #e2e5ea;
+  --separador: #ebedf1;
+  --texto: #14181f;
+  --texto-secundario: #626b78;
+  --texto-terciario: #7b8492;
+
+  --marca-azul: #0054fe;
+  --marca-vermelho: #d00a06;
+  --marca-amarelo: #8e6e01;
+  --marca-azul-suave: rgba(0, 84, 254, 0.08);
+  --marca-vermelho-suave: rgba(248, 41, 38, 0.08);
+  --marca-amarelo-suave: rgba(253, 196, 1, 0.14);
+
+  /* No claro o azul da marca entra cru: branco em cima dele dá 8,6:1. */
+  --marca-solida: #0054fe;
+
+  --sombra-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sombra-2: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* Escala de espaço, raio e sombra: só estes degraus, nada fora. */
+:root {
+  --e1: 4px;
+  --e2: 8px;
+  --e3: 12px;
+  --e4: 16px;
+  --e5: 20px;
+  --e6: 24px;
+  --e7: 32px;
+  --e8: 40px;
+  --e9: 48px;
+
+  --raio-p: 10px;
+  --raio-m: 14px;
+  --raio-g: 20px;
+
+  --fonte: var(--font-manrope), Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+/*
+ * `inline` é obrigatório aqui: sem ele o Tailwind resolve o valor do `var()`
+ * na hora de compilar e congela o tema escuro nas classes. Com `inline` as
+ * utilidades saem apontando para a variável, que é o que troca em tempo de
+ * execução quando o `data-theme` muda.
+ */
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-cartao: var(--superficie);
+  --color-cartao-suave: var(--superficie-suave);
+  --color-borda: var(--linha);
+  --color-separador: var(--separador);
+  --color-texto: var(--texto);
+  --color-texto-fraco: var(--texto-secundario);
+  --color-texto-apagado: var(--texto-terciario);
+
+  --color-marca: var(--marca-azul);
+  --color-marca-solida: var(--marca-solida);
+  --color-marca-contraste: var(--marca-contraste);
+  --color-marca-suave: var(--marca-azul-suave);
+  --color-marca-vermelho: var(--marca-vermelho);
+  --color-marca-amarelo: var(--marca-amarelo);
+
+  --font-sans: var(--fonte);
+  --font-mono: var(--mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--fonte);
+}
+
+/*
+ * O símbolo da marca. Usa o PNG oficial de `public/marca`, o mesmo arquivo do
+ * painel, então as duas telas mostram exatamente o mesmo desenho. O tamanho
+ * padrão é o da tela de entrada; quem precisar de outro passa `width`/`height`.
+ */
+.simbolo-marca {
+  display: block;
+  height: auto;
+}
