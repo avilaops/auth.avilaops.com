@@ -163,7 +163,9 @@ describe("contas", () => {
     assert.deepEqual(nomes({ f_senha: "provisoria" }), ["Bruno"]);
     assert.deepEqual(nomes({ f_estado: "desligada" }), ["Carla"]);
     assert.deepEqual(nomes({ f_empresa: "sem" }), ["Nicolas"]);
-    assert.deepEqual(nomes({ f_tipo: "equipe" }), ["Érica", "Nicolas"]);
+    // Érica é dona do negócio (role ADMIN): cliente, não equipe.
+    assert.deepEqual(nomes({ f_tipo: "equipe" }), ["Nicolas"]);
+    assert.deepEqual(nomes({ f_tipo: "cliente" }), ["Bruno", "Carla", "Davi", "Érica"]);
   });
 
   it("acha quem nunca acessou e separa por período do último acesso", () => {

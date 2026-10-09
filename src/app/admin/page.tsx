@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/admin";
-import { listarTodasAsContas } from "@/lib/contas";
+import { ehDaCasa, listarTodasAsContas } from "@/lib/contas";
 import { agruparContas, consultarContas, defContas, montarContas, ROTULO_PAPEL, type ContaListada } from "@/lib/contasLista";
 import { listarEmpresas } from "@/lib/empresas";
 import { ultimosLogins } from "@/lib/eventos";
@@ -66,7 +66,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
 
   const encontradas = consultarContas(todas, consulta, busca);
   const filtrado = Boolean(busca) || filtrosAtivos(consulta) > 0;
-  const equipe = todas.filter((c) => c.role !== "CLIENT").length;
+  const equipe = todas.filter((c) => ehDaCasa(c.role)).length;
   const comEmpresa = todas.filter((c) => c.organizationId).length;
 
   return (
@@ -96,7 +96,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
             total={todas.length}
             um="conta"
             varios="contas"
-            complemento={`${equipe} com acesso de equipe · ${todas.length - equipe} de clientes · ${comEmpresa} com empresa vinculada`}
+            complemento={`${equipe} da equipe Avila Ops · ${todas.length - equipe} de clientes · ${comEmpresa} com empresa vinculada`}
           />
         </div>
         <Link href="/admin/contas/nova" className={`${botao} shrink-0 whitespace-nowrap`}>+ Nova conta</Link>
