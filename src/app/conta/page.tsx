@@ -83,7 +83,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
       </header>
 
       {erro === "ja_usado" && (
-        <p role="alert" className="mb-6 rounded-lg border border-red-900/50 bg-red-950/30 p-3 text-xs text-red-300">
+        <p role="alert" className="mb-6 rounded-lg border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-3 text-xs text-[var(--color-marca-vermelho)]">
           Essa conta {buscarProvedor(provErro)?.nome ?? ""} já está vinculada a outra pessoa.
         </p>
       )}
@@ -199,7 +199,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                 </div>
                 <form action={acaoDesvincular}>
                   <input type="hidden" name="provedor" value={v.provedor} />
-                  <button className="text-xs text-[var(--color-texto-fraco)] hover:text-red-400">Desvincular</button>
+                  <button className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-marca-vermelho)]">Desvincular</button>
                 </form>
               </li>
             ))}

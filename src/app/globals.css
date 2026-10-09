@@ -47,6 +47,15 @@
   --marca-azul-suave: rgba(0, 84, 254, 0.16);
   --marca-vermelho-suave: rgba(248, 41, 38, 0.14);
   --marca-amarelo-suave: rgba(253, 196, 1, 0.16);
+  /* Verde de "deu certo / liberado / ativa". Não é cor da marca; segue a mesma
+     regra de luminosidade por tema dos três acima. */
+  --verde: #34d399;
+  --verde-suave: rgba(16, 185, 129, 0.15);
+  /* Selos de papel (sócio, equipe do cliente): só para distinguir um do outro. */
+  --violeta: #a78bfa;
+  --violeta-suave: rgba(139, 92, 246, 0.15);
+  --ceu: #38bdf8;
+  --ceu-suave: rgba(14, 165, 233, 0.15);
 
   /*
    * Azul de preenchimento, para botão e item ativo. Não é o mesmo token do
@@ -82,6 +91,13 @@
   --marca-azul-suave: rgba(0, 84, 254, 0.08);
   --marca-vermelho-suave: rgba(248, 41, 38, 0.08);
   --marca-amarelo-suave: rgba(253, 196, 1, 0.14);
+  /* 5,5:1 sobre o branco; o verde do tema escuro daria 1,9:1. */
+  --verde: #047857;
+  --verde-suave: rgba(16, 185, 129, 0.1);
+  --violeta: #6d28d9;
+  --violeta-suave: rgba(139, 92, 246, 0.1);
+  --ceu: #0369a1;
+  --ceu-suave: rgba(14, 165, 233, 0.1);
 
   /* No claro o azul da marca entra cru: branco em cima dele dá 8,6:1. */
   --marca-solida: #0054fe;
@@ -132,6 +148,7 @@
   --color-marca-suave: var(--marca-azul-suave);
   --color-marca-vermelho: var(--marca-vermelho);
   --color-marca-amarelo: var(--marca-amarelo);
+  --color-verde: var(--verde);
 
   --font-sans: var(--fonte);
   --font-mono: var(--mono);

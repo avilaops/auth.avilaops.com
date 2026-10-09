@@ -74,7 +74,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
 
   if (!estado.disponivel) {
     return (
-      <p className="text-xs leading-relaxed text-amber-400">
+      <p className="text-xs leading-relaxed text-[var(--color-marca-amarelo)]">
         Indisponível no servidor: falta a chave de cifra (<code>AUTH_ENCRYPTION_KEY</code>). Fale
         com a equipe Avila Ops.
       </p>
@@ -125,7 +125,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-400">ativa</span>
+        <span className="rounded-full bg-[var(--verde-suave)] px-2 py-0.5 text-xs text-[var(--color-verde)]">ativa</span>
         <span className="text-xs text-[var(--color-texto-fraco)]">
           {estado.confirmadoEm && `desde ${estado.confirmadoEm} · `}
           {estado.codigosRestantes} {estado.codigosRestantes === 1 ? "código de recuperação" : "códigos de recuperação"}
@@ -133,7 +133,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
       </div>
 
       {estado.codigosRestantes <= 2 && (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-[var(--color-marca-amarelo)]">
           Restam poucos códigos de recuperação. Gere uma lista nova enquanto ainda tem o celular.
         </p>
       )}
@@ -154,7 +154,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
             {acao === "desativar" && "Sua conta volta a depender só da senha. Confirme com um código do aplicativo:"}
           </p>
           <CampoCodigo valor={codigo} aoMudar={setCodigo} rotulo="Código" />
-          {erro && <p role="alert" className="text-xs text-red-400">{erro}</p>}
+          {erro && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{erro}</p>}
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={enviando || codigo.trim().length < 6} className={botaoForte}>
               {enviando ? "Conferindo…" : "Confirmar"}

@@ -16,9 +16,9 @@ import type { Role } from "@/lib/contas";
  */
 const ROTULO: Record<Role, { texto: string; classe: string }> = {
   OWNER: { texto: "plataforma", classe: "bg-[var(--color-marca)]/15 text-[var(--color-marca)]" },
-  SOCIO: { texto: "sócio", classe: "bg-violet-500/15 text-violet-400" },
-  ADMIN: { texto: "dono do negócio", classe: "bg-emerald-500/15 text-emerald-400" },
-  CLIENT: { texto: "equipe do cliente", classe: "bg-sky-500/15 text-sky-400" },
+  SOCIO: { texto: "sócio", classe: "bg-[var(--violeta-suave)] text-[var(--violeta)]" },
+  ADMIN: { texto: "dono do negócio", classe: "bg-[var(--verde-suave)] text-[var(--color-verde)]" },
+  CLIENT: { texto: "equipe do cliente", classe: "bg-[var(--ceu-suave)] text-[var(--ceu)]" },
 };
 
 export default function Papel({ role }: { role: Role }) {

@@ -65,7 +65,7 @@ export default async function ConectoresPage({ searchParams }: { searchParams: P
       </div>
 
       {!podeSalvar && (
-        <div role="alert" className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+        <div role="alert" className="mb-4 rounded-lg border border-[var(--color-marca-amarelo)]/40 bg-[var(--marca-amarelo-suave)] p-3 text-xs text-[var(--color-marca-amarelo)]">
           <strong>AUTH_ENCRYPTION_KEY</strong> não está configurada no servidor. Dá para ver esta tela, mas não para salvar credenciais.
           Gere com <code>openssl rand -hex 32</code> e coloque no <code>.env</code> do container.
         </div>

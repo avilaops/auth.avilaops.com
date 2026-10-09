@@ -170,7 +170,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
               vê o estado e pode remover, nunca ler.
             </p>
             {!mfaDisponivel() ? (
-              <p className="text-xs leading-relaxed text-red-400">
+              <p className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">
                 Indisponível: falta <code>AUTH_ENCRYPTION_KEY</code> no servidor. Enquanto isso, a
                 exigência fica suspensa e todo mundo entra só com a senha.
               </p>
@@ -179,7 +179,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
                   {fator.ativo ? (
                     <>
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-400">ativa</span>
+                      <span className="rounded-full bg-[var(--verde-suave)] px-2 py-0.5 text-[var(--color-verde)]">ativa</span>
                       <span className="text-[var(--color-texto-fraco)]">
                         {fator.confirmadoEm && `desde ${quando(fator.confirmadoEm)} · `}
                         {fator.codigosRestantes} de recuperação restantes
@@ -187,7 +187,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                       </span>
                     </>
                   ) : fator.pendente ? (
-                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">cadastro não concluído</span>
+                    <span className="rounded-full bg-[var(--marca-amarelo-suave)] px-2 py-0.5 text-[var(--color-marca-amarelo)]">cadastro não concluído</span>
                   ) : (
                     <span className="text-[var(--color-texto-fraco)]">
                       não ativada
@@ -260,7 +260,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                         {gb(c.usadoBytes)} de {gb(c.cotaBytes)}
                       </div>
                     </div>
-                    <span className={`text-xs ${c.status === "active" ? "text-emerald-400" : "text-amber-400"}`}>
+                    <span className={`text-xs ${c.status === "active" ? "text-[var(--color-verde)]" : "text-[var(--color-marca-amarelo)]"}`}>
                       {c.status === "active" ? "ativa" : c.status}
                     </span>
                   </li>
@@ -315,7 +315,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs ${liberado ? "text-emerald-400" : "text-[var(--color-texto-fraco)]"}`}>
+                      <span className={`text-xs ${liberado ? "text-[var(--color-verde)]" : "text-[var(--color-texto-fraco)]"}`}>
                         {liberado ? "liberado" : "sem acesso"}
                       </span>
                       {!ehAdmin && !bloqueadoPorPapel && (

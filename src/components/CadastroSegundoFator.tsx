@@ -78,7 +78,7 @@ export default function CadastroSegundoFator({
   if (codigos) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-emerald-400">Verificação em duas etapas ativada.</p>
+        <p className="text-sm text-[var(--color-verde)]">Verificação em duas etapas ativada.</p>
         <CodigosRecuperacao
           codigos={codigos}
           email={carga?.email ?? ""}
@@ -92,7 +92,7 @@ export default function CadastroSegundoFator({
   if (!carga) {
     return erro ? (
       <div className="flex flex-col gap-3">
-        <p role="alert" className="text-xs leading-relaxed text-red-400">{erro}</p>
+        <p role="alert" className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">{erro}</p>
         <button
           type="button"
           onClick={() => {
@@ -137,7 +137,7 @@ export default function CadastroSegundoFator({
 
       <CampoCodigo valor={codigo} aoMudar={setCodigo} apenasDigitos />
 
-      {erro && <p role="alert" className="text-xs leading-relaxed text-red-400">{erro}</p>}
+      {erro && <p role="alert" className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">{erro}</p>}
 
       <button
         type="submit"

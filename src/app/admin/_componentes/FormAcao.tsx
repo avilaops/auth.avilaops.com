@@ -74,9 +74,9 @@ export default function FormAcao({
       <fieldset disabled={pendente} className="contents">
         {children}
       </fieldset>
-      {estado && !estado.ok && <p role="alert" className="text-xs text-red-400">{estado.erro}</p>}
+      {estado && !estado.ok && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{estado.erro}</p>}
       {estado?.ok && estado.mensagem && !estado.segredo && (
-        <p className="text-xs text-emerald-400">{estado.mensagem}</p>
+        <p className="text-xs text-[var(--color-verde)]">{estado.mensagem}</p>
       )}
       {estado?.ok && estado.segredo && <Segredo rotulo={estado.mensagem ?? ""} valor={estado.segredo} />}
     </form>
