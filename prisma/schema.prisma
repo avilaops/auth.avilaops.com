@@ -130,6 +130,8 @@ model TokenRecuperacao {
   id        String    @id @default(uuid())
   tokenHash String    @unique @map("token_hash")
   email     String
+  /// Sistema que pediu o convite; nulo na recuperação comum.
+  appId     String?   @map("app_id")
   expiraEm  DateTime  @map("expira_em")
   usadoEm   DateTime? @map("usado_em")
   criadoEm  DateTime  @default(now()) @map("criado_em")

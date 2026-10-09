@@ -8,33 +8,38 @@ function hash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+/** De quem é o link e, quando é convite de um sistema, de qual sistema. */
+export type LinkRecuperacao = { email: string; appId: string | null };
+
 /**
  * Emite um link de recuperação. Só o hash vai ao banco; o link em claro é
  * mostrado ao admin uma vez para ele mandar por WhatsApp/e-mail.
  *
  * `validadeMs` existe para o convite de conta nova (`/api/provisionamento`),
  * que precisa durar dias; a recuperação pedida no painel continua em 1 hora.
+ * `appId` é o sistema que convidou: depois de criar a senha a pessoa cai nele.
  */
-export async function emitirLinkRecuperacao(email: string, validadeMs: number = VALIDADE_MS): Promise<string> {
+export async function emitirLinkRecuperacao(email: string, validadeMs: number = VALIDADE_MS, appId: string | null = null): Promise<string> {
   const token = randomBytes(32).toString("hex");
   await prisma.tokenRecuperacao.create({
     data: {
       tokenHash: hash(token),
       email: email.toLowerCase(),
+      appId,
       expiraEm: new Date(Date.now() + validadeMs),
     },
   });
   return urlAbsoluta(`/recuperar/${token}`);
 }
 
-export async function validarTokenRecuperacao(token: string): Promise<string | null> {
+export async function validarTokenRecuperacao(token: string): Promise<LinkRecuperacao | null> {
   const r = await prisma.tokenRecuperacao.findUnique({ where: { tokenHash: hash(token) } });
   if (!r || r.usadoEm || r.expiraEm < new Date()) return null;
-  return r.email;
+  return { email: r.email, appId: r.appId };
 }
 
-/** Consome o token (uso único, sem janela de corrida). Devolve o e-mail. */
-export async function consumirTokenRecuperacao(token: string): Promise<string | null> {
+/** Consome o token (uso único, sem janela de corrida). */
+export async function consumirTokenRecuperacao(token: string): Promise<LinkRecuperacao | null> {
   const tokenHash = hash(token);
   const r = await prisma.tokenRecuperacao.findUnique({ where: { tokenHash } });
   if (!r) return null;
@@ -42,5 +47,5 @@ export async function consumirTokenRecuperacao(token: string): Promise<string | 
     where: { tokenHash, usadoEm: null, expiraEm: { gt: new Date() } },
     data: { usadoEm: new Date() },
   });
-  return c.count === 1 ? r.email : null;
+  return c.count === 1 ? { email: r.email, appId: r.appId } : null;
 }
