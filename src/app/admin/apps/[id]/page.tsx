@@ -6,11 +6,14 @@ import { listarContas, papelDaRole, type Conta } from "@/lib/contas";
 import { ultimosLoginsNoApp } from "@/lib/eventos";
 import { permissoesPorApp } from "@/lib/permissoes";
 import { acaoPermissao } from "../../actions";
-import { acaoRemoverAplicacao, acaoSalvarAplicacao } from "../actions";
+import { empresasDasAplicacoes, listarEmpresas } from "@/lib/empresas";
+import { acaoRemoverAplicacao, acaoSalvarAplicacao, acaoVincularEmpresaDaAplicacao } from "../actions";
+import VinculoEmpresa from "../../_componentes/VinculoEmpresa";
 import CamposAplicacao from "../CamposAplicacao";
 import FormAcao from "../../_componentes/FormAcao";
 import { botao, botaoFraco, campo } from "../../_componentes/estilos";
 import Papel from "../../_componentes/Papel";
+import { VoltarLista } from "../../_componentes/lista/Interativos";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Aplicação" };
@@ -31,12 +34,13 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
   const c = await buscarCadastro(id);
   if (!c) notFound();
 
-  const liberados = (await permissoesPorApp())[c.id] ?? [];
+  const [porApp, empresas, vinculos] = await Promise.all([permissoesPorApp(), listarEmpresas(), empresasDasAplicacoes()]);
+  const liberados = porApp[c.id] ?? [];
   const entra = recebeLogin(c);
 
   return (
     <div className="mx-auto max-w-5xl">
-      <Link href="/admin/apps" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">← Aplicações</Link>
+      <VoltarLista secao="apps" base="/admin/apps">← Aplicações</VoltarLista>
       <div className="mt-2 mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{c.nome}</h1>
         <code className="rounded bg-[var(--color-cartao)] px-2 py-0.5 text-xs">{c.id}</code>
@@ -51,6 +55,13 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
         </section>
 
         <aside className="flex flex-col gap-4">
+          <VinculoEmpresa
+            acao={acaoVincularEmpresaDaAplicacao}
+            id={c.id}
+            atual={vinculos.get(c.id) ?? null}
+            empresas={empresas}
+            explicacao="Empresa responsável por esta aplicação. Serve para filtrar e agrupar o painel; não muda quem pode entrar."
+          />
           <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs">
             <div className="mb-2 font-semibold">Login</div>
             {entra ? (

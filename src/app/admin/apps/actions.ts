@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { exigirAdminAction } from "@/lib/admin";
 import { validarCadastro, type Cadastro, type EntradaCadastro } from "@/lib/apps";
 import { atualizarCadastro, buscarCadastro, criarCadastro, jaExiste, removerCadastro } from "@/lib/cadastro";
+import { empresasDasAplicacoes, listarEmpresas, vincularEmpresaDaAplicacao } from "@/lib/empresas";
 import { registrar } from "@/lib/eventos";
 import { integracoesDoApp } from "@/lib/clientesOidc";
 import type { Resultado } from "../actions";
@@ -109,4 +110,26 @@ export async function acaoRemoverAplicacao(_: Resultado | null, fd: FormData): P
   await registrar({ tipo: "app_removido", appId: atual.id, autor: admin.email, detalhe: resumo(atual) });
   revalidatePath("/admin/apps");
   redirect("/admin/apps");
+}
+
+/**
+ * Empresa responsável pela aplicação. Só organiza o painel: o login não lê
+ * este campo, e salvar o cadastro da aplicação não mexe nele.
+ */
+export async function acaoVincularEmpresaDaAplicacao(_: Resultado | null, fd: FormData): Promise<Resultado> {
+  const admin = await exigirAdminAction();
+  const id = texto(fd, "id");
+  const empresa = texto(fd, "empresa") || null;
+  if (!(await buscarCadastro(id))) return { ok: false, erro: "Aplicação não encontrada." };
+  const [empresas, vinculos] = await Promise.all([listarEmpresas(), empresasDasAplicacoes()]);
+  if (empresa && !empresas.some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
+  const anterior = vinculos.get(id) ?? null;
+  if (anterior === empresa) return { ok: true, mensagem: "Nada mudou." };
+  const nome = (v: string | null) => (v ? (empresas.find((e) => e.id === v)?.nome ?? v) : "sem empresa");
+
+  await vincularEmpresaDaAplicacao(id, empresa);
+  await registrar({ tipo: "app_alterado", appId: id, autor: admin.email, detalhe: `empresa: ${nome(anterior)} → ${nome(empresa)}` });
+  revalidatePath("/admin/apps");
+  revalidatePath(`/admin/apps/${id}`);
+  return { ok: true, mensagem: "Empresa salva." };
 }

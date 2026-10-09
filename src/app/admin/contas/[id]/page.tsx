@@ -4,6 +4,7 @@ import IconeProvedor from "@/components/IconeProvedor";
 import { listarApps } from "@/lib/cadastro";
 import { caixasDoDono, dominiosHospedados } from "@/lib/caixaEmail";
 import { buscarConta, papelDaRole } from "@/lib/contas";
+import { listarEmpresas } from "@/lib/empresas";
 import { listarEventos } from "@/lib/eventos";
 import { listarPermissoes } from "@/lib/permissoes";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
@@ -19,10 +20,13 @@ import {
   acaoPermissao,
   acaoRemoverConta,
   acaoResetarMfa,
+  acaoVincularEmpresaDaConta,
 } from "../../actions";
+import VinculoEmpresa from "../../_componentes/VinculoEmpresa";
 import FormAcao from "../../_componentes/FormAcao";
 import { botao, botaoFraco, campo } from "../../_componentes/estilos";
 import Papel from "../../_componentes/Papel";
+import { VoltarLista } from "../../_componentes/lista/Interativos";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Conta" };
@@ -49,16 +53,26 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
   // ADMIN. Comparar com a string "ADMIN" mostrava o Nicolas e o Abraão como
   // bloqueados no app.avilaops.com numa tela que devia mostrar o contrário.
   const ehAdmin = papelDaRole(conta.role) === "ADMIN";
-  const apps = await listarApps();
+  const [apps, empresas] = await Promise.all([listarApps(), listarEmpresas()]);
   const gb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(bytes >= 1024 ** 3 ? 0 : 1)} GB`;
 
   return (
     <div className="mx-auto max-w-5xl">
-      <Link href="/admin" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">← Contas</Link>
+      <VoltarLista secao="contas" base="/admin">← Contas</VoltarLista>
       <div className="mt-2 mb-6 flex items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{conta.nome}</h1>
         <Papel role={conta.role} />
         {conta.senhaProvisoria && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">senha provisória</span>}
+      </div>
+
+      <div className="mb-6">
+        <VinculoEmpresa
+          acao={acaoVincularEmpresaDaConta}
+          id={conta.id}
+          atual={conta.organizationId}
+          empresas={empresas}
+          explicacao="A empresa que esta conta representa. É o vínculo que as listagens usam para filtrar e agrupar; cada conta pertence a uma empresa só."
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

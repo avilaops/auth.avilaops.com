@@ -22,6 +22,11 @@ import type { Papel } from "@/lib/apps";
 
 let pool: Pool | null = null;
 
+/** A conexão com o banco das contas, para quem lê tabelas vizinhas (empresas). */
+export function poolPortal(): Pool {
+  return getPool();
+}
+
 function getPool(): Pool {
   if (pool) return pool;
   const url = process.env.PORTAL_DATABASE_URL;
@@ -174,6 +179,23 @@ export async function listarContas(
     [termo, `%${termo}%`, opcoes.papel ?? "", opcoes.incluirDesligadas ?? false],
   );
   return rows.map(daLinha);
+}
+
+/**
+ * Todas as contas, ligadas e desligadas, para a listagem do painel.
+ *
+ * A listagem filtra, ordena e pagina no servidor sobre este conjunto inteiro
+ * (ver `listagem.ts`): o último acesso vem de outro banco, então a ordenação
+ * por ele não cabe num `order by` daqui. O teto é folgado para o tamanho da
+ * base; se um dia for atingido, `truncado` avisa em vez de a tela mostrar um
+ * total menor como se fosse o total.
+ */
+export async function listarTodasAsContas(limite = 5000): Promise<{ contas: Conta[]; truncado: boolean }> {
+  const { rows } = await getPool().query<Linha>(
+    `select ${COLUNAS} from portal_clients order by lower(nome), id limit $1`,
+    [limite + 1],
+  );
+  return { contas: rows.slice(0, limite).map(daLinha), truncado: rows.length > limite };
 }
 
 /** Quantas contas por papel, para o painel abrir com o retrato do dia. */

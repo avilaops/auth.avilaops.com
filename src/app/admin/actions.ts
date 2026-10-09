@@ -17,6 +17,8 @@ import {
   type Conta,
   type Role,
 } from "@/lib/contas";
+import { vincularOrganizacao } from "@/lib/contas";
+import { listarEmpresas } from "@/lib/empresas";
 import { registrar } from "@/lib/eventos";
 import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
 import { emitirLinkRecuperacao } from "@/lib/recuperacao";
@@ -305,4 +307,28 @@ export async function acaoRemoverConta(fd: FormData): Promise<void> {
   await registrar({ tipo: "conta_removida", email: conta.email, autor: admin.email, detalhe: conta.nome });
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/**
+ * Liga a conta à empresa que ela representa, ou tira o vínculo.
+ *
+ * Só aceita empresa que existe no cadastro. O vínculo organiza o painel e é
+ * lido pelo app.avilaops.com; não muda papel nem permissão de login.
+ */
+export async function acaoVincularEmpresaDaConta(_: Resultado | null, fd: FormData): Promise<Resultado> {
+  const admin = await exigirAdminAction();
+  const id = texto(fd, "id");
+  const empresa = texto(fd, "empresa") || null;
+  const antes = await buscarConta(id);
+  if (!antes) return { ok: false, erro: "Conta não encontrada." };
+  const empresas = await listarEmpresas();
+  const nome = (v: string | null) => (v ? (empresas.find((e) => e.id === v)?.nome ?? v) : "sem empresa");
+  if (empresa && !empresas.some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
+  if (empresa === antes.organizationId) return { ok: true, mensagem: "Nada mudou." };
+
+  await vincularOrganizacao(id, empresa);
+  await registrar({ tipo: "conta_editada", email: antes.email, autor: admin.email, detalhe: `empresa: ${nome(antes.organizationId)} → ${nome(empresa)}` });
+  revalidatePath("/admin");
+  revalidatePath(`/admin/contas/${id}`);
+  return { ok: true, mensagem: "Empresa salva." };
 }
