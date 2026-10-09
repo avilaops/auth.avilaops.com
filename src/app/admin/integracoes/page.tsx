@@ -8,6 +8,7 @@ import { baseUrl } from "@/lib/urls";
 import FormAcao from "../_componentes/FormAcao";
 import { botao, campo } from "../_componentes/estilos";
 import BarraLista from "../_componentes/lista/BarraLista";
+import Folha from "../_componentes/lista/Folha";
 import { ExpandirGrupos, ItemIndisponivel, itemDeMenu, MenuAcoes } from "../_componentes/lista/Interativos";
 import { celula, Estado, linha, moldura, Paginacao, Resumo, SecaoGrupo, secundario, Th, Vazio } from "../_componentes/lista/Partes";
 import { acaoCriarIntegracao } from "./actions";
@@ -90,7 +91,32 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
           <h1 className="text-2xl font-semibold tracking-tight">Integrações</h1>
           <Resumo encontrados={encontradas.length} total={todas.length} um="integração" varios="integrações" complemento="cada sistema entra com identificador e segredo próprios" />
         </div>
-        <a href="#nova-integracao" className={`${botao} shrink-0 whitespace-nowrap`}>+ Nova integração</a>
+        <Folha rotulo="+ Nova integração" titulo="Nova integração" descricao="O segredo aparece aqui, uma vez só, logo depois de criar." classeDoBotao={`${botao} shrink-0 whitespace-nowrap`}>
+          <FormAcao acao={acaoCriarIntegracao}>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Identificador (client_id)
+              <input name="id" required placeholder="crm" className={`${campo} font-mono`} autoComplete="off" autoCapitalize="none" spellCheck={false} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Nome
+              <input name="nome" required placeholder="CRM" className={campo} autoComplete="off" />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Aplicação
+              <select name="appId" required defaultValue="" className={campo}>
+                <option value="" disabled>Escolha…</option>
+                {apps.map((a) => <option key={a.id} value={a.id}>{a.nome} ({a.id})</option>)}
+              </select>
+              <span className="text-[11px]">É o cadastro dela que decide quem pode entrar.</span>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereços de retorno (um por linha)
+              <textarea name="redirectUris" rows={2} placeholder="https://crm.avilaops.com/api/auth/callback" className={`${campo} font-mono text-xs`} autoCapitalize="none" spellCheck={false} />
+              <span className="text-[11px]">Em branco para sistema que só usa a API.</span>
+            </label>
+            <label className="flex min-h-11 items-start gap-2 text-xs">
+              <input type="checkbox" name="acessoMeta" className="mt-0.5" />
+              <span>Pode ler as conexões da Meta dos clientes<span className="block text-[11px] text-[var(--color-texto-fraco)]">Entrega o token de Páginas, WhatsApp e anúncios. Só para sistema da casa.</span></span>
+            </label>
+            <button type="submit" className={botao}>Criar e gerar segredo</button>
+          </FormAcao>
+        </Folha>
       </div>
 
       <BarraLista
@@ -104,7 +130,7 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
 
       <div id="lista-integracoes">
         {encontradas.length === 0 ? (
-          <Vazio filtrado={Boolean(consulta.q) || filtrosAtivos(consulta) > 0} base={BASE} semCadastro="Nenhuma integração ainda." acao={<a href="#nova-integracao" className={botao}>Criar a primeira</a>} />
+          <Vazio filtrado={Boolean(consulta.q) || filtrosAtivos(consulta) > 0} base={BASE} semCadastro="Nenhuma integração ainda. Use “Nova integração”, acima, para criar a primeira." />
         ) : grupos ? (
           <>
             <ExpandirGrupos alvo="lista-integracoes" />
@@ -127,45 +153,20 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
         )}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <section id="nova-integracao" className="scroll-mt-24 rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5">
-          <h2 className="mb-4 text-sm font-semibold">Nova integração</h2>
-          <FormAcao acao={acaoCriarIntegracao}>
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Identificador (client_id)
-              <input name="id" required placeholder="crm" className={`${campo} font-mono`} autoComplete="off" />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Nome
-              <input name="nome" required placeholder="CRM" className={campo} autoComplete="off" />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Aplicação
-              <select name="appId" required defaultValue="" className={campo}>
-                <option value="" disabled>Escolha…</option>
-                {apps.map((a) => <option key={a.id} value={a.id}>{a.nome} ({a.id})</option>)}
-              </select>
-              <span className="text-[11px]">É o cadastro dela que decide quem pode entrar.</span>
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereços de retorno (um por linha)
-              <textarea name="redirectUris" rows={3} placeholder="https://crm.avilaops.com/api/auth/callback" className={`${campo} font-mono text-xs`} />
-            </label>
-            <label className="flex min-h-11 items-start gap-2 text-xs">
-              <input type="checkbox" name="acessoMeta" className="mt-0.5" />
-              <span>Pode ler as conexões da Meta dos clientes<span className="block text-[11px] text-[var(--color-texto-fraco)]">Entrega o token de Páginas, WhatsApp e anúncios. Só para sistema da casa.</span></span>
-            </label>
-            <button type="submit" className={botao}>Criar e gerar segredo</button>
-          </FormAcao>
-        </section>
-
-        <section className="h-fit rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs text-[var(--color-texto-fraco)]">
-          <h2 className="mb-3 text-sm font-semibold text-[var(--color-texto)]">O que passar para o sistema</h2>
-          <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[150px_1fr]">
-            <dt>Descoberta OIDC</dt><dd><code className="select-all break-all">{base}/.well-known/openid-configuration</code></dd>
-            <dt>Autorização</dt><dd><code className="select-all break-all">{base}/oauth/authorize</code></dd>
-            <dt>Token</dt><dd><code className="select-all break-all">{base}/oauth/token</code></dd>
-            <dt>Dados do usuário</dt><dd><code className="select-all break-all">{base}/oauth/userinfo</code></dd>
-            <dt>Conexões da Meta</dt><dd><code className="select-all break-all">{base}/api/meta/ativos?email=…</code> (Basic com identificador e segredo)</dd>
-          </dl>
-        </section>
-      </div>
+      {/* Referência, não tarefa do dia: fica recolhida para a listagem caber na tela. */}
+      <details className="group mt-4 rounded-xl border border-[var(--color-borda)]">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--color-texto-fraco)] transition-transform group-open:rotate-90"><path d="m7 4 6 6-6 6" /></svg>
+          Endereços para configurar no sistema
+        </summary>
+        <dl className="grid gap-x-4 gap-y-2 border-t border-[var(--color-borda)] p-3 text-xs text-[var(--color-texto-fraco)] sm:grid-cols-[150px_1fr]">
+          <dt>Descoberta OIDC</dt><dd><code className="select-all break-all">{base}/.well-known/openid-configuration</code></dd>
+          <dt>Autorização</dt><dd><code className="select-all break-all">{base}/oauth/authorize</code></dd>
+          <dt>Token</dt><dd><code className="select-all break-all">{base}/oauth/token</code></dd>
+          <dt>Dados do usuário</dt><dd><code className="select-all break-all">{base}/oauth/userinfo</code></dd>
+          <dt>Conexões da Meta</dt><dd><code className="select-all break-all">{base}/api/meta/ativos?email=…</code> (Basic com identificador e segredo)</dd>
+        </dl>
+      </details>
     </div>
   );
 }

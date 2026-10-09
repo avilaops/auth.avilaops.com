@@ -73,6 +73,9 @@ export function Resumo({ encontrados, total, um, varios, complemento }: { encont
 
 export function Paginacao<T>({ pagina, base, consulta, def, extra, rotulo }: { pagina: Pagina<T>; base: string; consulta: Consulta; def: DefLista; extra?: string; rotulo: string }) {
   if (pagina.total === 0) return null;
+  // Tudo cabe na menor página: os controles seriam só ruído, e o total já está
+  // no cabeçalho da seção.
+  if (pagina.total <= TAMANHOS_DE_PAGINA[0]) return null;
   const botao = "flex min-h-11 items-center rounded-lg border border-[var(--color-borda)] px-3 text-sm hover:bg-[var(--color-cartao)] lg:min-h-9";
   const inativo = "flex min-h-11 items-center rounded-lg border border-[var(--color-borda)] px-3 text-sm text-[var(--color-texto-apagado)] lg:min-h-9";
   return (

@@ -49,10 +49,12 @@ type Props = {
   rotuloBusca?: string;
 };
 
+// Altura fixa, não mínima: o Safari do iPhone desenha `<select>` mais baixo que
+// o botão ao lado quando só há `min-height`, e a barra ficava desalinhada.
 const campoBase =
-  "min-h-11 rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 text-sm outline-none focus-visible:border-[var(--color-marca)] focus-visible:ring-2 focus-visible:ring-[var(--color-marca)]/30";
+  "h-11 lg:h-10 rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 text-sm outline-none focus-visible:border-[var(--color-marca)] focus-visible:ring-2 focus-visible:ring-[var(--color-marca)]/30";
 const botaoBarra =
-  "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--color-borda)] px-3 text-sm hover:bg-[var(--color-cartao)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-marca)]/40 lg:min-h-10";
+  "inline-flex h-11 shrink-0 items-center gap-2 rounded-lg border border-[var(--color-borda)] px-3 text-sm hover:bg-[var(--color-cartao)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-marca)]/40 lg:h-10";
 
 type Preferencia = { ocultas: string[] | null; densidade: "confortavel" | "compacta" };
 const PADRAO: Preferencia = { ocultas: null, densidade: "confortavel" };
