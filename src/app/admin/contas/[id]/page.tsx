@@ -7,6 +7,7 @@ import { buscarConta, papelDaRole } from "@/lib/contas";
 import { listarEmpresas, participacoesDaConta } from "@/lib/empresas";
 import { efeitoDoVinculo } from "@/lib/vinculoEmpresa";
 import { listarEventos } from "@/lib/eventos";
+import { descreverEvento } from "@/lib/eventosCatalogo";
 import { listarPermissoes } from "@/lib/permissoes";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
 import { nomeProvedor } from "@/lib/provedores";
@@ -59,12 +60,20 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
   const gb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(bytes >= 1024 ** 3 ? 0 : 1)} GB`;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto min-w-0 max-w-5xl">
       <VoltarLista secao="contas" base="/admin">← Contas</VoltarLista>
-      <div className="mt-2 mb-6 flex items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{conta.nome}</h1>
-        <Papel role={conta.role} />
-        {conta.senhaProvisoria && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">senha provisória</span>}
+      {/* Nome em cima, selos embaixo: lado a lado, um nome comprido empurrava os
+          selos para fora da tela e a página inteira passava a rolar de lado. */}
+      <div className="mt-2 mb-6">
+        <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">{conta.nome}</h1>
+        <p className="mt-0.5 break-all text-sm text-[var(--color-texto-fraco)]">{conta.email}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Papel role={conta.role} />
+          {!conta.ativa && <span className="whitespace-nowrap rounded-full border border-[var(--color-borda)] px-2 py-0.5 text-xs text-[var(--color-texto-fraco)]">desligada</span>}
+          {conta.senhaProvisoria && (
+            <span className="whitespace-nowrap rounded-full bg-[var(--marca-amarelo-suave)] px-2 py-0.5 text-xs text-[var(--color-marca-amarelo)]">senha provisória</span>
+          )}
+        </div>
       </div>
 
       <div className="mb-6">
@@ -121,7 +130,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                 <option value="SOCIO">Sócio da Avila Ops (opera tudo, menos o caixa)</option>
                 <option value="OWNER">Plataforma Avila Ops (acesso a tudo)</option>
               </select></label>
-            <div className="text-xs text-[var(--color-texto-fraco)]">Criada em {quando(conta.criadoEm)} · id {conta.id}</div>
+            <div className="break-all text-xs text-[var(--color-texto-fraco)]">Criada em {quando(conta.criadoEm)} · id {conta.id}</div>
             <button type="submit" className={botao}>Salvar</button>
           </FormAcao>
         </section>
@@ -261,7 +270,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
             {dominios.length > 0 && (
               <FormAcao acao={acaoCriarCaixa} className="flex flex-col gap-2">
                 <input type="hidden" name="id" value={conta.id} />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 [&>input]:min-w-0 [&>input]:flex-1 [&>select]:min-w-0 [&>select]:flex-1 [&>*]:basis-32">
                   <input
                     name="caixaUsuario"
                     placeholder={conta.email.split("@")[0]}
@@ -331,31 +340,43 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
         {eventos.length === 0 ? (
           <p className="text-xs text-[var(--color-texto-fraco)]">Nada registrado ainda.</p>
         ) : (
-          <ul className="flex flex-col gap-1 text-xs">
-            {eventos.map((e) => (
-              <li key={e.id} className="flex gap-3">
-                <span className="w-28 shrink-0 text-[var(--color-texto-fraco)]">{quando(e.criadoEm)}</span>
-                <span className="font-medium">{e.tipo}</span>
-                <span className="text-[var(--color-texto-fraco)]">
-                  {[e.appId, e.ip, e.detalhe, e.autor && e.autor !== e.email ? `por ${e.autor}` : null].filter(Boolean).join(" · ")}
-                </span>
-              </li>
-            ))}
+          // No celular cada evento é um bloco (o quê, depois quando e os
+          // detalhes); três colunas lado a lado em 390px quebravam palavra por
+          // palavra. O nome é o do catálogo, não o código interno do evento.
+          <ul className="flex flex-col divide-y divide-[var(--color-separador)] text-xs">
+            {eventos.map((e) => {
+              const detalhes = [e.appId, e.detalhe, e.autor && e.autor !== e.email ? `por ${e.autor}` : null, e.ip].filter(Boolean).join(" · ");
+              return (
+                <li key={e.id} className="grid gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[8rem_14rem_minmax(0,1fr)] sm:py-1.5">
+                  <span className="font-medium sm:order-2">{descreverEvento(e.tipo).rotulo}</span>
+                  <span className="text-[var(--color-texto-fraco)] sm:order-1">{quando(e.criadoEm)}</span>
+                  {detalhes && <span className="break-words text-[var(--color-texto-fraco)] sm:order-3">{detalhes}</span>}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
 
-      <section className="mt-6 rounded-xl border border-red-900/40 p-6">
-        <h2 className="mb-1 text-sm font-semibold text-red-400">Remover conta</h2>
+      <section className="mt-6 rounded-xl border border-[var(--color-marca-vermelho)]/40 p-6">
+        <h2 className="mb-1 text-sm font-semibold text-[var(--color-marca-vermelho)]">Remover conta</h2>
         <p className="mb-3 text-xs text-[var(--color-texto-fraco)]">
-          Irreversível. Se a conta tiver pedidos, domínios ou outros vínculos no app.avilaops.com, o banco recusa a remoção.
+          Não tem volta: a conta, as liberações de aplicação e os logins sociais dela deixam de existir. Conta que já participou de uma
+          empresa, tem pedidos ou autorizou conexões não pode ser removida; para essas, o caminho é desligar.
         </p>
-        <form action={acaoRemoverConta}>
+        <FormAcao acao={acaoRemoverConta}>
           <input type="hidden" name="id" value={conta.id} />
-          <button type="submit" className="rounded-lg border border-red-900/60 px-4 py-2 text-sm text-red-400 hover:bg-red-950/40">
-            Remover {conta.email}
+          <label className="flex min-h-11 cursor-pointer items-start gap-2 text-xs">
+            <input type="checkbox" name="confirmar" className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Entendo que remover <span className="break-all font-medium">{conta.email}</span> não tem volta.</span>
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-11 items-center justify-center self-start rounded-lg border border-[var(--color-marca-vermelho)]/60 px-4 py-2 text-sm text-[var(--color-marca-vermelho)] hover:bg-[var(--marca-vermelho-suave)] disabled:opacity-60"
+          >
+            Remover conta
           </button>
-        </form>
+        </FormAcao>
       </section>
     </div>
   );
