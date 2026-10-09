@@ -112,3 +112,69 @@ export async function ultimosLogins(): Promise<Map<string, Date>> {
   for (const r of rows) if (r.email && r._max.criadoEm) mapa.set(r.email, r._max.criadoEm);
   return mapa;
 }
+
+export type FiltroEventos = {
+  busca?: string;
+  tipos?: string[];
+  apps?: string[];
+  desde?: Date;
+  /** Exclusivo. */
+  ate?: Date;
+  /** Só eventos até este instante: é o que mantém as páginas paradas enquanto chegam eventos novos. */
+  referencia?: Date;
+};
+
+function ondeEventos(f: FiltroEventos) {
+  const busca = f.busca?.trim();
+  const limiteSuperior = [f.ate ? { lt: f.ate } : null, f.referencia ? { lte: f.referencia } : null].filter((v): v is { lt: Date } | { lte: Date } => v !== null);
+  return {
+    ...(f.tipos && f.tipos.length > 0 ? { tipo: { in: f.tipos } } : {}),
+    ...(f.apps && f.apps.length > 0 ? { appId: { in: f.apps } } : {}),
+    AND: [
+      ...(f.desde ? [{ criadoEm: { gte: f.desde } }] : []),
+      ...limiteSuperior.map((criadoEm) => ({ criadoEm })),
+      ...(busca
+        ? [{
+            OR: [
+              { email: { contains: busca, mode: "insensitive" as const } },
+              { autor: { contains: busca, mode: "insensitive" as const } },
+              { detalhe: { contains: busca, mode: "insensitive" as const } },
+              { ip: { contains: busca } },
+            ],
+          }]
+        : []),
+    ],
+  };
+}
+
+/**
+ * Uma página da auditoria, com o total do recorte.
+ *
+ * Filtro, ordenação e corte acontecem no banco: a tabela só cresce. O
+ * desempate por `id` deixa a ordem igual em toda consulta, e `referencia`
+ * congela o conjunto no instante em que a pessoa abriu a listagem, para um
+ * evento novo não empurrar linhas de uma página para a outra.
+ */
+export async function consultarEventos(f: FiltroEventos, opts: { pag: number; por: number; dir: "asc" | "desc" }) {
+  const where = ondeEventos(f);
+  const total = await prisma.evento.count({ where });
+  const paginas = Math.max(1, Math.ceil(total / opts.por));
+  const pag = Math.min(Math.max(1, opts.pag), paginas);
+  const itens = await prisma.evento.findMany({
+    where,
+    orderBy: [{ criadoEm: opts.dir }, { id: opts.dir }],
+    skip: (pag - 1) * opts.por,
+    take: opts.por,
+  });
+  return { itens, total, pag, paginas, de: total === 0 ? 0 : (pag - 1) * opts.por + 1, ate: (pag - 1) * opts.por + itens.length };
+}
+
+/** Tipos e aplicações que de fato aparecem na auditoria, para montar os filtros. */
+export async function facetasDosEventos(): Promise<{ tipos: string[]; apps: string[]; total: number }> {
+  const [tipos, apps, total] = await Promise.all([
+    prisma.evento.groupBy({ by: ["tipo"] }),
+    prisma.evento.groupBy({ by: ["appId"], where: { appId: { not: null } } }),
+    prisma.evento.count(),
+  ]);
+  return { tipos: tipos.map((t) => t.tipo), apps: apps.flatMap((a) => (a.appId ? [a.appId] : [])), total };
+}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VoltarLista } from "../../_componentes/lista/Interativos";
 import { notFound } from "next/navigation";
 import IconeProvedor from "@/components/IconeProvedor";
 import { listarConectores } from "@/lib/conectores";
@@ -18,7 +19,7 @@ export default async function ConectorPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/admin/conectores" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">← Conectores</Link>
+      <VoltarLista secao="conectores" base="/admin/conectores">← Conectores</VoltarLista>
       <div className="mt-2 mb-6 flex items-center gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)]">
           <IconeProvedor id={p.id} tamanho={p.id === "govbr" ? 16 : 26} />

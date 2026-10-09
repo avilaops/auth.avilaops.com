@@ -60,6 +60,15 @@ sendo trabalho de cada sistema consumidor.
   na tela em que é gerado.
 - `/api/meta/ativos` é a única rota que entrega token da Meta. Quem a chama
   precisa da permissão marcada na integração, e cada leitura vai para `eventos`.
+- Listagem do painel passa por `src/lib/listagem.ts`: busca, filtro, ordenação,
+  agrupamento e página são calculados no servidor sobre o conjunto inteiro, e
+  o estado mora na URL. Não filtrar nem ordenar só a página visível.
+- Empresa em listagem vem do vínculo gravado (`portal_clients.organization_id`,
+  `aplicacoes.organizacao_id`). Nunca deduzir por domínio de e-mail ou nome. A
+  auditoria não guarda empresa: não reconstruir pelo vínculo de hoje.
+- CPF não vai para a URL: a busca por CPF usa o cookie de sessão
+  `admin_busca`. Constante usada por página de servidor não mora em arquivo
+  `"use client"`.
 - Código em TypeScript.
 
 ## Entrar dentro do auth

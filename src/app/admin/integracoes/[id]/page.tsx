@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VoltarLista } from "../../_componentes/lista/Interativos";
 import { notFound } from "next/navigation";
 import { listarCadastro } from "@/lib/cadastro";
 import { buscarIntegracao } from "@/lib/clientesOidc";
@@ -17,7 +18,7 @@ export default async function IntegracaoPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/admin/integracoes" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">← Integrações</Link>
+      <VoltarLista secao="integracoes" base="/admin/integracoes">← Integrações</VoltarLista>
       <div className="mt-2 mb-6 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">{i.nome}</h1>
         <code className="rounded bg-[var(--color-cartao)] px-2 py-0.5 text-xs">{i.id}</code>
