@@ -27,6 +27,8 @@ export const EVENTOS: Record<string, Entrada> = {
   senha_redefinida: { rotulo: "Senha redefinida", resultado: "atencao" },
   recuperacao_emitida: { rotulo: "Link de recuperação emitido", resultado: "informativo" },
   recuperacao_usada: { rotulo: "Link de recuperação usado", resultado: "informativo", proprio: true },
+  convite_enviado: { rotulo: "Convite enviado por e-mail", resultado: "sucesso" },
+  convite_nao_enviado: { rotulo: "Convite não enviado", resultado: "atencao" },
   conta_criada: { rotulo: "Conta criada", resultado: "sucesso" },
   conta_editada: { rotulo: "Conta editada", resultado: "informativo" },
   conta_removida: { rotulo: "Conta removida", resultado: "atencao" },

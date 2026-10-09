@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarContaPorEmail, criarConta } from "@/lib/contas";
 import { podeReemitirConvite } from "@/lib/convite";
+import { emailDeConvite, textoDeFora, type DadosDoConvite, type Envio } from "@/lib/conviteEmail";
+import { emailConfigurado, enviarEmail } from "@/lib/email";
 import { registrar } from "@/lib/eventos";
 import { autenticarCliente, type ClienteOIDC } from "@/lib/oidc";
 import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
@@ -24,6 +27,11 @@ export const dynamic = "force-dynamic";
  * do **próprio** app: o TMS não libera nem revoga acesso a outro sistema.
  *
  * `POST`   `{ email, nome, cpf?, telefone? }` — garante a conta e libera o app.
+ *          `destino` é a porta de entrada do sistema (mesmo host), para onde a
+ *          pessoa vai depois de criar a senha.
+ *          Com `enviarConvite: true` (e, se quiser, `empresa` e `convidadoPor`),
+ *          o login escreve para a pessoa. A resposta traz `envio`: `enviado`,
+ *          `sem_email` (SMTP não configurado aqui), `limite` ou `falhou`.
  * `DELETE` `?email=` — revoga a liberação do app. A conta continua existindo.
  *
  * O convite (link para a pessoa definir a senha) só sai para conta **criada
@@ -77,7 +85,7 @@ async function preparar(req: NextRequest) {
   const app = await buscarApp(cliente.appId);
   if (!app) return { erro: erro(409, `${cliente.nome} não está habilitado no login único.`) } as const;
 
-  return { cliente, autor: `app:${cliente.id}`, ip } as const;
+  return { cliente, app, autor: `app:${cliente.id}`, ip } as const;
 }
 
 export async function POST(req: NextRequest) {
@@ -130,16 +138,52 @@ export async function POST(req: NextRequest) {
   // nunca criou senha.
   const reemitir = !criada && conta !== null && podeReemitirConvite({ ...conta, criadaPor: await quemCriou(email) }, p.autor);
 
+  // Porta de entrada do sistema (`/entrar`, `/api/auth/sso`…). Só vale endereço
+  // do próprio host dele; qualquer outra coisa vira a raiz.
+  const destino = returnToSeguro(typeof corpo?.destino === "string" ? corpo.destino : null, p.app);
+
   let convite: string | null = null;
   if (criada || reemitir) {
-    convite = await emitirLinkRecuperacao(email, CONVITE_VALIDADE_MS, p.cliente.appId);
+    convite = await emitirLinkRecuperacao(email, CONVITE_VALIDADE_MS, p.cliente.appId, destino);
     await registrar({ tipo: "recuperacao_emitida", email, appId: p.cliente.appId, autor: p.autor, ip: p.ip, detalhe: criada ? "convite, 7 dias" : "convite reenviado, 7 dias" });
   }
 
+  // O sistema pediu que o login escreva para a pessoa. Enviado, o endereço de
+  // criar senha não volta na resposta: foi direto à caixa de quem é. Se o envio
+  // não saiu, ele volta como antes e o sistema decide o que fazer.
+  let envio: Envio = "nao_pedido";
+  if (corpo?.enviarConvite === true) {
+    envio = await enviarConvite({
+      email,
+      nome: conta?.nome ?? nome,
+      sistema: p.app.nome,
+      enderecoDoSistema: destino,
+      empresa: textoDeFora(corpo.empresa),
+      convidadoPor: textoDeFora(corpo.convidadoPor),
+      link: convite,
+    });
+    await registrar({ tipo: envio === "enviado" ? "convite_enviado" : "convite_nao_enviado", email, appId: p.cliente.appId, autor: p.autor, ip: p.ip, detalhe: envio === "enviado" ? (convite ? "com o endereço de criar senha" : "conta já tinha senha") : envio });
+  }
+
   return NextResponse.json(
-    { email, criada, convite },
+    { email, criada, convite: envio === "enviado" ? null : convite, envio },
     { status: criada ? 201 : 200, headers: { "Cache-Control": "no-store" } },
   );
+}
+
+/** Escreve para a pessoa convidada. Nunca lança: o acesso já foi liberado e a resposta diz o que houve com o e-mail. */
+async function enviarConvite(d: DadosDoConvite & { email: string }): Promise<Envio> {
+  if (!emailConfigurado()) return "sem_email";
+  // Freio por destinatário: um sistema com defeito (ou alguém insistindo no
+  // botão) não vira uma enxurrada na caixa de uma pessoa.
+  if (!(await limitar(`convite-email:${d.email}`, 5, 60 * 60 * 1000))) return "limite";
+  try {
+    await enviarEmail({ para: d.email, ...emailDeConvite(d) });
+    return "enviado";
+  } catch (e) {
+    console.error("[provisionamento] convite não enviado:", e instanceof Error ? e.message : e);
+    return "falhou";
+  }
 }
 
 export async function DELETE(req: NextRequest) {

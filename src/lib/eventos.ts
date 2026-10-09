@@ -9,6 +9,9 @@ export type TipoEvento =
   | "senha_redefinida"
   | "recuperacao_emitida"
   | "recuperacao_usada"
+  // Convite que o login escreveu a pedido de um sistema (provisionamento).
+  | "convite_enviado"
+  | "convite_nao_enviado"
   | "conta_criada"
   | "conta_editada"
   | "conta_removida"
