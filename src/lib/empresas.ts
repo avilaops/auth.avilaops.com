@@ -60,3 +60,32 @@ export async function empresasDasAplicacoes(): Promise<Map<string, string>> {
 export async function vincularEmpresaDaAplicacao(appId: string, organizacaoId: string | null): Promise<void> {
   await prisma.aplicacao.update({ where: { id: appId }, data: { organizacaoId } });
 }
+
+export type Participacao = { organizacaoId: string; empresa: string; papel: string; situacao: string; origem: string; emVigor: boolean };
+
+/**
+ * Participações da conta em empresas, como o app.avilaops.com as enxerga.
+ *
+ * É a autorização de fato: o app abre os dados de uma empresa para quem tem
+ * participação em vigor (`core.effective_memberships`). O painel só mostra;
+ * quem grava é o gatilho do banco do app, a partir do vínculo da conta.
+ * Devolve `null` quando o esquema não existe ou não pode ser lido, para a
+ * tela dizer "não consegui ler" em vez de "nenhuma".
+ */
+export async function participacoesDaConta(contaId: string): Promise<Participacao[] | null> {
+  try {
+    const { rows } = await poolPortal().query<{ organization_id: string; name: string | null; role: string; status: string; source: string; em_vigor: boolean }>(
+      `select m.organization_id, o.name, m.role, m.status, m.source,
+              exists(select 1 from core.effective_memberships e where e.id = m.id) as em_vigor
+         from core.memberships m left join operations.organizations o on o.id = m.organization_id
+        where m.identity_id = $1 and m.status <> 'REVOKED'
+        order by lower(o.name)`,
+      [contaId],
+    );
+    return rows.map((r) => ({ organizacaoId: r.organization_id, empresa: r.name ?? "Empresa não encontrada", papel: r.role, situacao: r.status, origem: r.source, emVigor: r.em_vigor }));
+  } catch (erro) {
+    const codigo = (erro as { code?: string })?.code;
+    if (codigo === "3F000" || codigo === "42P01" || codigo === "42501") return null;
+    throw erro;
+  }
+}

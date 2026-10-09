@@ -1,12 +1,13 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/admin";
 import { ehDaCasa, listarTodasAsContas } from "@/lib/contas";
 import { agruparContas, consultarContas, defContas, montarContas, ROTULO_PAPEL, type ContaListada } from "@/lib/contasLista";
 import { listarEmpresas } from "@/lib/empresas";
 import { ultimosLogins } from "@/lib/eventos";
-import { COOKIE_BUSCA, dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
+import { dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
+import { lerBusca } from "@/lib/buscaSigilosa";
 import { ativosPorEmail, diagnosticar } from "@/lib/segundoFator";
+import { acaoEsquecerBusca, acaoGuardarBusca } from "./actions";
 import { botao } from "./_componentes/estilos";
 import BarraLista, { type Atalho } from "./_componentes/lista/BarraLista";
 import { ExpandirGrupos, itemDeMenu, MenuAcoes } from "./_componentes/lista/Interativos";
@@ -46,23 +47,25 @@ function atalhos(consulta: Consulta, def: DefLista): Atalho[] {
 
 export default async function ContasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [sessao, { contas: brutas, truncado }, empresas, logins, comFator, saude, jarra] = await Promise.all([
+  const [sessao, { contas: brutas, truncado }, empresas, logins, comFator, saude] = await Promise.all([
     exigirAdmin(),
     listarTodasAsContas(),
     listarEmpresas(),
     ultimosLogins(),
     ativosPorEmail(),
     diagnosticar(),
-    cookies(),
   ]);
 
   const todas = montarContas(brutas, empresas, logins, comFator);
   const def = defContas(empresas, todas);
   const consulta = lerConsulta(params, def);
-  // CPF digitado na busca chega por cookie de sessão; a URL só leva o aviso `qs=1`.
-  const sigilosa = params.qs === "1" ? decodificar(jarra.get(COOKIE_BUSCA)?.value ?? "").slice(0, 40) : "";
+  // CPF digitado na busca fica guardado no servidor; a URL só leva o
+  // identificador (`qs`), que vale para esta conta e por tempo limitado.
+  const idDaBusca = typeof params.qs === "string" ? params.qs : "";
+  const sigilosa = idDaBusca ? ((await lerBusca(idDaBusca, sessao.email, "contas")) ?? "") : "";
+  const buscaVencida = Boolean(idDaBusca) && !sigilosa;
   const busca = sigilosa || consulta.q;
-  const extra = sigilosa ? "qs=1" : undefined;
+  const extra = sigilosa ? `qs=${idDaBusca}` : undefined;
 
   const encontradas = consultarContas(todas, consulta, busca);
   const filtrado = Boolean(busca) || filtrosAtivos(consulta) > 0;
@@ -108,6 +111,12 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         </p>
       )}
 
+      {buscaVencida && (
+        <p role="status" className="mb-3 rounded-lg border border-[var(--color-borda)] p-3 text-xs text-[var(--color-texto-fraco)]">
+          A busca por CPF deste endereço venceu ou não é desta sessão. Digite de novo para refazê-la.
+        </p>
+      )}
+
       <BarraLista
         secao="contas"
         usuario={sessao.email}
@@ -115,7 +124,8 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         consulta={consulta}
         placeholder="Buscar por nome, e-mail ou CPF"
         buscaInicial={sigilosa || undefined}
-        buscaSigilosa
+        guardarBusca={acaoGuardarBusca}
+        esquecerBusca={acaoEsquecerBusca}
         atalhos={atalhos(consulta, def)}
         colunas={[
           { id: "empresa", rotulo: "Empresa" },

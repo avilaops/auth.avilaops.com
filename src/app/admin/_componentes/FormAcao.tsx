@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useTransition } from "react";
 import type { Resultado } from "../actions";
 import { botaoFraco } from "./estilos";
 
@@ -10,6 +10,15 @@ type Acao = (estado: Resultado | null, fd: FormData) => Promise<Resultado>;
  * Formulário genérico ligado a uma server action. Mostra o resultado embaixo;
  * quando a ação devolve um segredo (senha, link), exibe em destaque com botão
  * de copiar — é a única vez que ele aparece.
+ *
+ * O envio é feito à mão (`onSubmit`), e não pelo `action` do formulário, por
+ * causa de um detalhe do React: formulário enviado por `action` é limpo ao
+ * terminar, **inclusive quando a ação recusa**. A pessoa escolhia a empresa,
+ * esquecia a confirmação, via o erro e o campo já tinha voltado ao valor
+ * antigo; marcar a caixa e salvar de novo gravava "nada mudou". Agora o que
+ * foi digitado fica na tela quando dá erro e só é limpo quando dá certo. O
+ * `action` continua no formulário para o envio funcionar antes de o
+ * JavaScript carregar.
  */
 export default function FormAcao({
   acao,
@@ -21,9 +30,24 @@ export default function FormAcao({
   className?: string;
 }) {
   const [estado, dispatch, pendente] = useActionState(acao, null);
+  const [, iniciar] = useTransition();
+  const formulario = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (estado?.ok) formulario.current?.reset();
+  }, [estado]);
 
   return (
-    <form action={dispatch} className={className ?? "flex flex-col gap-3"}>
+    <form
+      ref={formulario}
+      action={dispatch}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+        iniciar(() => dispatch(dados));
+      }}
+      className={className ?? "flex flex-col gap-3"}
+    >
       <fieldset disabled={pendente} className="contents">
         {children}
       </fieldset>

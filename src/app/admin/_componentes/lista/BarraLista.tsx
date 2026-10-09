@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
   ATALHOS_DE_PERIODO,
-  COOKIE_BUSCA,
   filtrosAtivos,
   paraParams,
   pareceCpf,
@@ -37,8 +36,12 @@ type Props = {
   placeholder: string;
   /** Texto da busca quando ela não está na URL (CPF). */
   buscaInicial?: string;
-  /** Busca que parece CPF vai por cookie de sessão, nunca pela URL. */
-  buscaSigilosa?: boolean;
+  /**
+   * Com estas duas ações, busca que parece CPF é guardada no servidor e a URL
+   * leva só o identificador devolvido. Sem elas, a seção não aceita CPF.
+   */
+  guardarBusca?: (secao: string, termo: string) => Promise<{ ok: true; id: string } | { ok: false; erro: string }>;
+  esquecerBusca?: (secao: string) => Promise<void>;
   atalhos?: Atalho[];
   colunas?: ColunaOpcional[];
   /** Colunas escondidas enquanto a pessoa não escolher. */
@@ -93,7 +96,7 @@ function Icone({ d }: { d: string }) {
   );
 }
 
-export default function BarraLista({ secao, usuario, def, consulta, placeholder, buscaInicial, buscaSigilosa, atalhos, colunas, ocultasDePadrao, rotuloBusca = "Buscar" }: Props) {
+export default function BarraLista({ secao, usuario, def, consulta, placeholder, buscaInicial, guardarBusca, esquecerBusca, atalhos, colunas, ocultasDePadrao, rotuloBusca = "Buscar" }: Props) {
   const router = useRouter();
   const caminho = usePathname();
   const [pendente, iniciar] = useTransition();
@@ -120,6 +123,12 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
   // ── Busca ───────────────────────────────────────────────────────────────
   const [texto, setTexto] = useState(buscaInicial ?? consulta.q);
   const ultimaEnviada = useRef(buscaInicial ?? consulta.q);
+  const [erroBusca, setErroBusca] = useState("");
+  // Versões anteriores guardavam a busca por CPF num cookie do navegador.
+  // Quem ainda tiver esse cookie o perde ao abrir o painel.
+  useEffect(() => {
+    if (document.cookie.includes("admin_busca=")) document.cookie = "admin_busca=; Path=/admin; Max-Age=0; SameSite=Strict";
+  }, []);
   useEffect(() => {
     if (texto === ultimaEnviada.current) return;
     // Espera a pessoa parar de digitar. Resposta velha não sobrescreve a nova:
@@ -127,11 +136,19 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
     const espera = window.setTimeout(() => {
       ultimaEnviada.current = texto;
       const termo = texto.trim();
-      if (buscaSigilosa && pareceCpf(termo)) {
-        document.cookie = `${COOKIE_BUSCA}=${encodeURIComponent(termo)}; Path=/admin; SameSite=Strict${location.protocol === "https:" ? "; Secure" : ""}`;
-        ir({ q: "" }, { qs: "1" });
+      if (guardarBusca && pareceCpf(termo)) {
+        // O CPF vai no corpo de uma ação de servidor e fica guardado lá, cifrado.
+        // A URL recebe só o identificador, que não abre nada fora desta sessão.
+        void guardarBusca(secao, termo).then((r) => {
+          if (ultimaEnviada.current !== texto) return; // a pessoa já digitou outra coisa
+          if (r.ok) {
+            setErroBusca("");
+            ir({ q: "" }, { qs: r.id });
+          } else setErroBusca(r.erro);
+        });
       } else {
-        if (buscaSigilosa) document.cookie = `${COOKIE_BUSCA}=; Path=/admin; Max-Age=0; SameSite=Strict`;
+        setErroBusca("");
+        if (esquecerBusca && buscaInicial) void esquecerBusca(secao);
         ir({ q: termo });
       }
     }, 300);
@@ -345,6 +362,8 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
         </div>
       </div>
 
+      {erroBusca && <p role="alert" className="text-xs text-red-400">{erroBusca}</p>}
+
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-texto-fraco)]">
         {chips.map((c) => (
           <button
@@ -364,7 +383,8 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
             onClick={() => {
               setTexto("");
               ultimaEnviada.current = "";
-              if (buscaSigilosa) document.cookie = `${COOKIE_BUSCA}=; Path=/admin; Max-Age=0; SameSite=Strict`;
+              setErroBusca("");
+              if (esquecerBusca) void esquecerBusca(secao);
               ir({ q: "", filtros: {}, periodo: "", de: "", ate: "" });
             }}
             className="inline-flex min-h-9 items-center px-2 text-[var(--color-marca)] hover:underline"
