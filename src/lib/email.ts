@@ -61,9 +61,32 @@ export function lerConfiguracaoSmtp(): ConfiguracaoSmtp | null {
   };
 }
 
+/**
+ * Envio pelo n8n, para quando este ambiente não tem SMTP próprio.
+ *
+ * O n8n já guarda a credencial de SMTP da casa e o auth já fala com ele para
+ * criar caixa de e-mail (`lib/caixaN8n.ts`), com um token no `.env`. O fluxo
+ * "Auth - Enviar e-mail" atende em `auth-enviar-email`, ao lado do
+ * `auth-criar-caixa`, com o mesmo token: nenhuma senha de e-mail precisa
+ * morar aqui. `N8N_EMAIL_WEBHOOK_URL` só existe para apontar outro endereço.
+ */
+export function lerReleDeEmail(env: Record<string, string | undefined> = process.env): { url: string; token: string } | null {
+  const token = (env.N8N_CAIXA_WEBHOOK_TOKEN ?? "").trim();
+  if (!token) return null;
+  const explicito = (env.N8N_EMAIL_WEBHOOK_URL ?? "").trim();
+  const vizinho = (env.N8N_CAIXA_WEBHOOK_URL ?? "").trim();
+  try {
+    const url = explicito ? new URL(explicito) : vizinho ? new URL("auth-enviar-email", vizinho) : null;
+    // O token viaja no cabeçalho: só por https.
+    return url && url.protocol === "https:" ? { url: url.toString(), token } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** A plataforma consegue mandar e-mail neste ambiente? */
 export function emailConfigurado(): boolean {
-  return lerConfiguracaoSmtp() !== null;
+  return lerConfiguracaoSmtp() !== null || lerReleDeEmail() !== null;
 }
 
 // --- Montagem da mensagem (pura) -------------------------------------------
@@ -290,9 +313,13 @@ function b64(texto: string): string {
  * e ninguém procura.
  */
 export async function enviarEmail(email: EmailParaEnviar): Promise<{ messageId: string }> {
-  const config = lerConfiguracaoSmtp();
-  if (!config) throw new FalhaDeEnvio("SMTP não configurado neste ambiente");
   if (!enderecoValido(email.para)) throw new FalhaDeEnvio(`destinatário inválido: ${umaLinha(email.para).slice(0, 80)}`);
+  const config = lerConfiguracaoSmtp();
+  if (!config) {
+    const rele = lerReleDeEmail();
+    if (!rele) throw new FalhaDeEnvio("envio de e-mail não configurado neste ambiente");
+    return enviarPeloN8n(rele, email);
+  }
 
   const id = randomUUID();
   const mensagem = montarMensagem(email, config, new Date(), id);
@@ -338,6 +365,30 @@ export async function enviarEmail(email: EmailParaEnviar): Promise<{ messageId: 
   } finally {
     conversa.fechar();
   }
+}
+
+/**
+ * Entrega a mensagem ao fluxo do n8n, que a envia pelo SMTP dele. O fluxo
+ * responde `{ ok, messageId }` ou `{ ok: false, erro }` na mesma requisição.
+ */
+export async function enviarPeloN8n(rele: { url: string; token: string }, email: EmailParaEnviar, buscar: typeof fetch = fetch): Promise<{ messageId: string }> {
+  let resposta: Response;
+  try {
+    resposta = await buscar(rele.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-avila-webhook-token": rele.token },
+      body: JSON.stringify({ para: email.para.trim(), assunto: umaLinha(email.assunto), texto: email.texto, html: email.html ?? "", nomeDe: email.nomeDe ?? "" }),
+      signal: AbortSignal.timeout(20_000),
+      cache: "no-store",
+    });
+  } catch {
+    throw new FalhaDeEnvio("o n8n não respondeu ao pedido de envio");
+  }
+  const dados = (await resposta.json().catch(() => null)) as { ok?: unknown; messageId?: unknown; erro?: unknown } | null;
+  if (!resposta.ok || dados?.ok !== true) {
+    throw new FalhaDeEnvio(typeof dados?.erro === "string" ? umaLinha(dados.erro).slice(0, 200) : `o n8n respondeu ${resposta.status}`);
+  }
+  return { messageId: typeof dados.messageId === "string" ? dados.messageId : randomUUID() };
 }
 
 /** O nome que a plataforma dá de si no EHLO. Não é o domínio da loja. */
