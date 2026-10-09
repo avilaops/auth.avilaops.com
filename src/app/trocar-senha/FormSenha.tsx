@@ -6,9 +6,11 @@ import { CampoSenha } from "@/components/CampoSenha";
 /**
  * Formulário de senha reaproveitado em dois fluxos:
  * - troca pelo usuário logado (`/trocar-senha`, pede a atual);
- * - recuperação por link (`/recuperar/[token]`, não pede a atual).
+ * - recuperação por link (`/recuperar/[token]`, não pede a atual);
+ * - confirmação do cadastro próprio (`/criar/confirmar/[token]`), que usa a
+ *   mesma forma de link e manda para outra rota (`rota`).
  */
-export default function FormSenha({ destino, token }: { destino: string; token?: string }) {
+export default function FormSenha({ destino, token, rota, rotuloBotao }: { destino: string; token?: string; rota?: string; rotuloBotao?: string }) {
   const [atual, setAtual] = useState("");
   const [nova, setNova] = useState("");
   const [confirma, setConfirma] = useState("");
@@ -21,7 +23,7 @@ export default function FormSenha({ destino, token }: { destino: string; token?:
     if (nova !== confirma) return setErro("As senhas não conferem.");
     setEnviando(true);
     try {
-      const res = await fetch(token ? "/api/auth/recuperar" : "/api/auth/trocar-senha", {
+      const res = await fetch(rota ?? (token ? "/api/auth/recuperar" : "/api/auth/trocar-senha"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(token ? { token, nova } : { atual, nova }),
@@ -41,11 +43,11 @@ export default function FormSenha({ destino, token }: { destino: string; token?:
       {!token && (
         <CampoSenha label="Senha atual" value={atual} onChange={setAtual} required />
       )}
-      <CampoSenha label="Nova senha (mín. 8)" value={nova} onChange={setNova} autoComplete="new-password" minLength={8} required />
+      <CampoSenha label={rota ? "Senha (mín. 8)" : "Nova senha (mín. 8)"} value={nova} onChange={setNova} autoComplete="new-password" minLength={8} required />
       <CampoSenha label="Confirmar" value={confirma} onChange={setConfirma} autoComplete="new-password" required />
       {erro && <p role="alert" className="text-xs text-red-400">{erro}</p>}
       <button type="submit" disabled={enviando} className="mt-1 rounded-lg bg-[var(--color-marca-solida)] px-4 py-2.5 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90 disabled:opacity-60">
-        {enviando ? "Salvando…" : "Salvar senha"}
+        {enviando ? "Salvando…" : (rotuloBotao ?? "Salvar senha")}
       </button>
     </form>
   );

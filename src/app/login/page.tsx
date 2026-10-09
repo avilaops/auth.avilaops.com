@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { destinoInicial } from "@/lib/admin";
 import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { conectoresLigados } from "@/lib/conectores";
+import { emailConfigurado } from "@/lib/email";
 import { podeEntrar } from "@/lib/permissoes";
 import { desafioNecessario } from "@/lib/segundoFator";
 import { lerSessao } from "@/lib/sessao";
@@ -64,6 +66,11 @@ export default async function LoginPage({ searchParams }: Props) {
   if (!app && sessao) redirect(destinoSeguro ?? destinoInicial(sessao));
 
   const sociais = await conectoresLigados();
+  // O cadastro leva junto o destino cru: quem o valida é esta tela, na volta.
+  const paraCriar = new URLSearchParams();
+  if (app) paraCriar.set("app", app.id);
+  if (returnTo) paraCriar.set("returnTo", returnTo);
+  const podeCriar = emailConfigurado() || sociais.length > 0;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
@@ -91,7 +98,16 @@ export default async function LoginPage({ searchParams }: Props) {
           )}
         </div>
 
-        <p className="mt-6 text-center text-xs leading-relaxed text-[var(--color-texto-fraco)]">
+        {podeCriar && (
+          <p className="mt-5 text-center text-sm">
+            Ainda não tem conta?{" "}
+            <Link href={`/criar${paraCriar.size ? `?${paraCriar}` : ""}`} className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)] hover:underline">
+              Criar conta
+            </Link>
+          </p>
+        )}
+
+        <p className="mt-3 text-center text-xs leading-relaxed text-[var(--color-texto-fraco)]">
           Esqueceu a senha? Fale com a equipe Avila Ops — enviamos um link de recuperação.
         </p>
       </div>
