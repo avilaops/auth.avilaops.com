@@ -21,6 +21,11 @@ export async function listarVinculos(contaId: string) {
   return prisma.vinculo.findMany({ where: { contaId }, orderBy: { criadoEm: "asc" } });
 }
 
+/** Tira todos os logins sociais da conta. Para quando ela é removida. */
+export async function desvincularTudo(contaId: string): Promise<void> {
+  await prisma.vinculo.deleteMany({ where: { contaId } });
+}
+
 export async function desvincular(contaId: string, provedor: string): Promise<void> {
   await prisma.vinculo.deleteMany({ where: { contaId, provedor } });
 }

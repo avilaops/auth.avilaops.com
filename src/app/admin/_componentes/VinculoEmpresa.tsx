@@ -57,9 +57,11 @@ export default function VinculoEmpresa({
           {efeito && (
             <p
               role="note"
-              className={`rounded-lg border p-3 text-xs ${efeito.concedeAcesso ? "border-amber-500/40 bg-amber-500/10 text-amber-200" : "border-[var(--color-borda)] text-[var(--color-texto-fraco)]"}`}
+              // Cores do tema: o amarelo fixo de antes era para fundo escuro e
+              // sumia no tema claro (texto amarelo-claro sobre amarelo-claro).
+              className={`rounded-lg border p-3 text-xs ${efeito.concedeAcesso ? "border-[var(--color-marca-amarelo)]/40 bg-[var(--marca-amarelo-suave)] text-[var(--color-texto)]" : "border-[var(--color-borda)] text-[var(--color-texto-fraco)]"}`}
             >
-              {efeito.concedeAcesso && <strong className="block">Isto muda o acesso da conta.</strong>}
+              {efeito.concedeAcesso && <strong className="block text-[var(--color-marca-amarelo)]">Isto muda o acesso da conta.</strong>}
               {efeito.texto}
             </p>
           )}

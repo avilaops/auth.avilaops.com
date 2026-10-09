@@ -363,6 +363,43 @@ export async function redefinirSenhaProvisoria(id: string): Promise<string> {
  * domínios…). Se houver vínculo, o Postgres recusa e o erro sobe — é o
  * comportamento desejado: nada de apagar histórico em cascata daqui.
  */
+/** A conta não pode ser removida, com o motivo em palavras de tela. */
+export class RemocaoRecusada extends Error {}
+
+/** O que ainda aponta para a conta, pelo nome da restrição que o banco citou. */
+export function motivoDaRecusa(restricao: string | undefined): string {
+  if (restricao?.includes("memberships")) {
+    return "Esta conta já participou de uma empresa no portal, e esse histórico aponta para ela. Desligue a conta em vez de remover.";
+  }
+  if (restricao?.includes("orders")) return "Esta conta tem pedidos no app.avilaops.com. Desligue a conta em vez de remover.";
+  if (restricao?.includes("connections")) return "Esta conta autorizou conexões (Meta, Google) que ainda existem. Desligue a conta em vez de remover.";
+  return "Ainda há registros no app.avilaops.com que apontam para esta conta. Desligue a conta em vez de remover.";
+}
+
+/**
+ * Remove a conta de vez.
+ *
+ * Toda conta tem uma linha-espelho em `core.identity_links`, criada pelo
+ * gatilho `core_portal_identity_mirror`, e a chave dela proíbe apagar a conta.
+ * Sem tirar o espelho antes, nenhuma remoção passava. Ele sai junto, na mesma
+ * transação. O resto que aponta para a conta com proibição (participação em
+ * empresa, pedidos, conexões) continua barrando, de propósito: é histórico de
+ * verdade, e a recusa volta como `RemocaoRecusada`, não como erro de tela.
+ */
 export async function removerConta(id: string): Promise<void> {
-  await getPool().query(`delete from portal_clients where id = $1`, [id]);
+  const conexao = await getPool().connect();
+  try {
+    await conexao.query("begin");
+    await conexao.query(`delete from core.identity_links where identity_id = $1 and source = 'LEGACY' and issuer = 'portal_clients'`, [id]);
+    await conexao.query(`delete from portal_clients where id = $1`, [id]);
+    await conexao.query("commit");
+  } catch (erro) {
+    await conexao.query("rollback").catch(() => undefined);
+    const e = erro as { code?: string; constraint?: string };
+    // 23001: restrição RESTRICT; 23503: chave estrangeira.
+    if (e.code === "23001" || e.code === "23503") throw new RemocaoRecusada(motivoDaRecusa(e.constraint));
+    throw erro;
+  } finally {
+    conexao.release();
+  }
 }

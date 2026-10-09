@@ -38,6 +38,11 @@ export async function revogarPermissao(email: string, appId: string): Promise<vo
   await prisma.permissao.deleteMany({ where: { email: email.toLowerCase(), appId } });
 }
 
+/** Tira todas as liberações de um e-mail. Para quando a conta é removida. */
+export async function revogarTodasAsPermissoes(email: string): Promise<void> {
+  await prisma.permissao.deleteMany({ where: { email: email.toLowerCase() } });
+}
+
 /** Mapa appId → e-mails com acesso explícito (para a tela de apps). */
 export async function permissoesPorApp(): Promise<Record<string, string[]>> {
   const rows = await prisma.permissao.findMany({ orderBy: { email: "asc" } });

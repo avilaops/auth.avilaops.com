@@ -14,6 +14,7 @@ import {
   papelValido,
   redefinirSenhaProvisoria,
   removerConta,
+  RemocaoRecusada,
   type Conta,
   type Role,
 } from "@/lib/contas";
@@ -24,10 +25,10 @@ import { chaveConfigurada } from "@/lib/cripto";
 import { registrar } from "@/lib/eventos";
 import { pareceCpf } from "@/lib/listagem";
 import { efeitoDoVinculo, vinculoPrecisaDeConfirmacao } from "@/lib/vinculoEmpresa";
-import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
+import { concederPermissao, revogarPermissao, revogarTodasAsPermissoes } from "@/lib/permissoes";
 import { emitirLinkRecuperacao } from "@/lib/recuperacao";
 import { desativar as desativarSegundoFator } from "@/lib/segundoFator";
-import { desvincular } from "@/lib/vinculos";
+import { desvincular, desvincularTudo } from "@/lib/vinculos";
 
 /**
  * Mutations do painel. Toda ação exige sessão de admin e deixa rastro em
@@ -304,14 +305,25 @@ export async function acaoDesvincularAdmin(fd: FormData): Promise<void> {
   revalidatePath(`/admin/contas/${conta.id}`);
 }
 
-export async function acaoRemoverConta(fd: FormData): Promise<void> {
+export async function acaoRemoverConta(_: Resultado | null, fd: FormData): Promise<Resultado> {
   const admin = await exigirAdminAction();
   const id = texto(fd, "id");
   const conta = await buscarConta(id);
   if (!conta) redirect("/admin");
-  if (conta.email === admin.email) throw new Error("Você não pode remover a própria conta.");
+  if (conta.email === admin.email) return { ok: false, erro: "Você não pode remover a própria conta." };
+  if (fd.get("confirmar") !== "on") return { ok: false, erro: "Marque a confirmação: a remoção não tem volta." };
 
-  await removerConta(id);
+  try {
+    await removerConta(id);
+  } catch (e) {
+    if (e instanceof RemocaoRecusada) return { ok: false, erro: e.message };
+    throw e;
+  }
+  // As liberações são guardadas por e-mail: sem tirá-las, uma conta nova com o
+  // mesmo endereço nasceria com os acessos da antiga.
+  await revogarTodasAsPermissoes(conta.email);
+  // Os logins sociais apontam para o id da conta, que deixou de existir.
+  await desvincularTudo(conta.id);
   await registrar({ tipo: "conta_removida", email: conta.email, autor: admin.email, detalhe: conta.nome });
   revalidatePath("/admin");
   redirect("/admin");
