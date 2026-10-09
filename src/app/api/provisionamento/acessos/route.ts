@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarContaPorEmail, criarConta } from "@/lib/contas";
+import { podeReemitirConvite } from "@/lib/convite";
 import { registrar } from "@/lib/eventos";
 import { autenticarCliente, type ClienteOIDC } from "@/lib/oidc";
 import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
+import { prisma } from "@/lib/prisma";
 import { limitar } from "@/lib/rateLimit";
 import { emitirLinkRecuperacao } from "@/lib/recuperacao";
 
@@ -25,9 +27,11 @@ export const dynamic = "force-dynamic";
  * `DELETE` `?email=` — revoga a liberação do app. A conta continua existindo.
  *
  * O convite (link para a pessoa definir a senha) só sai para conta **criada
- * nesta chamada**. Para conta que já existia, nunca: senão quem administra uma
- * empresa no app poderia "convidar" o e-mail de outra pessoa e receber um link
- * que troca a senha dela, com tudo o que essa conta já acessa.
+ * nesta chamada**, ou criada antes por este mesmo sistema e ainda não assumida
+ * pela pessoa (`podeReemitirConvite`). Para qualquer outra conta, nunca: senão
+ * quem administra uma empresa no app poderia "convidar" o e-mail de outra
+ * pessoa e receber um link que troca a senha dela, com tudo o que essa conta
+ * já acessa. O convite guarda o sistema: criada a senha, a pessoa cai nele.
  */
 
 const CONVITE_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -52,6 +56,12 @@ function texto(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t && t.length <= max ? t : null;
+}
+
+/** `autor` do evento que criou a conta; nulo para conta anterior à auditoria. */
+async function quemCriou(email: string): Promise<string | null> {
+  const evento = await prisma.evento.findFirst({ where: { tipo: "conta_criada", email }, orderBy: { criadoEm: "asc" }, select: { autor: true } });
+  return evento?.autor ?? null;
 }
 
 async function preparar(req: NextRequest) {
@@ -115,10 +125,15 @@ export async function POST(req: NextRequest) {
   await concederPermissao(email, p.cliente.appId, p.autor);
   await registrar({ tipo: "permissao_concedida", email, appId: p.cliente.appId, autor: p.autor, ip: p.ip });
 
+  // Convite repetido (o sistema mandou de novo, ou a pessoa perdeu o e-mail):
+  // sem isto a segunda mensagem diria "entre com a senha que já usa" a quem
+  // nunca criou senha.
+  const reemitir = !criada && conta !== null && podeReemitirConvite({ ...conta, criadaPor: await quemCriou(email) }, p.autor);
+
   let convite: string | null = null;
-  if (criada) {
-    convite = await emitirLinkRecuperacao(email, CONVITE_VALIDADE_MS);
-    await registrar({ tipo: "recuperacao_emitida", email, appId: p.cliente.appId, autor: p.autor, ip: p.ip, detalhe: "convite, 7 dias" });
+  if (criada || reemitir) {
+    convite = await emitirLinkRecuperacao(email, CONVITE_VALIDADE_MS, p.cliente.appId);
+    await registrar({ tipo: "recuperacao_emitida", email, appId: p.cliente.appId, autor: p.autor, ip: p.ip, detalhe: criada ? "convite, 7 dias" : "convite reenviado, 7 dias" });
   }
 
   return NextResponse.json(
