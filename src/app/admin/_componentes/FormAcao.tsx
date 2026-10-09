@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useTransition } from "react";
+import { unstable_rethrow } from "next/navigation";
+import { useRef, useState } from "react";
 import type { Resultado } from "../actions";
 import { botaoFraco } from "./estilos";
 
@@ -11,14 +12,24 @@ type Acao = (estado: Resultado | null, fd: FormData) => Promise<Resultado>;
  * quando a ação devolve um segredo (senha, link), exibe em destaque com botão
  * de copiar — é a única vez que ele aparece.
  *
- * O envio é feito à mão (`onSubmit`), e não pelo `action` do formulário, por
- * causa de um detalhe do React: formulário enviado por `action` é limpo ao
- * terminar, **inclusive quando a ação recusa**. A pessoa escolhia a empresa,
- * esquecia a confirmação, via o erro e o campo já tinha voltado ao valor
- * antigo; marcar a caixa e salvar de novo gravava "nada mudou". Agora o que
- * foi digitado fica na tela quando dá erro e só é limpo quando dá certo. O
- * `action` continua no formulário para o envio funcionar antes de o
- * JavaScript carregar.
+ * A ação é chamada como função comum, e o estado (enviando, resultado) fica em
+ * `useState`. Já foi de dois outros jeitos, e os dois falharam em produção:
+ *
+ * 1. `action={dispatch}` com `useActionState`: o React limpa o formulário ao
+ *    terminar, **inclusive quando a ação recusa**. A pessoa escolhia a empresa,
+ *    esquecia a confirmação, via o erro e o campo já tinha voltado ao valor
+ *    antigo.
+ * 2. `dispatch` chamado à mão dentro de uma transição (08/10 a 09/10/2026): com
+ *    o build de produção, quando a ação revalidava a própria página, o estado
+ *    "enviando" às vezes nunca terminava. A integração era criada e o segredo,
+ *    que só aparece uma vez, não chegava à tela.
+ *
+ * Aqui o "enviando" acaba quando a chamada devolve, num `finally`, e não
+ * depende de a página terminar de se redesenhar. O que foi digitado fica na
+ * tela quando dá erro e só é limpo quando dá certo.
+ *
+ * `method="post"` é para o intervalo antes de o JavaScript carregar: sem ele,
+ * um envio precoce iria por GET e poria os campos (inclusive senha) na URL.
  */
 export default function FormAcao({
   acao,
@@ -29,25 +40,37 @@ export default function FormAcao({
   children: React.ReactNode;
   className?: string;
 }) {
-  const [estado, dispatch, pendente] = useActionState(acao, null);
-  const [, iniciar] = useTransition();
-  const formulario = useRef<HTMLFormElement>(null);
+  const [estado, setEstado] = useState<Resultado | null>(null);
+  const [pendente, setPendente] = useState(false);
+  const enviando = useRef(false);
 
-  useEffect(() => {
-    if (estado?.ok) formulario.current?.reset();
-  }, [estado]);
+  async function enviar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // Toque duplo no botão: o segundo chega antes de o campo ser desligado.
+    if (enviando.current) return;
+    const formulario = e.currentTarget;
+    const dados = new FormData(formulario, (e.nativeEvent as SubmitEvent).submitter);
+    enviando.current = true;
+    setPendente(true);
+    try {
+      const resultado = await acao(estado, dados);
+      // Ação que termina em `redirect()` não devolve resultado: a página muda.
+      if (!resultado) return;
+      setEstado(resultado);
+      if (resultado.ok) formulario.reset();
+    } catch (erro) {
+      // O redirecionamento chega aqui como exceção do Next; ele precisa seguir.
+      unstable_rethrow(erro);
+      // Sessão vencida, rede caída ou erro no servidor: a tela não pode ficar muda.
+      setEstado({ ok: false, erro: "Não foi possível concluir. Confira se a alteração foi feita antes de tentar de novo." });
+    } finally {
+      enviando.current = false;
+      setPendente(false);
+    }
+  }
 
   return (
-    <form
-      ref={formulario}
-      action={dispatch}
-      onSubmit={(e) => {
-        e.preventDefault();
-        const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
-        iniciar(() => dispatch(dados));
-      }}
-      className={className ?? "flex flex-col gap-3"}
-    >
+    <form method="post" onSubmit={enviar} className={className ?? "flex flex-col gap-3"}>
       <fieldset disabled={pendente} className="contents">
         {children}
       </fieldset>
