@@ -97,9 +97,9 @@ export function linkDeConfirmacao(token: string): string {
   return urlAbsoluta(`/criar/confirmar/${token}`);
 }
 
-const escapar = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const escapar = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-function moldura(titulo: string, corpo: string, botao: { rotulo: string; link: string }, rodape: string) {
+export function moldura(titulo: string, corpo: string, botao: { rotulo: string; link: string }, rodape: string) {
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#111827">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;padding:32px">

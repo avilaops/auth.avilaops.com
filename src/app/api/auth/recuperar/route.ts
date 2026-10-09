@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       nome: conta.nome,
       foto: null,
       papel,
-      destino: app ? returnToSeguro(null, app) : destinoInicial({ email: conta.email, papel }),
+      destino: app ? returnToSeguro(link.destino, app) : destinoInicial({ email: conta.email, papel }),
       app,
       senhaProvisoria: false,
       via: "via recuperação",

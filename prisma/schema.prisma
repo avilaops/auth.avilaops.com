@@ -132,6 +132,8 @@ model TokenRecuperacao {
   email     String
   /// Sistema que pediu o convite; nulo na recuperação comum.
   appId     String?   @map("app_id")
+  /// Porta de entrada do sistema que convidou, já validada contra o host dele.
+  destino   String?
   expiraEm  DateTime  @map("expira_em")
   usadoEm   DateTime? @map("usado_em")
   criadoEm  DateTime  @default(now()) @map("criado_em")
