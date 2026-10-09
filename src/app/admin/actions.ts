@@ -19,7 +19,11 @@ import {
 } from "@/lib/contas";
 import { ehDaCasa, vincularOrganizacao } from "@/lib/contas";
 import { listarEmpresas } from "@/lib/empresas";
+import { esquecerBusca, guardarBusca } from "@/lib/buscaSigilosa";
+import { chaveConfigurada } from "@/lib/cripto";
 import { registrar } from "@/lib/eventos";
+import { pareceCpf } from "@/lib/listagem";
+import { efeitoDoVinculo, vinculoPrecisaDeConfirmacao } from "@/lib/vinculoEmpresa";
 import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
 import { emitirLinkRecuperacao } from "@/lib/recuperacao";
 import { desativar as desativarSegundoFator } from "@/lib/segundoFator";
@@ -330,9 +334,42 @@ export async function acaoVincularEmpresaDaConta(_: Resultado | null, fd: FormDa
   if (empresa && !empresas.some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
   if (empresa === antes.organizationId) return { ok: true, mensagem: "Nada mudou." };
 
+  // Para conta de cliente, este campo concede (ou revoga) acesso aos dados da
+  // empresa no portal. A confirmação é conferida aqui, não só na tela.
+  const efeito = efeitoDoVinculo(antes.role, antes.ativa);
+  if (vinculoPrecisaDeConfirmacao(antes.role, antes.organizationId, empresa) && fd.get("confirmar") !== "on") {
+    return { ok: false, erro: "Marque a confirmação: esta mudança altera o acesso da conta aos dados da empresa." };
+  }
+
   await vincularOrganizacao(id, empresa);
-  await registrar({ tipo: "conta_editada", email: antes.email, autor: admin.email, detalhe: `empresa: ${nome(antes.organizationId)} → ${nome(empresa)}` });
+  const acesso = !efeito.concedeAcesso
+    ? "sem efeito no acesso"
+    : empresa
+      ? `concede acesso como ${efeito.papelNaEmpresa}${efeito.suspensa ? " (suspenso: conta desligada)" : ""}`
+      : "revoga o acesso à empresa anterior";
+  await registrar({ tipo: "conta_editada", email: antes.email, autor: admin.email, detalhe: `empresa: ${nome(antes.organizationId)} → ${nome(empresa)}; ${acesso}` });
   revalidatePath("/admin");
   revalidatePath(`/admin/contas/${id}`);
-  return { ok: true, mensagem: "Empresa salva." };
+  return { ok: true, mensagem: efeito.concedeAcesso ? (empresa ? "Empresa salva. O acesso ao portal foi concedido." : "Vínculo retirado. O acesso à empresa foi revogado.") : "Empresa salva." };
+}
+
+const SECOES_COM_BUSCA_SIGILOSA = new Set(["contas"]);
+
+/**
+ * Guarda no servidor uma busca que parece CPF e devolve o identificador que
+ * vai na URL no lugar dela. O texto não é registrado em `eventos` nem em log.
+ */
+export async function acaoGuardarBusca(secao: string, termo: string): Promise<{ ok: true; id: string } | { ok: false; erro: string }> {
+  const admin = await exigirAdminAction();
+  const texto_ = typeof termo === "string" ? termo.trim() : "";
+  if (typeof secao !== "string" || !SECOES_COM_BUSCA_SIGILOSA.has(secao)) return { ok: false, erro: "Seção desconhecida." };
+  if (!texto_ || texto_.length > 40 || !pareceCpf(texto_)) return { ok: false, erro: "Busca inválida." };
+  if (!chaveConfigurada()) return { ok: false, erro: "Busca por CPF indisponível: falta AUTH_ENCRYPTION_KEY no servidor." };
+  return { ok: true, id: await guardarBusca(admin.email, secao, texto_) };
+}
+
+/** Apaga a busca guardada desta conta naquela seção (ao limpar ou trocar a busca). */
+export async function acaoEsquecerBusca(secao: string): Promise<void> {
+  const admin = await exigirAdminAction();
+  if (typeof secao === "string" && SECOES_COM_BUSCA_SIGILOSA.has(secao)) await esquecerBusca(admin.email, secao);
 }

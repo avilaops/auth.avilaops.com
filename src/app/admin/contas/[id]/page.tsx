@@ -4,7 +4,8 @@ import IconeProvedor from "@/components/IconeProvedor";
 import { listarApps } from "@/lib/cadastro";
 import { caixasDoDono, dominiosHospedados } from "@/lib/caixaEmail";
 import { buscarConta, papelDaRole } from "@/lib/contas";
-import { listarEmpresas } from "@/lib/empresas";
+import { listarEmpresas, participacoesDaConta } from "@/lib/empresas";
+import { efeitoDoVinculo } from "@/lib/vinculoEmpresa";
 import { listarEventos } from "@/lib/eventos";
 import { listarPermissoes } from "@/lib/permissoes";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
@@ -53,7 +54,8 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
   // ADMIN. Comparar com a string "ADMIN" mostrava o Nicolas e o Abraão como
   // bloqueados no app.avilaops.com numa tela que devia mostrar o contrário.
   const ehAdmin = papelDaRole(conta.role) === "ADMIN";
-  const [apps, empresas] = await Promise.all([listarApps(), listarEmpresas()]);
+  const [apps, empresas, participacoes] = await Promise.all([listarApps(), listarEmpresas(), participacoesDaConta(conta.id)]);
+  const efeito = efeitoDoVinculo(conta.role, conta.ativa);
   const gb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(bytes >= 1024 ** 3 ? 0 : 1)} GB`;
 
   return (
@@ -71,8 +73,30 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
           id={conta.id}
           atual={conta.organizationId}
           empresas={empresas}
-          explicacao="A empresa que esta conta representa. É o vínculo que as listagens usam para filtrar e agrupar; cada conta pertence a uma empresa só."
-        />
+          explicacao="A empresa que esta conta representa. São três coisas separadas: o perfil (o que a pessoa é), este vínculo (de qual empresa ela é) e as permissões de aplicação, mais abaixo. O vínculo aceita uma empresa só."
+          efeito={{ texto: efeito.descricao, concedeAcesso: efeito.concedeAcesso }}
+          confirmacao={efeito.concedeAcesso ? "Entendo que salvar muda o acesso desta conta aos dados da empresa no portal (concede ao vincular, revoga ao retirar)." : undefined}
+        >
+          <div className="mb-3 rounded-lg border border-[var(--color-borda)] p-3 text-xs">
+            <div className="mb-1 font-medium">Acesso a empresas em vigor</div>
+            {participacoes === null ? (
+              <p className="text-[var(--color-texto-fraco)]">Este painel não conseguiu ler as participações no banco do app.avilaops.com.</p>
+            ) : participacoes.length === 0 ? (
+              <p className="text-[var(--color-texto-fraco)]">Nenhum. Esta conta não abre os dados de nenhuma empresa no portal.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {participacoes.map((p) => (
+                  <li key={p.organizacaoId} className="flex flex-wrap justify-between gap-x-3">
+                    <span>{p.empresa}</span>
+                    <span className="text-[var(--color-texto-fraco)]">
+                      {p.papel === "ADMIN" ? "administrador" : "membro"} · {p.situacao === "ACTIVE" ? (p.emVigor ? "ativo" : "ativo no cadastro, sem efeito agora") : p.situacao === "SUSPENDED" ? "suspenso" : p.situacao.toLowerCase()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </VinculoEmpresa>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

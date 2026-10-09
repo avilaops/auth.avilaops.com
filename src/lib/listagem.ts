@@ -314,11 +314,3 @@ export function consultarEmMemoria<T>(
   const filtrados = itens.filter((item) => passaNosFiltros(item, consulta.filtros, regras.filtro) && casaBusca(consulta.q, regras.busca(item)));
   return ordenar(filtrados, (item) => regras.ordem(item, consulta.ord), consulta.dir, regras.id);
 }
-
-/**
- * Cookie de sessão que leva a busca por CPF da tela ao servidor sem passar
- * pela URL. Fica aqui, e não no componente da barra, porque aquele arquivo é
- * de cliente: uma página de servidor que importasse a constante de lá
- * receberia uma referência, não o texto, e nunca acharia o cookie.
- */
-export const COOKIE_BUSCA = "admin_busca";

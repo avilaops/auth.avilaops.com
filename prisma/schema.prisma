@@ -371,3 +371,19 @@ model Tentativa {
   @@index([reiniciaEm])
   @@map("tentativas")
 }
+
+/// Busca por CPF feita no painel, guardada no servidor para não passar pela
+/// URL nem ficar no navegador. O texto fica cifrado; a linha vale 30 minutos e
+/// só é lida pela conta que a gravou (ver `lib/buscaSigilosa.ts`).
+model BuscaPainel {
+  id       String   @id @default(uuid())
+  email    String
+  secao    String
+  termoEnc String   @map("termo_enc")
+  expiraEm DateTime @map("expira_em")
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([email, secao])
+  @@index([expiraEm])
+  @@map("buscas_painel")
+}

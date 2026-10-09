@@ -66,9 +66,18 @@ sendo trabalho de cada sistema consumidor.
 - Empresa em listagem vem do vínculo gravado (`portal_clients.organization_id`,
   `aplicacoes.organizacao_id`). Nunca deduzir por domínio de e-mail ou nome. A
   auditoria não guarda empresa: não reconstruir pelo vínculo de hoje.
-- CPF não vai para a URL: a busca por CPF usa o cookie de sessão
-  `admin_busca`. Constante usada por página de servidor não mora em arquivo
-  `"use client"`.
+- Papel, vínculo com empresa e autorização são três coisas (ver
+  `docs/PAPEIS-VINCULOS-E-ACESSO.md`). Da casa é só OWNER e SOCIO; `ADMIN` em
+  `portal_clients` é o dono do negócio, um cliente. Quem decide se a sessão é
+  de equipe é `papelDaRole`, nunca uma comparação com `"ADMIN"`.
+- Ligar uma conta de cliente a uma empresa **concede acesso** (gatilho no
+  banco do app.avilaops.com cria a participação). Só a ficha da conta faz isso,
+  com o efeito escrito na tela e confirmação conferida na ação. Nada de
+  associação em lote nem na criação da conta sem esse mesmo cuidado.
+- CPF não vai para a URL, para cookie nem para log: a busca por CPF fica em
+  `buscas_painel`, cifrada e com validade, e a URL leva só o identificador
+  (`lib/buscaSigilosa.ts`). Constante usada por página de servidor não mora em
+  arquivo `"use client"`.
 - Código em TypeScript.
 
 ## Entrar dentro do auth

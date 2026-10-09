@@ -82,3 +82,26 @@ describe("o que acompanha a sessão de equipe", () => {
     }
   });
 });
+
+describe("vínculo com empresa não é etiqueta", () => {
+  it("para conta de cliente concede acesso, com o papel dentro da empresa derivado do papel da conta", async () => {
+    const { efeitoDoVinculo } = await import("@/lib/vinculoEmpresa");
+    assert.deepEqual([efeitoDoVinculo("ADMIN", true).concedeAcesso, efeitoDoVinculo("ADMIN", true).papelNaEmpresa], [true, "administrador"]);
+    assert.deepEqual([efeitoDoVinculo("CLIENT", true).concedeAcesso, efeitoDoVinculo("CLIENT", true).papelNaEmpresa], [true, "membro"]);
+    assert.equal(efeitoDoVinculo("CLIENT", false).suspensa, true);
+  });
+
+  it("para conta da casa não cria participação", async () => {
+    const { efeitoDoVinculo } = await import("@/lib/vinculoEmpresa");
+    for (const role of ["OWNER", "SOCIO"] as const) assert.deepEqual([efeitoDoVinculo(role, true).concedeAcesso, efeitoDoVinculo(role, true).papelNaEmpresa], [false, null]);
+  });
+
+  it("conceder, trocar e revogar pedem confirmação; não mudar nada, não", async () => {
+    const { vinculoPrecisaDeConfirmacao } = await import("@/lib/vinculoEmpresa");
+    assert.equal(vinculoPrecisaDeConfirmacao("ADMIN", null, "org1"), true);
+    assert.equal(vinculoPrecisaDeConfirmacao("CLIENT", "org1", "org2"), true);
+    assert.equal(vinculoPrecisaDeConfirmacao("CLIENT", "org1", null), true);
+    assert.equal(vinculoPrecisaDeConfirmacao("CLIENT", "org1", "org1"), false);
+    assert.equal(vinculoPrecisaDeConfirmacao("OWNER", null, "org1"), false);
+  });
+});
