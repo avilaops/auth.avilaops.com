@@ -12,8 +12,9 @@ import type { Papel } from "@/lib/apps";
  * quem já entra no app continua entrando com a mesma credencial, e trocar a
  * senha aqui vale para todos.
  *
- * `role = 'ADMIN'` é a equipe Avila Ops; `role = 'CLIENT'` é cliente. O papel
- * do SSO deriva daí.
+ * São quatro papéis (ver `Role`): OWNER e SOCIO são da casa; ADMIN é o dono do
+ * negócio que contrata e CLIENT é a equipe dele, os dois clientes. O papel do
+ * SSO deriva daí, em `papelDaRole`.
  *
  * A conexão é separada da do Prisma de propósito: o Prisma daqui aponta para
  * `avilaops-auth` (sessões, permissões, auditoria), e o Postgres não faz
@@ -36,10 +37,17 @@ function getPool(): Pool {
 }
 
 /**
- * OWNER e o dono da operacao (uma conta so), ADMIN e a equipe e as automacoes,
- * CLIENT e quem contrata. Sao tres coisas diferentes, nao graus da mesma:
- * dinheiro, segredo e acesso sao do dono; a operacao e da equipe; o cliente ve
- * a propria empresa. Ver `app.avilaops.com/README.md`.
+ * Quatro pessoas diferentes, não quatro níveis da mesma. A definição é do
+ * app.avilaops.com (`src/lib/auth.ts` de lá) e este arquivo a acompanha:
+ *
+ * - OWNER: a plataforma (Avila Ops). Dinheiro, segredo e acesso são dela.
+ * - SOCIO: opera a Avila Ops junto com o dono, menos o caixa.
+ * - ADMIN: o dono do negócio que contrata. Manda na própria empresa. **Cliente.**
+ * - CLIENT: a equipe desse dono. Usa o produto. **Cliente.**
+ *
+ * Papel (o que a pessoa é), vínculo com empresa (`organization_id`: de qual
+ * empresa ela é) e autorização (em quais aplicações entra: `permissoes` e o
+ * cadastro da aplicação) são três coisas separadas. Nenhuma decorre da outra.
  */
 export type Role = "OWNER" | "SOCIO" | "ADMIN" | "CLIENT";
 
@@ -117,22 +125,42 @@ function daLinha(l: Linha): Conta {
   };
 }
 
+/** Papéis de quem é da casa: a plataforma e quem a opera junto com o dono. */
+const PAPEIS_DA_CASA: readonly Role[] = ["OWNER", "SOCIO"];
+
 /**
- * Papel que a sessao do SSO carrega.
+ * A conta é da equipe Avila Ops?
  *
- * `Papel` tem dois valores porque e nivel de acesso, nao cargo: ou a pessoa e
- * da casa, ou e cliente. OWNER e o dono da operacao, entao entra como ADMIN
- * aqui. Mapea-lo para CLIENTE trancava o dono para fora do proprio painel: o
- * app `app.avilaops.com` exige ADMIN, e o login dele respondia "sua conta nao
- * tem acesso" (visto em 01/09/2026).
+ * Só OWNER e SOCIO. ADMIN é o **dono do negócio que contrata** e CLIENT é a
+ * equipe dele: os dois são clientes. É a mesma lista do app.avilaops.com
+ * (`PAPEIS_DA_CASA` em `src/lib/auth.ts` de lá), que é quem define os papéis.
+ */
+export function ehDaCasa(role: Role): boolean {
+  return PAPEIS_DA_CASA.includes(role);
+}
+
+/**
+ * Papel que a sessão do SSO carrega: nível de acesso, não cargo. Ou a pessoa é
+ * da casa (`ADMIN` no token), ou é cliente (`CLIENTE`).
  *
- * E a MESMA armadilha que o `papelValido` acima ja tinha levado a correcao:
- * comparacao de dois valores num tipo que passou a ter tres rebaixa o papel
- * novo em silencio. O papel fino (OWNER x ADMIN) nao cabe neste token — mora
- * em `portal_clients`, e cada app le de la.
+ * **Até 09/10/2026 isto era `role === "CLIENT" ? "CLIENTE" : "ADMIN"`, e o dono
+ * do negócio (role `ADMIN`) saía com sessão de equipe.** O nome engana: o
+ * `ADMIN` de `portal_clients` é cliente; o `ADMIN` do token é equipe. Com a
+ * sessão de equipe, a conta de um cliente passava por aplicação marcada "só
+ * equipe", pulava a exigência de liberação das aplicações restritas e chegava
+ * aos sistemas que confiam neste campo: o CRM criava a conta como
+ * administradora da empresa Avila Ops, e o TMS a tratava como equipe.
+ *
+ * A comparação agora é com a lista de quem é da casa, e papel desconhecido cai
+ * em cliente. É a terceira vez que comparar dois valores num tipo que cresceu
+ * erra o papel de alguém (ver `papelValido`); as duas primeiras rebaixaram
+ * gente da casa, esta promoveu cliente.
+ *
+ * O papel fino (OWNER x SOCIO, dono do negócio x equipe dele) não cabe neste
+ * token: mora em `portal_clients`, e cada sistema lê de lá.
  */
 export function papelDaRole(role: Role): Papel {
-  return role === "CLIENT" ? "CLIENTE" : "ADMIN";
+  return ehDaCasa(role) ? "ADMIN" : "CLIENTE";
 }
 
 /**

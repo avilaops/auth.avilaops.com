@@ -17,7 +17,7 @@ import {
   type Conta,
   type Role,
 } from "@/lib/contas";
-import { vincularOrganizacao } from "@/lib/contas";
+import { ehDaCasa, vincularOrganizacao } from "@/lib/contas";
 import { listarEmpresas } from "@/lib/empresas";
 import { registrar } from "@/lib/eventos";
 import { concederPermissao, revogarPermissao } from "@/lib/permissoes";
@@ -203,8 +203,12 @@ export async function acaoEditarConta(_: Resultado | null, fd: FormData): Promis
   if (!antes) return { ok: false, erro: "Conta não encontrada." };
 
   const role = roleValida(texto(fd, "role"));
-  if (antes.email === admin.email && role !== "ADMIN") {
-    return { ok: false, erro: "Você não pode rebaixar a própria conta." };
+  // Quem está no painel é da casa. Sair de OWNER/SOCIO para um papel de cliente
+  // na própria conta fecharia o painel para quem está salvando. (Isto comparava
+  // com "ADMIN", que é papel de cliente: o dono não conseguia salvar a própria
+  // conta, e um rebaixamento para "dono do negócio" passava.)
+  if (antes.email === admin.email && !ehDaCasa(role)) {
+    return { ok: false, erro: "Você não pode tirar da própria conta o acesso de equipe." };
   }
 
   try {
