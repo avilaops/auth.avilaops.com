@@ -273,6 +273,8 @@ export type NovaConta = {
   cpf?: string | null;
   telefone?: string | null;
   role: Role;
+  /** Empresa que a conta representa, quando já se sabe na criação. */
+  organizationId?: string | null;
 };
 
 /** Cria a conta com senha provisória e devolve a senha em claro — uma vez só. */
@@ -281,10 +283,10 @@ export async function criarConta(dados: NovaConta): Promise<{ conta: Conta; senh
   const id = randomUUID();
   const cpf = dados.cpf?.replace(/\D/g, "") || null;
   const { rows } = await getPool().query<Linha>(
-    `insert into portal_clients (id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria)
-     values ($1, $2, $3, $4, $5, $6, $7, true)
+    `insert into portal_clients (id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria, organization_id)
+     values ($1, $2, $3, $4, $5, $6, $7, true, $8)
      returning ${COLUNAS}`,
-    [id, dados.nome.trim(), dados.email.trim().toLowerCase(), cpf, dados.telefone || null, dados.role, await hashSenha(senha)],
+    [id, dados.nome.trim(), dados.email.trim().toLowerCase(), cpf, dados.telefone || null, dados.role, await hashSenha(senha), dados.organizationId ?? null],
   );
   return { conta: daLinha(rows[0]), senha };
 }

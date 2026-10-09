@@ -55,9 +55,12 @@ export async function acaoCriarAplicacao(_: Resultado | null, fd: FormData): Pro
   const admin = await exigirAdminAction();
   const v = validarCadastro(lerFormulario(fd, texto(fd, "id")));
   if (!v.ok) return { ok: false, erro: v.erro };
+  const empresa = texto(fd, "empresa") || null;
+  if (empresa && !(await listarEmpresas()).some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
 
   try {
     await criarCadastro(v.dados, admin.email);
+    if (empresa) await vincularEmpresaDaAplicacao(v.dados.id, empresa);
   } catch (e) {
     if (jaExiste(e)) return { ok: false, erro: "Já existe cadastro com este identificador ou este endereço." };
     throw e;

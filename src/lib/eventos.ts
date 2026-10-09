@@ -1,3 +1,4 @@
+import { poolPortal } from "@/lib/contas";
 import { prisma } from "@/lib/prisma";
 
 export type TipoEvento =
@@ -53,6 +54,33 @@ export type TipoEvento =
   | "mfa_codigos_gerados"
   | "mfa_indisponivel";
 
+/**
+ * Empresa a gravar no evento: a da conta envolvida; sem conta, a da aplicação.
+ *
+ * É lida na hora do evento e fica no registro, para a auditoria continuar
+ * dizendo a que empresa a conta pertencia naquele dia mesmo que o vínculo mude
+ * depois. Qualquer falha aqui devolve nulo: o evento é gravado sem empresa em
+ * vez de se perder.
+ */
+async function empresaDoEvento(email: string | null | undefined, appId: string | null | undefined): Promise<string | null> {
+  try {
+    if (email) {
+      const { rows } = await poolPortal().query<{ organization_id: string | null }>(
+        "select organization_id from portal_clients where lower(email) = $1 limit 1",
+        [email.toLowerCase()],
+      );
+      if (rows[0]?.organization_id) return rows[0].organization_id;
+    }
+    if (appId) {
+      const app = await prisma.aplicacao.findUnique({ where: { id: appId }, select: { organizacaoId: true } });
+      return app?.organizacaoId ?? null;
+    }
+  } catch {
+    /* sem empresa é melhor do que sem evento */
+  }
+  return null;
+}
+
 export async function registrar(e: {
   tipo: TipoEvento;
   email?: string | null;
@@ -66,6 +94,7 @@ export async function registrar(e: {
       data: {
         tipo: e.tipo,
         email: e.email?.toLowerCase() ?? null,
+        organizacaoId: await empresaDoEvento(e.email, e.appId),
         appId: e.appId ?? null,
         ip: e.ip ?? null,
         detalhe: e.detalhe ?? null,
@@ -117,6 +146,8 @@ export type FiltroEventos = {
   busca?: string;
   tipos?: string[];
   apps?: string[];
+  /** Ids de empresa; `"sem"` casa com evento sem empresa registrada. */
+  empresas?: string[];
   desde?: Date;
   /** Exclusivo. */
   ate?: Date;
@@ -131,6 +162,14 @@ function ondeEventos(f: FiltroEventos) {
     ...(f.tipos && f.tipos.length > 0 ? { tipo: { in: f.tipos } } : {}),
     ...(f.apps && f.apps.length > 0 ? { appId: { in: f.apps } } : {}),
     AND: [
+      ...(f.empresas && f.empresas.length > 0
+        ? [{
+            OR: [
+              ...(f.empresas.some((v) => v !== "sem") ? [{ organizacaoId: { in: f.empresas.filter((v) => v !== "sem") } }] : []),
+              ...(f.empresas.includes("sem") ? [{ organizacaoId: null }] : []),
+            ],
+          }]
+        : []),
       ...(f.desde ? [{ criadoEm: { gte: f.desde } }] : []),
       ...limiteSuperior.map((criadoEm) => ({ criadoEm })),
       ...(busca
@@ -170,11 +209,17 @@ export async function consultarEventos(f: FiltroEventos, opts: { pag: number; po
 }
 
 /** Tipos e aplicações que de fato aparecem na auditoria, para montar os filtros. */
-export async function facetasDosEventos(): Promise<{ tipos: string[]; apps: string[]; total: number }> {
-  const [tipos, apps, total] = await Promise.all([
+export async function facetasDosEventos(): Promise<{ tipos: string[]; apps: string[]; empresas: string[]; total: number }> {
+  const [tipos, apps, empresas, total] = await Promise.all([
     prisma.evento.groupBy({ by: ["tipo"] }),
     prisma.evento.groupBy({ by: ["appId"], where: { appId: { not: null } } }),
+    prisma.evento.groupBy({ by: ["organizacaoId"], where: { organizacaoId: { not: null } } }),
     prisma.evento.count(),
   ]);
-  return { tipos: tipos.map((t) => t.tipo), apps: apps.flatMap((a) => (a.appId ? [a.appId] : [])), total };
+  return {
+    tipos: tipos.map((t) => t.tipo),
+    apps: apps.flatMap((a) => (a.appId ? [a.appId] : [])),
+    empresas: empresas.flatMap((e) => (e.organizacaoId ? [e.organizacaoId] : [])),
+    total,
+  };
 }

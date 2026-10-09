@@ -5,11 +5,13 @@ import { listarTodasAsContas } from "@/lib/contas";
 import { agruparContas, consultarContas, defContas, montarContas, ROTULO_PAPEL, type ContaListada } from "@/lib/contasLista";
 import { listarEmpresas } from "@/lib/empresas";
 import { ultimosLogins } from "@/lib/eventos";
-import { COOKIE_BUSCA, dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
+import { COOKIE_BUSCA, dataHora, FORM_LOTE, filtrosAtivos, lerConsulta, paginar, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
 import { ativosPorEmail, diagnosticar } from "@/lib/segundoFator";
 import { botao } from "./_componentes/estilos";
 import BarraLista, { type Atalho } from "./_componentes/lista/BarraLista";
 import { ExpandirGrupos, itemDeMenu, MenuAcoes } from "./_componentes/lista/Interativos";
+import LoteEmpresa, { MarcarTodas } from "./_componentes/lista/LoteEmpresa";
+import { acaoVincularEmpresaEmLote } from "./actions";
 import { celula, Estado, linha, moldura, Paginacao, Resumo, SecaoGrupo, secundario, Th, Vazio } from "./_componentes/lista/Partes";
 import Papel from "./_componentes/Papel";
 
@@ -128,6 +130,8 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         ocultasDePadrao={["criada"]}
       />
 
+      <LoteEmpresa acao={acaoVincularEmpresaEmLote} empresas={empresas.map((e) => ({ id: e.id, nome: e.nome }))} />
+
       <div id="lista-contas">
         {encontradas.length === 0 ? (
           <Vazio
@@ -196,8 +200,12 @@ function Contas({ contas, consulta, def, extra, semMoldura, grupo }: { contas: C
       {/* Celular: lista compacta. O essencial em três linhas; o resto está na ficha. */}
       <ul className={`divide-y divide-[var(--color-borda)] md:hidden ${semMoldura ? "" : moldura}`}>
         {contas.map((c) => (
-          <li key={c.id} className="flex items-stretch gap-1 bg-[var(--color-fundo)]">
-            <Link href={`/admin/contas/${c.id}`} className="min-w-0 flex-1 px-3 py-2.5 active:bg-[var(--color-cartao)]">
+          <li key={c.id} className="flex items-stretch bg-[var(--color-fundo)]">
+            <label className="flex min-h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
+              <input type="checkbox" name="ids" value={c.id} form={FORM_LOTE} className="h-4 w-4" />
+              <span className="sr-only">Marcar {c.nome}</span>
+            </label>
+            <Link href={`/admin/contas/${c.id}`} className="min-w-0 flex-1 py-2.5 pr-2 active:bg-[var(--color-cartao)]">
               <div className="flex items-center gap-2">
                 <span className="min-w-0 truncate font-medium">{c.nome}</span>
                 {!c.ativa && <Estado tom="neutro">Desligada</Estado>}
@@ -220,6 +228,7 @@ function Contas({ contas, consulta, def, extra, semMoldura, grupo }: { contas: C
           <caption className="sr-only">Contas, {contas.length} nesta página</caption>
           <thead className="bg-[var(--color-cartao)]">
             <tr>
+              <th scope="col" className="w-10 pl-3"><MarcarTodas alvo="table" /></th>
               <Th {...th} campo="nome">Nome</Th>
               {grupo !== "empresa" && <Th {...th} campo="empresa" col="empresa">Empresa</Th>}
               <Th {...th} campo="papel" col="papel" className="w-36">Perfil</Th>
@@ -233,6 +242,9 @@ function Contas({ contas, consulta, def, extra, semMoldura, grupo }: { contas: C
           <tbody>
             {contas.map((c) => (
               <tr key={c.id} className={linha}>
+                <td className="w-10 pl-3 align-middle">
+                  <input type="checkbox" name="ids" value={c.id} form={FORM_LOTE} aria-label={`Marcar ${c.nome}`} className="h-4 w-4" />
+                </td>
                 <td className={`${celula} max-w-0`}>
                   <Link href={`/admin/contas/${c.id}`} className="block truncate font-medium hover:text-[var(--color-marca)] focus-visible:outline-none focus-visible:underline">{c.nome}</Link>
                   <div data-secundario className={secundario}>{c.email}</div>

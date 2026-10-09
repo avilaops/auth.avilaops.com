@@ -118,10 +118,15 @@ model Evento {
   ip       String?
   detalhe  String?
   autor    String?
+  /// Empresa da conta (ou, sem conta, da aplicação) no instante do evento.
+  /// Gravada na hora, para o histórico não mudar quando o vínculo mudar.
+  /// Eventos anteriores a 09/10/2026 não têm.
+  organizacaoId String? @map("organizacao_id")
   criadoEm DateTime @default(now()) @map("criado_em")
 
   @@index([email])
   @@index([criadoEm])
+  @@index([organizacaoId])
   @@map("eventos")
 }
 

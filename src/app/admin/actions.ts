@@ -144,6 +144,9 @@ export async function acaoCriarConta(_: Resultado | null, fd: FormData): Promise
   const caixa = await pedidoDeCaixa(fd, email);
   if (caixa && "erro" in caixa) return { ok: false, erro: caixa.erro };
 
+  const empresa = texto(fd, "empresa") || null;
+  if (empresa && !(await listarEmpresas()).some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
+
   let conta: Conta;
   let senha: string;
   try {
@@ -153,6 +156,7 @@ export async function acaoCriarConta(_: Resultado | null, fd: FormData): Promise
       cpf: texto(fd, "cpf") || null,
       telefone: texto(fd, "telefone") || null,
       role: roleValida(texto(fd, "role")),
+      organizationId: empresa,
     }));
     await registrar({ tipo: "conta_criada", email: conta.email, autor: admin.email, detalhe: conta.role });
     revalidatePath("/admin");
@@ -331,4 +335,36 @@ export async function acaoVincularEmpresaDaConta(_: Resultado | null, fd: FormDa
   revalidatePath("/admin");
   revalidatePath(`/admin/contas/${id}`);
   return { ok: true, mensagem: "Empresa salva." };
+}
+
+/**
+ * Vincula várias contas à mesma empresa de uma vez (ou tira o vínculo de
+ * todas). Cada conta alterada deixa o próprio evento na auditoria; conta que
+ * já estava na empresa escolhida não é tocada.
+ */
+export async function acaoVincularEmpresaEmLote(_: Resultado | null, fd: FormData): Promise<Resultado> {
+  const admin = await exigirAdminAction();
+  const ids = [...new Set(fd.getAll("ids").filter((v): v is string => typeof v === "string" && v.length > 0))].slice(0, 500);
+  const escolha = texto(fd, "empresa");
+  if (ids.length === 0) return { ok: false, erro: "Marque pelo menos uma conta." };
+  if (!escolha) return { ok: false, erro: "Escolha a empresa." };
+  const empresa = escolha === "__nenhuma" ? null : escolha;
+  const empresas = await listarEmpresas();
+  if (empresa && !empresas.some((e) => e.id === empresa)) return { ok: false, erro: "Empresa não encontrada." };
+  const nome = (v: string | null) => (v ? (empresas.find((e) => e.id === v)?.nome ?? v) : "sem empresa");
+
+  let alteradas = 0;
+  for (const id of ids) {
+    const antes = await buscarConta(id);
+    if (!antes || antes.organizationId === empresa) continue;
+    await vincularOrganizacao(id, empresa);
+    await registrar({ tipo: "conta_editada", email: antes.email, autor: admin.email, detalhe: `empresa: ${nome(antes.organizationId)} → ${nome(empresa)}` });
+    alteradas += 1;
+  }
+  revalidatePath("/admin");
+  const jaEstavam = ids.length - alteradas;
+  return {
+    ok: true,
+    mensagem: `${alteradas} conta${alteradas === 1 ? "" : "s"} ${empresa ? `vinculada${alteradas === 1 ? "" : "s"} a ${nome(empresa)}` : "sem empresa agora"}${jaEstavam > 0 ? `; ${jaEstavam} já estava${jaEstavam === 1 ? "" : "m"} assim` : ""}.`,
+  };
 }

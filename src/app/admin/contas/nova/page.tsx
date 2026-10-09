@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { dominiosHospedados } from "@/lib/caixaEmail";
+import { listarEmpresas } from "@/lib/empresas";
+import { VoltarLista } from "../../_componentes/lista/Interativos";
 import { automacaoDeCaixaConfigurada } from "@/lib/caixaN8n";
 import { acaoCriarConta } from "../../actions";
 import CampoCaixa from "../../_componentes/CampoCaixa";
@@ -10,12 +12,12 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Nova conta" };
 
 export default async function NovaContaPage() {
-  const dominios = await dominiosHospedados();
+  const [dominios, empresas] = await Promise.all([dominiosHospedados(), listarEmpresas()]);
   const automacao = automacaoDeCaixaConfigurada();
 
   return (
     <div className="mx-auto max-w-lg">
-      <Link href="/admin" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">← Contas</Link>
+      <VoltarLista secao="contas" base="/admin">← Contas</VoltarLista>
       <h1 className="mt-2 mb-6 text-2xl font-semibold tracking-tight">Nova conta</h1>
 
       <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-6">
@@ -37,6 +39,15 @@ export default async function NovaContaPage() {
               <option value="SOCIO">Sócio da Avila Ops (opera tudo, menos o caixa)</option>
               <option value="OWNER">Plataforma Avila Ops (acesso a tudo)</option>
             </select></label>
+          {empresas.length > 0 && (
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Empresa (opcional)
+              <select name="empresa" defaultValue="" className={campo}>
+                <option value="">Sem empresa vinculada</option>
+                {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+              </select>
+              <span className="text-[11px]">A empresa que a conta representa. Dá para mudar depois, na ficha.</span>
+            </label>
+          )}
 
           <fieldset className="flex flex-col gap-3 rounded-lg border border-[var(--color-borda)] p-3">
             <legend className="px-1 text-xs text-[var(--color-texto-fraco)]">Caixa de e-mail</legend>

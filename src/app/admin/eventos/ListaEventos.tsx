@@ -17,6 +17,8 @@ export type EventoLinha = {
   proprio: boolean;
   appId: string | null;
   appNome: string | null;
+  /** Empresa gravada no evento; nulo quando o evento não registrou. */
+  empresa: string | null;
   ip: string | null;
   detalhe: string | null;
 };
@@ -75,6 +77,7 @@ export default function ListaEventos({ eventos, fuso }: { eventos: EventoLinha[]
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[var(--color-texto-fraco)]">
                 <Resultado e={e} />
                 {e.appNome && <span className="min-w-0 truncate">· {e.appNome}</span>}
+                {e.empresa && <span className="min-w-0 truncate">· {e.empresa}</span>}
               </div>
             </button>
           </li>
@@ -91,6 +94,7 @@ export default function ListaEventos({ eventos, fuso }: { eventos: EventoLinha[]
               <th scope="col" className={cabecalho}>Quem fez</th>
               <th scope="col" data-col="alvo" className={`${cabecalho} hidden xl:table-cell`}>Alvo</th>
               <th scope="col" data-col="app" className={`${cabecalho} hidden w-40 xl:table-cell`}>Aplicação</th>
+              <th scope="col" data-col="empresa" className={`${cabecalho} hidden w-44 2xl:table-cell`}>Empresa</th>
               <th scope="col" data-col="resultado" className={`${cabecalho} w-36`}>Resultado</th>
               <th scope="col" className="w-24 px-1"><span className="sr-only">Detalhes</span></th>
             </tr>
@@ -122,6 +126,9 @@ export default function ListaEventos({ eventos, fuso }: { eventos: EventoLinha[]
                 </td>
                 <td data-col="app" className={`${celula} hidden max-w-0 xl:table-cell`}>
                   <span className="block truncate text-xs text-[var(--color-texto-fraco)]">{e.appNome ?? e.appId ?? "—"}</span>
+                </td>
+                <td data-col="empresa" className={`${celula} hidden max-w-0 2xl:table-cell`}>
+                  <span className={`block truncate text-xs ${e.empresa ? "" : "text-[var(--color-texto-apagado)]"}`}>{e.empresa ?? "Não registrada"}</span>
                 </td>
                 <td data-col="resultado" className={celula}><Resultado e={e} /></td>
                 <td className="px-1 text-right">
@@ -165,7 +172,7 @@ export default function ListaEventos({ eventos, fuso }: { eventos: EventoLinha[]
                 <dt className="text-[var(--color-texto-fraco)]">Aplicação</dt>
                 <dd className="break-all">{aberto.appNome ? `${aberto.appNome} (${aberto.appId})` : (aberto.appId ?? <span className="text-[var(--color-texto-fraco)]">Não registrada</span>)}</dd>
                 <dt className="text-[var(--color-texto-fraco)]">Empresa</dt>
-                <dd className="text-[var(--color-texto-fraco)]">A auditoria não registra empresa</dd>
+                <dd className="break-words">{aberto.empresa ?? <span className="text-[var(--color-texto-fraco)]">Não registrada neste evento</span>}</dd>
                 <dt className="text-[var(--color-texto-fraco)]">Endereço IP</dt>
                 <dd className="break-all font-mono text-xs">{aberto.ip ?? <span className="font-sans text-sm text-[var(--color-texto-fraco)]">Não registrado</span>}</dd>
                 <dt className="text-[var(--color-texto-fraco)]">Detalhe</dt>

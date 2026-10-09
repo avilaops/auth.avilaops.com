@@ -65,7 +65,9 @@ sendo trabalho de cada sistema consumidor.
   o estado mora na URL. Não filtrar nem ordenar só a página visível.
 - Empresa em listagem vem do vínculo gravado (`portal_clients.organization_id`,
   `aplicacoes.organizacao_id`). Nunca deduzir por domínio de e-mail ou nome. A
-  auditoria não guarda empresa: não reconstruir pelo vínculo de hoje.
+  auditoria grava a empresa da conta no instante do evento
+  (`eventos.organizacao_id`, desde 09/10/2026); evento sem empresa fica sem, e
+  não se preenche histórico com o vínculo de hoje.
 - CPF não vai para a URL: a busca por CPF usa o cookie de sessão
   `admin_busca`. Constante usada por página de servidor não mora em arquivo
   `"use client"`.

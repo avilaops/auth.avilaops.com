@@ -322,3 +322,6 @@ export function consultarEmMemoria<T>(
  * receberia uma referência, não o texto, e nunca acharia o cookie.
  */
 export const COOKIE_BUSCA = "admin_busca";
+
+/** `id` do formulário da ação em lote de Contas. Mora aqui pelo mesmo motivo de `COOKIE_BUSCA`. */
+export const FORM_LOTE = "lote-empresa";

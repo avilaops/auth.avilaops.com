@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/admin";
 import { listarCadastro } from "@/lib/cadastro";
+import { listarEmpresas, SEM_EMPRESA } from "@/lib/empresas";
 import { consultarEventos, facetasDosEventos } from "@/lib/eventos";
 import { autorEAlvo, descreverEvento, ROTULO_RESULTADO, tiposDoResultado, type Resultado } from "@/lib/eventosCatalogo";
 import { data, filtrosAtivos, FUSO, hora, intervaloDoPeriodo, lerConsulta, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
@@ -31,8 +32,9 @@ function atalhos(consulta: Consulta, def: DefLista): Atalho[] {
 
 export default async function EventosPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [sessao, facetas, cadastro] = await Promise.all([exigirAdmin(BASE), facetasDosEventos(), listarCadastro()]);
+  const [sessao, facetas, cadastro, empresas] = await Promise.all([exigirAdmin(BASE), facetasDosEventos(), listarCadastro(), listarEmpresas()]);
   const nomeApp = new Map(cadastro.map((a) => [a.id, a.nome]));
+  const nomeEmpresa = new Map(empresas.map((e) => [e.id, e.nome]));
 
   const def: DefLista = {
     periodo: true,
@@ -49,6 +51,15 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         rotulo: "Aplicação",
         tipo: "multi",
         opcoes: facetas.apps.map((id) => ({ valor: id, rotulo: nomeApp.get(id) ?? id })).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR")),
+      },
+      {
+        chave: "empresa",
+        rotulo: "Empresa registrada",
+        tipo: "multi",
+        opcoes: [
+          ...facetas.empresas.map((id) => ({ valor: id, rotulo: nomeEmpresa.get(id) ?? "Empresa não encontrada" })).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR")),
+          { valor: SEM_EMPRESA, rotulo: "Sem empresa registrada" },
+        ],
       },
     ],
     ordens: [{ campo: "data", rotulo: "Data", padrao: "desc", rotulos: ["mais antigos primeiro", "mais recentes primeiro"] }],
@@ -73,7 +84,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
   const pagina = semIntersecao
     ? { itens: [], total: 0, pag: 1, paginas: 1, de: 0, ate: 0 }
     : await consultarEventos(
-        { busca: consulta.q, tipos: tipos ?? undefined, apps: consulta.filtros.app, ...intervaloDoPeriodo(consulta), referencia },
+        { busca: consulta.q, tipos: tipos ?? undefined, apps: consulta.filtros.app, empresas: consulta.filtros.empresa, ...intervaloDoPeriodo(consulta), referencia },
         { pag: consulta.pag, por: consulta.por, dir: consulta.dir },
       );
 
@@ -94,6 +105,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
       proprio: quem.proprio,
       appId: e.appId,
       appNome: e.appId ? (nomeApp.get(e.appId) ?? null) : null,
+      empresa: e.organizacaoId ? (nomeEmpresa.get(e.organizacaoId) ?? "Empresa não encontrada") : null,
       ip: e.ip,
       detalhe: e.detalhe,
     };
@@ -123,6 +135,7 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
         colunas={[
           { id: "alvo", rotulo: "Alvo" },
           { id: "app", rotulo: "Aplicação" },
+          { id: "empresa", rotulo: "Empresa" },
           { id: "resultado", rotulo: "Resultado" },
         ]}
       />
@@ -139,8 +152,8 @@ export default async function EventosPage({ searchParams }: { searchParams: Prom
       </div>
 
       <p className="mt-4 text-xs text-[var(--color-texto-fraco)]">
-        A auditoria guarda quem fez, a conta afetada, a aplicação e o endereço de origem. Ela não guarda a empresa: filtrar por empresa aqui seria deduzir pelo
-        vínculo de hoje, que pode não ser o da época do evento.
+        A empresa de cada evento é a que a conta tinha no instante em que ele aconteceu, gravada junto com o evento desde 09/10/2026. Eventos anteriores não têm
+        empresa registrada, e o painel não a deduz pelo vínculo de hoje.
       </p>
     </div>
   );
