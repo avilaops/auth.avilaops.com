@@ -62,7 +62,7 @@ export default function FormLogin({
       <CampoSenha label="Senha" value={senha} onChange={setSenha} required />
 
       {erro && (
-        <p role="alert" className="text-xs leading-relaxed text-red-400">
+        <p role="alert" className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">
           {erro}
         </p>
       )}

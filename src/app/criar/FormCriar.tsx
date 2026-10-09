@@ -56,7 +56,7 @@ export default function FormCriar({ app, returnTo }: { app: string | null; retur
         E-mail
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required maxLength={254} className={campo} />
       </label>
-      {erro && <p role="alert" className="text-xs text-red-400">{erro}</p>}
+      {erro && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{erro}</p>}
       <button type="submit" disabled={enviando} className="mt-1 min-h-11 rounded-lg bg-[var(--color-marca-solida)] px-4 py-2.5 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90 disabled:opacity-60">
         {enviando ? "Enviando…" : "Enviar link de confirmação"}
       </button>

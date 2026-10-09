@@ -80,8 +80,8 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         aqui é a primeira tela que a equipe abre, e é onde a falta aparece.
       */}
       {!saude.disponivel && (
-        <div role="alert" className="mb-5 rounded-xl border border-red-900/50 bg-red-950/30 p-4 text-sm">
-          <strong className="text-red-300">Verificação em duas etapas suspensa.</strong>{" "}
+        <div role="alert" className="mb-5 rounded-xl border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-4 text-sm">
+          <strong className="text-[var(--color-marca-vermelho)]">Verificação em duas etapas suspensa.</strong>{" "}
           <span className="text-[var(--color-texto-fraco)]">
             {saude.migracoes === "pendentes"
               ? "As tabelas do segundo fator não existem neste banco — rode `npx prisma migrate deploy`."
@@ -106,7 +106,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
       </div>
 
       {truncado && (
-        <p role="alert" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-300">
+        <p role="alert" className="mb-3 rounded-lg border border-[var(--color-marca-amarelo)]/40 bg-[var(--marca-amarelo-suave)] p-3 text-xs text-[var(--color-marca-amarelo)]">
           A base passou do limite desta listagem. Os totais abaixo consideram só as primeiras contas em ordem alfabética.
         </p>
       )}

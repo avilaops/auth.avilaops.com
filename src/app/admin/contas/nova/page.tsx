@@ -41,7 +41,7 @@ export default async function NovaContaPage() {
           <fieldset className="flex flex-col gap-3 rounded-lg border border-[var(--color-borda)] p-3">
             <legend className="px-1 text-xs text-[var(--color-texto-fraco)]">Caixa de e-mail</legend>
             {dominios.length === 0 ? (
-              <p className="text-xs text-amber-400">
+              <p className="text-xs text-[var(--color-marca-amarelo)]">
                 Sem domínios de e-mail disponíveis agora (banco do mail inacessível). A conta pode ser criada; a caixa fica para depois.
               </p>
             ) : (

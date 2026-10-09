@@ -364,7 +364,7 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
         </div>
       </div>
 
-      {erroBusca && <p role="alert" className="text-xs text-red-400">{erroBusca}</p>}
+      {erroBusca && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{erroBusca}</p>}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-texto-fraco)]">
         {chips.map((c) => (

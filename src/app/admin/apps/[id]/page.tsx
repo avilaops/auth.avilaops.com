@@ -78,8 +78,8 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
             )}
           </div>
 
-          <div className="rounded-xl border border-red-500/30 bg-[var(--color-cartao)] p-5 text-xs">
-            <div className="mb-2 font-semibold text-red-400">Remover cadastro</div>
+          <div className="rounded-xl border border-[var(--color-marca-vermelho)]/40 bg-[var(--color-cartao)] p-5 text-xs">
+            <div className="mb-2 font-semibold text-[var(--color-marca-vermelho)]">Remover cadastro</div>
             <div className="mb-3 text-[var(--color-texto-fraco)]">
               Apaga a linha e as {liberados.length} liberações de cliente. Para tirar do login sem perder nada, use a situação &quot;desativado&quot;.
             </div>

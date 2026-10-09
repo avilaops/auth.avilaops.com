@@ -67,7 +67,7 @@ export default async function IntegracaoPage({ params }: { params: Promise<{ id:
             <p className="mb-3 text-[var(--color-texto-fraco)]">Apaga o cadastro. O sistema deixa de conseguir entrar por aqui.</p>
             <FormAcao acao={acaoRemoverIntegracao}>
               <input type="hidden" name="id" value={i.id} />
-              <button type="submit" className={`${botaoFraco} text-red-400`}>Remover integração</button>
+              <button type="submit" className={`${botaoFraco} text-[var(--color-marca-vermelho)]`}>Remover integração</button>
             </FormAcao>
           </div>
 

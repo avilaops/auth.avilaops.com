@@ -51,7 +51,7 @@ export default function FormDesafio({ email, appId }: { email: string; appId: st
 
       <CampoCodigo valor={codigo} aoMudar={setCodigo} rotulo="Código" />
 
-      {erro && <p role="alert" className="text-xs leading-relaxed text-red-400">{erro}</p>}
+      {erro && <p role="alert" className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">{erro}</p>}
 
       <button
         type="submit"

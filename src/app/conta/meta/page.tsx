@@ -95,7 +95,7 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
       {mensagem && (
         <p
           role={mensagem.erro ? "alert" : "status"}
-          className={`mb-6 rounded-lg border p-3 text-xs ${mensagem.erro ? "border-red-900/50 bg-red-950/30 text-red-300" : "border-[var(--color-borda)] bg-[var(--color-cartao)]"}`}
+          className={`mb-6 rounded-lg border p-3 text-xs ${mensagem.erro ? "border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] text-[var(--color-marca-vermelho)]" : "border-[var(--color-borda)] bg-[var(--color-cartao)]"}`}
         >
           {mensagem.texto}
         </p>
@@ -132,14 +132,14 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
               <div>Conectado em {data(conexao.criadoEm)}</div>
               {conexao.sincronizadoEm && <div>Atualizado em {data(conexao.sincronizadoEm)}</div>}
               {conexao.expiraEm && (
-                <div className={conexao.expirada ? "text-red-400" : ""}>
+                <div className={conexao.expirada ? "text-[var(--color-marca-vermelho)]" : ""}>
                   {conexao.expirada ? "Autorização vencida em " : "Autorização válida até "}
                   {data(conexao.expiraEm)}
                 </div>
               )}
             </dl>
             {conexao.expirada && (
-              <p role="alert" className="mt-3 text-xs text-red-400">A autorização venceu. Conecte de novo para os sistemas voltarem a funcionar.</p>
+              <p role="alert" className="mt-3 text-xs text-[var(--color-marca-vermelho)]">A autorização venceu. Conecte de novo para os sistemas voltarem a funcionar.</p>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
               <form action={acaoSincronizarMeta}>
@@ -149,7 +149,7 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
                 Rever permissões no Facebook
               </a>
               <form action={acaoDesconectarMeta}>
-                <button className="rounded-lg border border-[var(--color-borda)] px-3 py-1.5 text-xs text-red-400 hover:bg-[var(--color-fundo)]">Desconectar</button>
+                <button className="rounded-lg border border-[var(--color-borda)] px-3 py-1.5 text-xs text-[var(--color-marca-vermelho)] hover:bg-[var(--color-fundo)]">Desconectar</button>
               </form>
             </div>
           </Cartao>
