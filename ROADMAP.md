@@ -33,7 +33,6 @@ falta, em ordem de prioridade.
   já confere se cada endereço responde, mas só quando `/admin/apps` é aberta.
   Falta uma rotina (n8n) que rode sozinha e avise quando o cadastro diz "no ar"
   e o endereço não responde.
-- **`/conta` em seções**, com navegação, em vez de uma página só.
 
 ## Decisões em aberto (do Nicolas)
 

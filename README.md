@@ -296,6 +296,12 @@ No login social (`src/lib/vinculos.ts`):
 desvincular logins, trocar senha. O admin vê e desvincula em
 `/admin/contas/[id]`.
 
+A página é dividida em seções, uma por tela, escolhidas por `?secao=`
+(`src/lib/secoesDaConta.ts`): **Início** (caixas de e-mail e sistemas),
+**Meus dados** (`?secao=dados`) e **Segurança** (`?secao=seguranca`: formas de
+entrar e verificação em duas etapas). A aba **Meta** leva a `/conta/meta`.
+Vincular uma rede social e trocar a senha devolvem a pessoa à Segurança.
+
 ### Apple
 
 Não tem client secret fixo: o auth assina um JWT ES256 com a chave `.p8` a cada
