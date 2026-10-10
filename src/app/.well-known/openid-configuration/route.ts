@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { chaveDeAssinatura } from "@/lib/chaveOidc";
 import { documentoDescoberta } from "@/lib/oidc";
 
 export const runtime = "nodejs";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  * de prateleira aponta o `issuer` e acha o resto sozinha.
  */
 export async function GET() {
-  return NextResponse.json(documentoDescoberta(), {
+  return NextResponse.json(documentoDescoberta((await chaveDeAssinatura()) !== null), {
     headers: { "Cache-Control": "public, max-age=300" },
   });
 }

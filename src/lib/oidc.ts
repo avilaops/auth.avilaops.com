@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import type { Papel } from "@/lib/apps";
+import { chaveDeAssinatura, type ChaveDeAssinatura } from "@/lib/chaveOidc";
 import { prisma } from "@/lib/prisma";
 import { baseUrl } from "@/lib/urls";
 
@@ -288,39 +289,55 @@ function segredoJwt(): string {
   return s;
 }
 
+function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null) {
+  return {
+    sub: i.sub,
+    email: i.email,
+    email_verified: true,
+    name: i.nome,
+    preferred_username: i.email,
+    picture: i.foto ?? undefined,
+    papel: i.papel,
+    ...(nonce ? { nonce } : {}),
+  };
+}
+
+/**
+ * `id_token` assinado com a chave dada (RS256), ou com o segredo da sessão
+ * (HS256) quando não há chave. Separado de `assinarIdToken` para ser testado
+ * sem banco.
+ */
+export function assinarIdTokenCom(chave: ChaveDeAssinatura | null, i: IdentidadeOIDC, clienteId: string, nonce: string | null): string {
+  const opcoes = { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId };
+  if (!chave) return jwt.sign(conteudoDoToken(i, nonce), segredoJwt(), opcoes);
+  return jwt.sign(conteudoDoToken(i, nonce), chave.privadaPem, { ...opcoes, algorithm: "RS256", keyid: chave.kid });
+}
+
 /**
  * `id_token`: quem entrou, para qual cliente, provado por assinatura.
  *
- * Assinado com o mesmo segredo da sessão (HS256). Isso basta porque os clientes
- * são nossos e o segredo é compartilhado pelo `.env` do servidor. Para cliente
- * de fora seria preciso RS256 e um `/oauth/jwks` com a chave pública — daí a
- * ausência do `jwks_uri` no documento de descoberta.
+ * RS256 com a chave de `lib/chaveOidc.ts`; o cliente confere com a pública de
+ * `/oauth/jwks`. Sem chave (falta `AUTH_ENCRYPTION_KEY` ou a migração), cai
+ * para HS256 com o segredo da sessão, que nenhum cliente consegue conferir e
+ * que os da casa nunca conferiram: a identidade deles vem do `/oauth/userinfo`.
  */
-export function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce: string | null): string {
-  return jwt.sign(
-    {
-      sub: i.sub,
-      email: i.email,
-      email_verified: true,
-      name: i.nome,
-      preferred_username: i.email,
-      picture: i.foto ?? undefined,
-      papel: i.papel,
-      ...(nonce ? { nonce } : {}),
-    },
-    segredoJwt(),
-    { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId },
-  );
+export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce: string | null): Promise<string> {
+  return assinarIdTokenCom(await chaveDeAssinatura(), i, clienteId, nonce);
 }
 
-/** Access token: o mesmo formato do `id_token`, lido de volta no `/oauth/userinfo`. */
+/**
+ * Access token: lido de volta só por este serviço, no `/oauth/userinfo`. Por
+ * isso continua em HS256 com o segredo da sessão: ninguém de fora precisa
+ * conferi-lo.
+ */
 export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string): string {
-  return assinarIdToken(i, clienteId, null);
+  return assinarIdTokenCom(null, i, clienteId, null);
 }
 
 export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string }) | null {
   try {
-    const p = jwt.verify(token, segredoJwt(), { issuer: EMISSOR }) as jwt.JwtPayload;
+    // Só HS256: um `id_token` RS256 não serve de access token.
+    const p = jwt.verify(token, segredoJwt(), { issuer: EMISSOR, algorithms: ["HS256"] }) as jwt.JwtPayload;
     if (!p.sub || typeof p.email !== "string") return null;
     return {
       sub: p.sub,
@@ -335,8 +352,13 @@ export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: st
   }
 }
 
-/** Documento de descoberta. `baseUrl()` para o dev apontar para si mesmo. */
-export function documentoDescoberta() {
+/**
+ * Documento de descoberta. `baseUrl()` para o dev apontar para si mesmo.
+ *
+ * `comChave` diz se há par de assinatura: com ele o documento anuncia RS256 e
+ * o `jwks_uri`; sem ele, HS256 e nenhum `jwks_uri`, que é o que de fato sai.
+ */
+export function documentoDescoberta(comChave: boolean) {
   const base = baseUrl();
   return {
     issuer: EMISSOR,
@@ -348,7 +370,8 @@ export function documentoDescoberta() {
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
     subject_types_supported: ["public"],
-    id_token_signing_alg_values_supported: ["HS256"],
+    ...(comChave ? { jwks_uri: `${base}/oauth/jwks` } : {}),
+    id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256", "plain"],
     claims_supported: ["sub", "email", "email_verified", "name", "preferred_username", "picture"],
