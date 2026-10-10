@@ -408,3 +408,15 @@ model Conferencia {
 
   @@map("conferencias")
 }
+
+/// Par de chaves RSA que assina o `id_token` (RS256). A pública é servida em
+/// `/oauth/jwks`; a privada fica cifrada com `AUTH_ENCRYPTION_KEY`, como os
+/// segredos dos conectores. Quem assina é a mais antiga (ver `lib/chaveOidc.ts`).
+model ChaveOidc {
+  kid        String   @id
+  publicaJwk String   @map("publica_jwk")
+  privadaEnc String   @map("privada_enc")
+  criadaEm   DateTime @default(now()) @map("criada_em")
+
+  @@map("chaves_oidc")
+}

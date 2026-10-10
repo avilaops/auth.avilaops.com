@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       access_token: assinarAccessToken(identidade, cliente.id),
-      id_token: assinarIdToken(identidade, cliente.id, resgate.nonce),
+      id_token: await assinarIdToken(identidade, cliente.id, resgate.nonce),
       token_type: "Bearer",
       expires_in: TTL_TOKEN_SEGUNDOS,
       scope: "openid profile email",

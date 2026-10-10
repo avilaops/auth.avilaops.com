@@ -26,9 +26,11 @@ falta, em ordem de prioridade.
   renovado quando um sistema lê a conexão a menos de 15 dias do vencimento.
   Conta que ninguém lê por 60 dias vence. Falta uma rotina diária (n8n) e o
   aviso ao cliente quando a conexão estiver para vencer.
-- **Refresh token e assinatura por chave pública no OIDC.** O `id_token` é
-  HS256 com o segredo da sessão, o que só serve para sistema da casa. Software
-  de terceiro que valide por `jwks_uri` precisa de RS256.
+- **Refresh token e rotação de chave no OIDC.** O `id_token` já sai em RS256
+  com `jwks_uri`. Faltam o refresh token (hoje a sessão dura 8 h e o sistema
+  manda a pessoa de volta ao login) e trocar a chave de assinatura pelo painel.
+- **TMS conferir o `id_token`.** Ele descarta o `id_token` e busca a identidade
+  no `/oauth/userinfo`, porque antes não havia como conferir a assinatura.
 - **Conferência das aplicações sem depender de alguém abrir a lista.** O painel
   já confere se cada endereço responde, mas só quando `/admin/apps` é aberta.
   Falta uma rotina (n8n) que rode sozinha e avise quando o cadastro diz "no ar"

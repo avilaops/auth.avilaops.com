@@ -377,6 +377,13 @@ coisas, que podem andar juntas ou separadas:
 - **Login por OIDC** (`/oauth/authorize`, `/oauth/token`, `/oauth/userinfo`),
   para sistema que não lê o cookie `avila_sso`: software de terceiro ou produto
   da casa em domínio de cliente.
+  O `id_token` é assinado em RS256; a chave pública fica em `/oauth/jwks`, que
+  é o `jwks_uri` de `/.well-known/openid-configuration`. O par é criado no
+  primeiro uso e guardado em `chaves_oidc`, com a privada cifrada por
+  `AUTH_ENCRYPTION_KEY` (`src/lib/chaveOidc.ts`). Sem essa variável ou sem a
+  migração, o `id_token` sai em HS256 com o segredo da sessão e a descoberta
+  não anuncia `jwks_uri`. O access token é sempre HS256: só o
+  `/oauth/userinfo` o lê. Não há rotação de chave pelo painel.
 - **Leitura da conexão da Meta** (`GET /api/meta/ativos`), só para integração
   marcada com essa permissão.
 
