@@ -29,6 +29,30 @@ function limitarEmMemoria(chave: string, max: number, janelaMs: number): boolean
 
 let avisado = false;
 
+/** De quanto em quanto tempo este processo tira do banco as janelas vencidas. */
+export const INTERVALO_DA_LIMPEZA_MS = 60 * 60 * 1000;
+
+let ultimaLimpeza = 0;
+
+/** Já passou o intervalo desde a última limpeza feita por este processo? */
+export function horaDeLimpar(agora: number, ultima: number): boolean {
+  return agora - ultima >= INTERVALO_DA_LIMPEZA_MS;
+}
+
+/**
+ * Dispara a limpeza das janelas vencidas, no máximo uma vez por intervalo.
+ *
+ * Pega carona em `limitar` para não depender de rotina externa: a tabela só
+ * cresce quando há tentativa, e é a tentativa que a limpa. Não é esperada: o
+ * login não fica mais lento por causa da faxina.
+ */
+function limparDeVezEmQuando(): void {
+  const agora = Date.now();
+  if (!horaDeLimpar(agora, ultimaLimpeza)) return;
+  ultimaLimpeza = agora;
+  void limparVencidas();
+}
+
 /**
  * Conta mais uma tentativa e diz se ela ainda cabe no limite.
  *
@@ -45,6 +69,7 @@ export async function limitar(chave: string, max: number, janelaMs: number): Pro
         "conta" = CASE WHEN "tentativas"."reinicia_em" < now() THEN 1 ELSE "tentativas"."conta" + 1 END,
         "reinicia_em" = CASE WHEN "tentativas"."reinicia_em" < now() THEN EXCLUDED."reinicia_em" ELSE "tentativas"."reinicia_em" END
       RETURNING "conta"`;
+    limparDeVezEmQuando();
     return Number(linhas[0]?.conta ?? 1) <= max;
   } catch (e) {
     if (!avisado) {
@@ -65,7 +90,7 @@ export async function liberar(chave: string): Promise<void> {
   }
 }
 
-/** Tira do banco as janelas já vencidas. Chamado de vez em quando, sem pressa. */
+/** Tira do banco as janelas já vencidas. Chamada por `limitar`, uma vez por intervalo. */
 export async function limparVencidas(): Promise<void> {
   try {
     await prisma.tentativa.deleteMany({ where: { reiniciaEm: { lt: new Date() } } });
