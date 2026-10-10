@@ -29,6 +29,7 @@ import FormAcao from "../../_componentes/FormAcao";
 import { botao, botaoFraco, campo } from "../../_componentes/estilos";
 import Papel from "../../_componentes/Papel";
 import { VoltarLista } from "../../_componentes/lista/Interativos";
+import OndeCadastrarDominio from "../../_componentes/OndeCadastrarDominio";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Conta" };
@@ -288,6 +289,7 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
                 <p className="text-xs text-[var(--color-texto-fraco)]">
                   A caixa nasce com senha provisória própria, mostrada uma vez; troca obrigatória no primeiro acesso. Criação pelo n8n.
                 </p>
+                <OndeCadastrarDominio />
               </FormAcao>
             )}
           </div>
