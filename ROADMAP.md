@@ -1,6 +1,6 @@
 # Roadmap — auth.avilaops.com
 
-Atualizado em 08/10/2026. O que está em produção fica no README; aqui só o que
+Atualizado em 10/10/2026. O que está em produção fica no README; aqui só o que
 falta, em ordem de prioridade.
 
 ## Agora
@@ -29,11 +29,8 @@ falta, em ordem de prioridade.
 - **Refresh token e assinatura por chave pública no OIDC.** O `id_token` é
   HS256 com o segredo da sessão, o que só serve para sistema da casa. Software
   de terceiro que valide por `jwks_uri` precisa de RS256.
-- **Filtros na lista de contas** por senha provisória e por 2FA.
 - **Situação das aplicações conferida automaticamente**, em vez de digitada.
 - **`/conta` em seções**, com navegação, em vez de uma página só.
-- **Limpeza periódica de `tentativas`.** A função `limparVencidas` existe, mas
-  nada a chama; as linhas vencidas são reaproveitadas, não removidas.
 
 ## Decisões em aberto (do Nicolas)
 

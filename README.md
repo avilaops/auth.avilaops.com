@@ -256,7 +256,8 @@ lugares contam a verdade:
 desafio é **descartado** e a pessoa recomeça pela senha: adivinhar 6 dígitos
 deixa de ser uma corrida que dá para continuar de onde parou. (O contador fica no banco, tabela `tentativas`: sobrevive a deploy e é o mesmo
 para todas as instâncias. Se o banco não responder, cai para a memória do
-processo em vez de derrubar o login.)
+processo em vez de derrubar o login. As janelas vencidas são apagadas pelo
+próprio contador, no máximo uma vez por hora por processo.)
 
 ## Conectores de login (Google, Apple, Microsoft, GitHub, LinkedIn, gov.br, Facebook, Discord)
 
