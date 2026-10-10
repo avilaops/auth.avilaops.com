@@ -126,6 +126,14 @@ Quem é ADMIN (ou está em `SSO_SUPERADMINS`) entra em `https://auth.avilaops.co
   remover.
 - **Aplicações**, o cadastro de aplicações e sites: criar, editar, desativar,
   remover, e quem tem acesso explícito a cada uma.
+  Embaixo da situação informada vai a **conferência**: o painel pede
+  `https://host/` de cada aplicação cadastrada como no ar ou fora do ar e guarda
+  se houve resposta (tabela `conferencias`, `src/lib/conferencia.ts`). Roda
+  depois de a lista ser aberta, no máximo a cada 10 minutos por aplicação, com
+  5 segundos de espera. Qualquer código abaixo de 500 conta como resposta, então
+  ela diz que o endereço atende, não que a aplicação funciona por dentro. A
+  situação informada continua sendo a que decide o login; a conferência só
+  aponta quando as duas discordam (filtro "Cadastro e conferência").
 - **Atividade**, auditoria: logins ok/falhos, sem permissão, trocas de senha,
   ações do admin.
 

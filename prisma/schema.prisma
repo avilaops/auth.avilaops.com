@@ -261,6 +261,7 @@ model Aplicacao {
   /// entra em nenhuma decisão de login.
   organizacaoId String? @map("organizacao_id")
   observacao  String?
+  conferencia Conferencia?
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -390,4 +391,20 @@ model BuscaPainel {
   @@index([email, secao])
   @@index([expiraEm])
   @@map("buscas_painel")
+}
+
+/// Última conferência de uma aplicação: o painel pediu `https://host/` e
+/// guardou se houve resposta. É o que foi observado, ao lado da situação
+/// informada no cadastro; não entra em nenhuma decisão de login.
+model Conferencia {
+  appId       String    @id @map("app_id")
+  aplicacao   Aplicacao @relation(fields: [appId], references: [id], onDelete: Cascade)
+  responde    Boolean
+  /// Código HTTP recebido; nulo quando não houve resposta.
+  status      Int?
+  /// Motivo da falta de resposta (tempo esgotado, DNS, certificado).
+  detalhe     String?
+  conferidaEm DateTime  @map("conferida_em")
+
+  @@map("conferencias")
 }
