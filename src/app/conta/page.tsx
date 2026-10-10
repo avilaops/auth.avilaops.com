@@ -9,6 +9,7 @@ import { buscarConta } from "@/lib/contas";
 import { listarPermissoes } from "@/lib/permissoes";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
+import { enderecoDaSecao, secaoDaConta, SECOES_DA_CONTA } from "@/lib/secoesDaConta";
 import { lerSessao } from "@/lib/sessao";
 import { listarVinculos } from "@/lib/vinculos";
 import BotoesSociais from "@/app/login/BotoesSociais";
@@ -30,14 +31,17 @@ function gb(bytes: number): string {
 /**
  * A casa de quem está logado — equipe ou cliente.
  *
- * Reúne o que a pessoa tem na Avila Ops: as caixas de e-mail (com um clique
- * para o webmail, que entra sozinho pelo SSO), os sistemas a que tem acesso, e
- * as formas de entrar (senha e logins sociais vinculados).
+ * Reúne o que a pessoa tem na Avila Ops, uma seção por tela (`?secao=`, ver
+ * `lib/secoesDaConta.ts`): no início, as caixas de e-mail (com um clique para o
+ * webmail, que entra sozinho pelo SSO) e os sistemas a que tem acesso; depois
+ * os dados dela; e as formas de entrar com a verificação em duas etapas.
  */
-export default async function ContaPage({ searchParams }: { searchParams: Promise<{ erro?: string; provedor?: string }> }) {
+export default async function ContaPage({ searchParams }: { searchParams: Promise<{ erro?: string; provedor?: string; secao?: string | string[] }> }) {
   const sessao = await lerSessao();
   if (!sessao) redirect("/login?returnTo=/conta");
-  const { erro, provedor: provErro } = await searchParams;
+  const { erro, provedor: provErro, secao: secaoPedida } = await searchParams;
+  const secao = secaoDaConta(secaoPedida, erro);
+  const SEGURANCA = enderecoDaSecao("seguranca");
 
   const [caixas, vinculos, ligados, permissoes, conta, fator] = await Promise.all([
     caixasDoDono(sessao.email),
@@ -62,7 +66,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
-      <header className="mb-8 flex items-start justify-between gap-4">
+      <header className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Olá, {primeiroNome}</h1>
           <p className="mt-1 text-sm text-[var(--color-texto-fraco)]">
@@ -82,6 +86,15 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         </div>
       </header>
 
+      <nav aria-label="Seções da conta" className="-mx-1 mb-6 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {SECOES_DA_CONTA.map((s) => (
+          <Link key={s.id} href={enderecoDaSecao(s.id)} aria-current={s.id === secao ? "page" : undefined} className={aba(s.id === secao)}>
+            {s.rotulo}
+          </Link>
+        ))}
+        <Link href="/conta/meta" className={aba(false)}>Meta</Link>
+      </nav>
+
       {erro === "ja_usado" && (
         <p role="alert" className="mb-6 rounded-lg border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-3 text-xs text-[var(--color-marca-vermelho)]">
           Essa conta {buscarProvedor(provErro)?.nome ?? ""} já está vinculada a outra pessoa.
@@ -89,7 +102,11 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
       )}
 
       <div className="flex flex-col gap-6">
-        {caixas.length > 0 && (
+        {secao === "inicio" && caixas.length === 0 && sistemas.length === 0 && (
+          <Cartao titulo="Nada por aqui ainda" subtitulo="Esta conta não tem caixa de e-mail nem sistema liberado. Quando a equipe Avila Ops liberar um, ele aparece nesta tela." />
+        )}
+
+        {secao === "inicio" && caixas.length > 0 && (
           <Cartao titulo="Seus e-mails" subtitulo="Abra o webmail sem digitar senha de novo — a sua sessão já vale lá.">
             <ul className="flex flex-col divide-y divide-[var(--color-borda)]">
               {caixas.map((c) => (
@@ -126,26 +143,28 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
           </Cartao>
         )}
 
-        {sistemas.length > 0 && (
+        {secao === "inicio" && sistemas.length > 0 && (
           <Cartao titulo="Seus sistemas" subtitulo="Você entra em cada um com esta mesma conta.">
-            <div className="grid gap-2 sm:grid-cols-2">
+            {/* Duas colunas também no celular: a equipe tem mais de dez sistemas e a lista em uma coluna passava de uma tela. */}
+            <div className="grid grid-cols-2 gap-2">
               {sistemas.map((app) => (
                 <a
                   key={app.id}
                   href={`/login?app=${app.id}&returnTo=https://${app.host}/`}
-                  className="group flex items-center justify-between gap-2 rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)] px-4 py-3 hover:border-[var(--color-texto-fraco)]"
+                  className="group flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 py-2 hover:border-[var(--color-texto-fraco)] sm:px-4 sm:py-3"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{app.nome}</div>
                     <div className="truncate text-xs text-[var(--color-texto-fraco)]">{app.host}</div>
                   </div>
-                  <span className="shrink-0 text-[var(--color-texto-fraco)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-texto)]">→</span>
+                  <span className="hidden shrink-0 text-[var(--color-texto-fraco)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-texto)] sm:inline">→</span>
                 </a>
               ))}
             </div>
           </Cartao>
         )}
 
+        {secao === "dados" && (
         <Cartao titulo="Meus dados" subtitulo="Como você aparece para a equipe Avila Ops.">
           <form action={acaoMeusDados} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">
@@ -178,7 +197,10 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
             </button>
           </form>
         </Cartao>
+        )}
 
+        {secao === "seguranca" && (
+        <>
         <Cartao titulo="Formas de entrar" subtitulo="Tudo aqui leva à mesma conta — entrar com senha ou com um destes é a mesma coisa.">
           <ul className="divide-y divide-[var(--color-borda)]">
             <li className="flex items-center justify-between py-2.5 text-sm">
@@ -186,7 +208,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                 <div>Senha</div>
                 <div className="text-xs text-[var(--color-texto-fraco)]">e-mail ou CPF + senha</div>
               </div>
-              <Link href="/trocar-senha?returnTo=/conta" className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">Trocar</Link>
+              <Link href={`/trocar-senha?returnTo=${encodeURIComponent(SEGURANCA)}`} className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">Trocar</Link>
             </li>
             {vinculos.map((v) => (
               <li key={v.id} className="flex items-center justify-between py-2.5 text-sm">
@@ -208,22 +230,9 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
           {disponiveis.length > 0 && (
             <div className="mt-5">
               <div className="mb-2 text-xs text-[var(--color-texto-fraco)]">Adicionar</div>
-              <BotoesSociais provedores={disponiveis} vincular returnTo="/conta" />
+              <BotoesSociais provedores={disponiveis} vincular returnTo={SEGURANCA} />
             </div>
           )}
-        </Cartao>
-
-        <Cartao titulo="Facebook, Instagram e WhatsApp" subtitulo="Autorize uma vez e os sistemas da Avila Ops trabalham com as suas Páginas, números e catálogos.">
-          <Link
-            href="/conta/meta"
-            className="group flex items-center justify-between gap-2 rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)] px-4 py-3 hover:border-[var(--color-texto-fraco)]"
-          >
-            <div className="flex items-center gap-3">
-              <IconeProvedor id="facebook" tamanho={18} />
-              <span className="text-sm font-medium">Conexão com a Meta</span>
-            </div>
-            <span className="shrink-0 text-[var(--color-texto-fraco)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-texto)]">→</span>
-          </Link>
         </Cartao>
 
         <Cartao
@@ -242,12 +251,20 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
             }}
           />
         </Cartao>
+        </>
+        )}
       </div>
     </main>
   );
 }
 
-function Cartao({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: React.ReactNode }) {
+function aba(ativa: boolean): string {
+  return `flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm ${
+    ativa ? "bg-[var(--color-marca-suave)] font-semibold text-[var(--color-marca)]" : "text-[var(--color-texto-fraco)] hover:bg-[var(--color-cartao)] hover:text-[var(--color-texto)]"
+  }`;
+}
+
+function Cartao({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children?: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-6">
       <h2 className="text-sm font-semibold">{titulo}</h2>
