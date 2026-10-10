@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { motivoDoAcesso, paraApp, recebeLogin, type Cadastro, type MotivoAcesso } from "@/lib/apps";
 import { buscarCadastro } from "@/lib/cadastro";
+import { descrever, divergencia, lerConferencias, precisaConferir } from "@/lib/conferencia";
 import { listarContas, papelDaRole, type Conta } from "@/lib/contas";
 import { ultimosLoginsNoApp } from "@/lib/eventos";
 import { permissoesPorApp } from "@/lib/permissoes";
@@ -34,7 +35,8 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
   const c = await buscarCadastro(id);
   if (!c) notFound();
 
-  const [porApp, empresas, vinculos] = await Promise.all([permissoesPorApp(), listarEmpresas(), empresasDasAplicacoes()]);
+  const [porApp, empresas, vinculos, conferencias] = await Promise.all([permissoesPorApp(), listarEmpresas(), empresasDasAplicacoes(), lerConferencias()]);
+  const conferencia = precisaConferir(c.situacao) ? (conferencias.get(c.id) ?? null) : null;
   const liberados = porApp[c.id] ?? [];
   const entra = recebeLogin(c);
 
@@ -62,6 +64,24 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
             empresas={empresas}
             explicacao="Empresa responsável por esta aplicação. Serve para filtrar e agrupar o painel; não muda quem pode entrar."
           />
+          <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs">
+            <div className="mb-2 font-semibold">Conferência</div>
+            {!precisaConferir(c.situacao) ? (
+              <div className="text-[var(--color-texto-fraco)]">Aplicação planejada ou desativada não é conferida.</div>
+            ) : !conferencia ? (
+              <div className="text-[var(--color-texto-fraco)]">Ainda não conferida. A conferência roda quando a lista de aplicações é aberta.</div>
+            ) : (
+              <>
+                <div className={divergencia(c.situacao, conferencia) ? "font-medium text-[var(--color-marca-amarelo)]" : ""}>
+                  {descrever(conferencia)}{conferencia.responde && conferencia.status ? ` (código ${conferencia.status})` : ""}
+                </div>
+                <div className="mt-1 text-[var(--color-texto-fraco)]">
+                  {`https://${c.host}/ em ${quando(conferencia.conferidaEm)}.`}
+                  {divergencia(c.situacao, conferencia) ? " Discorda da situação informada no cadastro." : ""}
+                </div>
+              </>
+            )}
+          </div>
           <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs">
             <div className="mb-2 font-semibold">Login</div>
             {entra ? (

@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { exigirAdmin } from "@/lib/admin";
 import { recebeLogin, SITUACOES, type Situacao } from "@/lib/apps";
 import { listarCadastro } from "@/lib/cadastro";
+import { conferirVencidas, descrever, divergencia, lerConferencias, precisaConferir, type Conferencia } from "@/lib/conferencia";
 import { empresasDasAplicacoes, listarEmpresas, ROTULO_SEM_EMPRESA, SEM_EMPRESA } from "@/lib/empresas";
-import { agrupar, consultarEmMemoria, filtrosAtivos, lerConsulta, paginar, paraParams, plural, type Consulta, type DefLista } from "@/lib/listagem";
+import { agrupar, consultarEmMemoria, dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, plural, type Consulta, type DefLista } from "@/lib/listagem";
 import { permissoesPorApp } from "@/lib/permissoes";
 import { botao } from "../_componentes/estilos";
 import BarraLista, { type Atalho } from "../_componentes/lista/BarraLista";
@@ -30,12 +32,25 @@ type App = {
   liberados: string[];
   empresaId: string | null;
   empresaNome: string | null;
+  /** Última conferência guardada; nulo quando ainda não houve ou não se aplica. */
+  conferencia: Conferencia | null;
+  conferida: Conferida;
+};
+
+/** Como a aplicação entra no filtro "Conferência". */
+type Conferida = "responde" | "nao_responde" | "pendente" | "nao_se_aplica";
+const CONFERIDA: Record<Conferida, string> = {
+  responde: "Responde",
+  nao_responde: "Não responde",
+  pendente: "Ainda não conferida",
+  nao_se_aplica: "Não conferida (planejada ou desativada)",
 };
 
 /**
- * A situação é o que alguém da equipe informou no cadastro. Não há sonda
- * conferindo se o endereço responde: a coluna diz "informada" para ninguém ler
- * "no ar" como monitoramento.
+ * A situação é o que alguém da equipe informou no cadastro, e é ela que decide
+ * se a aplicação recebe sessão. O que o painel observou ao pedir o endereço
+ * aparece embaixo, como conferência (`lib/conferencia.ts`): são duas coisas, e
+ * a tela não troca uma pela outra.
  */
 const SITUACAO: Record<Situacao, { texto: string; tom: "bom" | "ruim" | "info" | "neutro" }> = {
   no_ar: { texto: "No ar", tom: "bom" },
@@ -56,18 +71,23 @@ function urlLogin(app: App) {
 
 export default async function AppsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [sessao, cadastro, porApp, empresas, vinculos] = await Promise.all([
+  const [sessao, cadastro, porApp, empresas, vinculos, conferencias] = await Promise.all([
     exigirAdmin(BASE),
     listarCadastro(),
     permissoesPorApp(),
     listarEmpresas(),
     empresasDasAplicacoes(),
+    lerConferencias(),
   ]);
+  // A tela mostra a conferência guardada; as vencidas são refeitas depois de a
+  // página responder, e a próxima abertura já traz o resultado.
+  after(() => conferirVencidas(cadastro, conferencias));
   const nomeEmpresa = new Map(empresas.map((e) => [e.id, e.nome]));
 
   const todas: App[] = cadastro.map((c) => {
     const login = recebeLogin(c);
     const empresaId = vinculos.get(c.id) ?? null;
+    const conferencia = precisaConferir(c.situacao) ? (conferencias.get(c.id) ?? null) : null;
     return {
       id: c.id,
       nome: c.nome,
@@ -80,6 +100,8 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
       liberados: porApp[c.id] ?? [],
       empresaId,
       empresaNome: empresaId ? (nomeEmpresa.get(empresaId) ?? null) : null,
+      conferencia,
+      conferida: !precisaConferir(c.situacao) ? "nao_se_aplica" : !conferencia ? "pendente" : conferencia.responde ? "responde" : "nao_responde",
     };
   });
 
@@ -88,6 +110,8 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
     filtros: [
       { chave: "empresa", rotulo: "Empresa", tipo: "multi", opcoes: [...empresas.filter((e) => comApp.has(e.id)).map((e) => ({ valor: e.id, rotulo: e.nome })), { valor: SEM_EMPRESA, rotulo: ROTULO_SEM_EMPRESA }] },
       { chave: "situacao", rotulo: "Situação informada", tipo: "multi", opcoes: SITUACOES.map((s) => ({ valor: s, rotulo: SITUACAO[s].texto })) },
+      { chave: "conferencia", rotulo: "Conferência", tipo: "multi", opcoes: (Object.keys(CONFERIDA) as Conferida[]).map((c) => ({ valor: c, rotulo: CONFERIDA[c] })) },
+      { chave: "divergente", rotulo: "Cadastro e conferência", tipo: "unico", opcoes: [{ valor: "sim", rotulo: "Discordam" }, { valor: "nao", rotulo: "Não discordam" }] },
       { chave: "login", rotulo: "Login único", tipo: "unico", opcoes: [{ valor: "sim", rotulo: "Habilitado" }, { valor: "nao", rotulo: "Desabilitado" }] },
       { chave: "acesso", rotulo: "Quem pode entrar", tipo: "multi", opcoes: (["equipe", "liberados", "aberto"] as const).map((a) => ({ valor: a, rotulo: ACESSO[a] })) },
       { chave: "tipo", rotulo: "Categoria", tipo: "unico", opcoes: [{ valor: "app", rotulo: "Aplicação" }, { valor: "site", rotulo: "Site" }] },
@@ -113,6 +137,8 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
     filtro: (a, chave) =>
       chave === "empresa" ? [a.empresaId ?? SEM_EMPRESA]
       : chave === "situacao" ? [a.situacao]
+      : chave === "conferencia" ? [a.conferida]
+      : chave === "divergente" ? [divergencia(a.situacao, a.conferencia) ? "sim" : "nao"]
       : chave === "login" ? [a.login ? "sim" : "nao"]
       : chave === "acesso" ? [a.acesso]
       : chave === "tipo" ? [a.tipo]
@@ -131,6 +157,7 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
     { rotulo: "Com login único", href: com({ login: ["sim"] }), ativo: so("login", "sim") },
     { rotulo: "No ar", href: com({ situacao: ["no_ar"] }), ativo: so("situacao", "no_ar") },
     { rotulo: "Fora do ar", href: com({ situacao: ["fora_do_ar"] }), ativo: so("situacao", "fora_do_ar") },
+    { rotulo: "Não respondem", href: com({ conferencia: ["nao_responde"] }), ativo: so("conferencia", "nao_responde") },
     { rotulo: "Sites", href: com({ tipo: ["site"] }), ativo: so("tipo", "site") },
   ];
 
@@ -149,7 +176,7 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
             total={todas.length}
             um="cadastrada"
             varios="cadastradas"
-            complemento={`${todas.filter((a) => a.login).length} com login único · ${todas.filter((a) => a.situacao === "no_ar").length} informadas como no ar`}
+            complemento={`${todas.filter((a) => a.login).length} com login único · ${todas.filter((a) => a.situacao === "no_ar").length} informadas como no ar · ${todas.filter((a) => a.conferida === "nao_responde").length} sem responder`}
           />
         </div>
         <Link href="/admin/apps/novo" className={`${botao} shrink-0 whitespace-nowrap`}>+ Nova aplicação</Link>
@@ -196,9 +223,28 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
       </div>
 
       <p className="mt-4 text-xs text-[var(--color-texto-fraco)]">
-        A situação é a informada no cadastro por alguém da equipe; o painel não monitora se o endereço responde. Só recebe sessão o que tem login único habilitado.
+        A situação é a informada no cadastro por alguém da equipe. Embaixo dela vai a conferência: o painel pede o endereço de cada aplicação no ar ou fora do ar,
+        no máximo a cada 10 minutos e quando esta página é aberta, e mostra se houve resposta. Responder não garante que a aplicação funcione por dentro. Só recebe
+        sessão o que tem login único habilitado.
       </p>
     </div>
+  );
+}
+
+/** Só a primeira letra: o resto do texto pode ter sigla (DNS). */
+function minuscula(t: string): string {
+  return t.charAt(0).toLowerCase() + t.slice(1);
+}
+
+/** A conferência em uma linha. Em destaque quando discorda do cadastro. */
+function LinhaDaConferencia({ app }: { app: App }) {
+  if (app.conferida === "nao_se_aplica") return null;
+  if (!app.conferencia) return <span className="text-[var(--color-texto-apagado)]">Ainda não conferida</span>;
+  const discorda = divergencia(app.situacao, app.conferencia) !== null;
+  return (
+    <span className={discorda ? "font-medium text-[var(--color-marca-amarelo)]" : "text-[var(--color-texto-fraco)]"} title={`Conferida em ${dataHora(app.conferencia.conferidaEm)}`}>
+      {discorda ? `Conferência: ${minuscula(descrever(app.conferencia))}` : descrever(app.conferencia)}
+    </span>
   );
 }
 
@@ -229,6 +275,7 @@ function Apps({ apps, consulta, def, semMoldura }: { apps: App[]; consulta: Cons
               </div>
               <div className={secundario}>{app.host}</div>
               <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-[var(--color-texto-fraco)]">
+                <LinhaDaConferencia app={app} />
                 <span className="min-w-0 truncate">{app.empresaNome ?? "Sem empresa"}</span>
                 <span>· {app.login ? `Login único: ${ACESSO[app.acesso].toLowerCase()}` : "Sem login único"}</span>
               </div>
@@ -245,7 +292,7 @@ function Apps({ apps, consulta, def, semMoldura }: { apps: App[]; consulta: Cons
             <tr>
               <Th {...th} campo="nome">Aplicação</Th>
               <Th {...th} campo="empresa" col="empresa">Empresa</Th>
-              <Th {...th} campo="situacao" col="situacao" className="w-40">Situação informada</Th>
+              <Th {...th} campo="situacao" col="situacao" className="w-48">Situação informada</Th>
               <Th {...th} col="login" className="w-28">Login único</Th>
               <Th {...th} col="acesso" className="hidden w-56 xl:table-cell">Quem pode entrar</Th>
               <th scope="col" className="w-12 px-1"><span className="sr-only">Ações</span></th>
@@ -267,7 +314,10 @@ function Apps({ apps, consulta, def, semMoldura }: { apps: App[]; consulta: Cons
                     ? <Link href={`${BASE}?f_empresa=${encodeURIComponent(app.empresaId)}`} className="block truncate hover:text-[var(--color-marca)]">{app.empresaNome ?? "Empresa não encontrada"}</Link>
                     : <span className="block truncate text-xs text-[var(--color-texto-apagado)]">Sem empresa vinculada</span>}
                 </td>
-                <td data-col="situacao" className={celula}><Estado tom={SITUACAO[app.situacao].tom}>{SITUACAO[app.situacao].texto}</Estado></td>
+                <td data-col="situacao" className={celula}>
+                  <Estado tom={SITUACAO[app.situacao].tom}>{SITUACAO[app.situacao].texto}</Estado>
+                  <div data-secundario className="text-xs"><LinhaDaConferencia app={app} /></div>
+                </td>
                 <td data-col="login" className={`${celula} text-xs`}>{app.login ? "Habilitado" : <span className="text-[var(--color-texto-fraco)]">Desabilitado</span>}</td>
                 <td data-col="acesso" className={`${celula} hidden text-xs xl:table-cell`}>
                   {app.login ? ACESSO[app.acesso] : <span className="text-[var(--color-texto-apagado)]">—</span>}

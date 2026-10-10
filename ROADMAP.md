@@ -29,7 +29,10 @@ falta, em ordem de prioridade.
 - **Refresh token e assinatura por chave pública no OIDC.** O `id_token` é
   HS256 com o segredo da sessão, o que só serve para sistema da casa. Software
   de terceiro que valide por `jwks_uri` precisa de RS256.
-- **Situação das aplicações conferida automaticamente**, em vez de digitada.
+- **Conferência das aplicações sem depender de alguém abrir a lista.** O painel
+  já confere se cada endereço responde, mas só quando `/admin/apps` é aberta.
+  Falta uma rotina (n8n) que rode sozinha e avise quando o cadastro diz "no ar"
+  e o endereço não responde.
 - **`/conta` em seções**, com navegação, em vez de uma página só.
 
 ## Decisões em aberto (do Nicolas)
