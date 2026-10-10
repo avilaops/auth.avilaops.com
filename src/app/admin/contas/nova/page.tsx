@@ -3,6 +3,7 @@ import { dominiosHospedados } from "@/lib/caixaEmail";
 import { automacaoDeCaixaConfigurada } from "@/lib/caixaN8n";
 import { acaoCriarConta } from "../../actions";
 import CampoCaixa from "../../_componentes/CampoCaixa";
+import OndeCadastrarDominio from "../../_componentes/OndeCadastrarDominio";
 import FormAcao from "../../_componentes/FormAcao";
 import { botao, campo } from "../../_componentes/estilos";
 
@@ -51,6 +52,7 @@ export default async function NovaContaPage() {
                   A caixa nasce com a <strong>mesma senha provisória</strong> da conta (troca obrigatória no primeiro acesso) e a conta vira dona dela: abre em mail.avilaops.com pelo login único, sem digitar senha.
                   {!automacao && " Atenção: a automação (n8n) não está configurada neste ambiente; o pedido vai falhar."}
                 </p>
+                <OndeCadastrarDominio />
               </>
             )}
           </fieldset>
