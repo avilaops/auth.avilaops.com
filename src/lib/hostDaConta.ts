@@ -16,6 +16,8 @@
  */
 
 export const HOST_DA_CONTA = "conta.avilaops.com";
+/** O host de produção do Auth. Só nele a página da conta é mandada para o endereço novo. */
+export const HOST_DO_AUTH = "auth.avilaops.com";
 export const ID_DO_APP_CONTA = "conta";
 
 export type Decisao =
@@ -40,4 +42,27 @@ export function decidirNoHostDaConta(caminho: string, busca: string, baseDoAuth:
     return { tipo: "redirecionar", url: `${baseDoAuth}/login?${q.toString()}` };
   }
   return { tipo: "redirecionar", url: `${baseDoAuth}${caminho}${busca}` };
+}
+
+export function ehHostDoAuth(host: string | null | undefined): boolean {
+  return (host ?? "").toLowerCase().split(":")[0] === HOST_DO_AUTH;
+}
+
+/**
+ * No host do Auth, a página da conta mudou de endereço: `/conta…` vai para
+ * conta.avilaops.com. Devolve o destino, ou `null` para seguir como está.
+ *
+ * Só leitura (`GET`/`HEAD`) é redirecionada. Uma aba aberta antes da mudança
+ * ainda envia formulário para o endereço antigo, e redirecionar um envio para
+ * outro host faria o servidor recusá-lo; assim ele é atendido onde chegou.
+ *
+ * Vale só no host de produção: em desenvolvimento e nos testes o serviço
+ * atende por outro nome, e a conta continua em `/conta`.
+ */
+export function destinoDaContaNoAuth(metodo: string, caminho: string, busca: string): string | null {
+  if (metodo !== "GET" && metodo !== "HEAD") return null;
+  if (caminho !== "/conta" && !caminho.startsWith("/conta/")) return null;
+  // A raiz do endereço novo já é a página da conta: sem repetir `/conta` quando não precisa.
+  if (caminho === "/conta" && !busca) return `https://${HOST_DA_CONTA}/`;
+  return `https://${HOST_DA_CONTA}${caminho}${busca}`;
 }
