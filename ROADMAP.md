@@ -26,9 +26,11 @@ falta, em ordem de prioridade.
   renovado quando um sistema lê a conexão a menos de 15 dias do vencimento.
   Conta que ninguém lê por 60 dias vence. Falta uma rotina diária (n8n) e o
   aviso ao cliente quando a conexão estiver para vencer.
-- **Refresh token e rotação de chave no OIDC.** O `id_token` já sai em RS256
-  com `jwks_uri`. Faltam o refresh token (hoje a sessão dura 8 h e o sistema
-  manda a pessoa de volta ao login) e trocar a chave de assinatura pelo painel.
+- **Rotação de chave no OIDC.** O `id_token` sai em RS256 com `jwks_uri` e o
+  refresh token existe. Falta trocar a chave de assinatura pelo painel.
+- **Aviso de logout aos sistemas (back-channel).** Sair no Auth apaga o cookie e
+  revoga os refresh tokens, mas o sistema que entrou por OIDC só percebe quando
+  o access token dele vence (até 8 h) ou quando tenta renovar.
 - **TMS conferir o `id_token`.** Ele descarta o `id_token` e busca a identidade
   no `/oauth/userinfo`, porque antes não havia como conferir a assinatura.
 

@@ -1,5 +1,8 @@
-import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
 import { NextRequest, NextResponse } from "next/server";
+import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
+import { buscarApp } from "@/lib/cadastro";
+import { buscarConta } from "@/lib/contas";
+import { registrar } from "@/lib/eventos";
 import {
   assinarAccessToken,
   assinarIdToken,
@@ -8,8 +11,11 @@ import {
   resgatarCodigoOAuth,
   TTL_TOKEN_SEGUNDOS,
   type ClienteOIDC,
+  type IdentidadeOIDC,
 } from "@/lib/oidc";
+import { podeEntrar } from "@/lib/permissoes";
 import { limitar } from "@/lib/rateLimit";
+import { emitirRefresh, gastarRefresh, identidadeParaRenovar, revogarFamilia } from "@/lib/refreshOAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +27,52 @@ function erro(code: string, descricao: string, status = 400) {
   );
 }
 
-/** `token_endpoint`: troca o código de uso único pelos tokens. */
+/** Corpo de sucesso do `token_endpoint`, igual para os dois caminhos. */
+async function tokens(identidade: IdentidadeOIDC, cliente: ClienteOIDC, nonce: string | null, familia?: string) {
+  const refresh = await emitirRefresh({ clienteId: cliente.id, sub: identidade.sub, email: identidade.email, familia });
+  return NextResponse.json(
+    {
+      access_token: assinarAccessToken(identidade, cliente.id),
+      id_token: await assinarIdToken(identidade, cliente.id, nonce, await appsDaIdentidade(identidade)),
+      // Ausente só quando a tabela ainda não foi migrada.
+      ...(refresh ? { refresh_token: refresh } : {}),
+      token_type: "Bearer",
+      expires_in: TTL_TOKEN_SEGUNDOS,
+      scope: "openid profile email",
+    },
+    { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } },
+  );
+}
+
+/**
+ * Renova os tokens a partir de um refresh token.
+ *
+ * O token sozinho não basta: a conta é lida de novo. Conta desligada ou
+ * removida, ou que perdeu o direito de entrar nesta aplicação, não renova, e a
+ * família é revogada para o sistema parar de tentar.
+ */
+async function renovar(cliente: ClienteOIDC, corpo: URLSearchParams) {
+  const apresentado = corpo.get("refresh_token");
+  if (!apresentado) return erro("invalid_request", "`refresh_token` ausente.");
+
+  const troca = await gastarRefresh(apresentado, cliente.id);
+  if (!troca.ok) {
+    if (troca.motivo === "reuso") {
+      await registrar({ tipo: "oauth_refresh_reusado", email: troca.email, appId: cliente.appId, detalhe: `cliente ${cliente.id}: token já gasto apresentado de novo; família revogada` });
+    }
+    return erro("invalid_grant", "Refresh token inválido ou expirado.");
+  }
+
+  const identidade = identidadeParaRenovar(await buscarConta(troca.sub));
+  const app = await buscarApp(cliente.appId);
+  if (!identidade || (app && !(await podeEntrar(identidade.email, identidade.papel, app)))) {
+    await revogarFamilia(troca.familia);
+    return erro("invalid_grant", "Refresh token inválido ou expirado.");
+  }
+  return tokens(identidade, cliente, null, troca.familia);
+}
+
+/** `token_endpoint`: troca o código de uso único, ou um refresh token, pelos tokens. */
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "desconhecido";
   if (!(await limitar(`oauth-token:${ip}`, 60, 15 * 60 * 1000))) {
@@ -35,8 +86,9 @@ export async function POST(req: NextRequest) {
     return erro("invalid_request", "Corpo inválido.");
   }
 
-  if (corpo.get("grant_type") !== "authorization_code") {
-    return erro("unsupported_grant_type", "Só `authorization_code` é aceito.");
+  const concessao = corpo.get("grant_type");
+  if (concessao !== "authorization_code" && concessao !== "refresh_token") {
+    return erro("unsupported_grant_type", "Só `authorization_code` e `refresh_token` são aceitos.");
   }
 
   const cliente: ClienteOIDC | null = await autenticarCliente(req.headers.get("authorization"), corpo);
@@ -45,6 +97,7 @@ export async function POST(req: NextRequest) {
   if (!cliente) {
     return erro("invalid_client", "Cliente ou segredo inválidos.", 401);
   }
+  if (concessao === "refresh_token") return renovar(cliente, corpo);
 
   const codigo = corpo.get("code");
   const redirectUri = corpo.get("redirect_uri");
@@ -72,14 +125,5 @@ export async function POST(req: NextRequest) {
     papel: resgate.papel,
   };
 
-  return NextResponse.json(
-    {
-      access_token: assinarAccessToken(identidade, cliente.id),
-      id_token: await assinarIdToken(identidade, cliente.id, resgate.nonce, await appsDaIdentidade(identidade)),
-      token_type: "Bearer",
-      expires_in: TTL_TOKEN_SEGUNDOS,
-      scope: "openid profile email",
-    },
-    { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } },
-  );
+  return tokens(identidade, cliente, resgate.nonce);
 }

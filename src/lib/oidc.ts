@@ -18,8 +18,8 @@ import { baseUrl } from "@/lib/urls";
  * são a tradução: por dentro continua sendo a mesma sessão, a mesma conta de
  * `portal_clients` e a mesma tela de login; por fora vira um provedor padrão.
  *
- * O que **não** está implementado, de propósito: refresh token (a sessão dura
- * 8 h e o app manda o usuário de volta ao login), consentimento por escopo (os
+ * Refresh token: `lib/refreshOAuth.ts`. O que **não** está implementado, de
+ * propósito: consentimento por escopo (os
  * clientes são todos nossos, o consentimento é o próprio login) e registro
  * dinâmico de cliente (a lista abaixo é curada à mão, como `apps.ts`).
  */
@@ -371,7 +371,7 @@ export function documentoDescoberta(comChave: boolean) {
     end_session_endpoint: `${base}/api/auth/logout`,
     scopes_supported: ["openid", "profile", "email"],
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     subject_types_supported: ["public"],
     ...(comChave ? { jwks_uri: `${base}/oauth/jwks` } : {}),
     id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],

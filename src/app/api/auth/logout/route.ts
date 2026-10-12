@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { registrar } from "@/lib/eventos";
+import { revogarRefreshDaConta } from "@/lib/refreshOAuth";
 import { lerSessao, limparCookieSessao } from "@/lib/sessao";
 import { urlAbsoluta } from "@/lib/urls";
 
@@ -17,7 +18,12 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const sessao = await lerSessao();
   await limparCookieSessao();
-  if (sessao) await registrar({ tipo: "logout", email: sessao.email });
+  if (sessao) {
+    // Sair vale para os sistemas que entram por OIDC também: sem isto, o
+    // refresh token deles renovaria a sessão de quem acabou de sair.
+    await revogarRefreshDaConta(sessao.sub);
+    await registrar({ tipo: "logout", email: sessao.email });
+  }
 
   const app = await buscarApp(req.nextUrl.searchParams.get("app"));
   const destino = app

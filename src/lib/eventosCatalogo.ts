@@ -46,6 +46,7 @@ export const EVENTOS: Record<string, Entrada> = {
   meta_dados_excluidos: { rotulo: "Dados da Meta excluídos", resultado: "atencao" },
   meta_token_entregue: { rotulo: "Token da Meta entregue a um sistema", resultado: "atencao" },
   meta_token_renovado: { rotulo: "Token da Meta renovado", resultado: "informativo" },
+  oauth_refresh_reusado: { rotulo: "Refresh token reapresentado", resultado: "falha" },
   integracao_criada: { rotulo: "Integração criada", resultado: "informativo" },
   integracao_alterada: { rotulo: "Integração alterada", resultado: "informativo" },
   integracao_segredo_trocado: { rotulo: "Segredo de integração trocado", resultado: "atencao" },
