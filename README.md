@@ -129,8 +129,11 @@ Quem é ADMIN (ou está em `SSO_SUPERADMINS`) entra em `https://auth.avilaops.co
   Embaixo da situação informada vai a **conferência**: o painel pede
   `https://host/` de cada aplicação cadastrada como no ar ou fora do ar e guarda
   se houve resposta (tabela `conferencias`, `src/lib/conferencia.ts`). Roda
-  depois de a lista ser aberta, no máximo a cada 10 minutos por aplicação, com
-  5 segundos de espera. Qualquer código abaixo de 500 conta como resposta, então
+  sozinha a cada 10 minutos dentro do próprio processo (`src/instrumentation.ts`
+  liga `src/lib/rotinaDeConferencia.ts`) e também quando a lista é aberta, com
+  5 segundos de espera e uma segunda tentativa antes de dar como sem resposta.
+  Quando uma aplicação cadastrada como no ar para de responder ou volta, os
+  endereços de `SSO_SUPERADMINS` recebem um e-mail; só a mudança avisa. Qualquer código abaixo de 500 conta como resposta, então
   ela diz que o endereço atende, não que a aplicação funciona por dentro. A
   situação informada continua sendo a que decide o login; a conferência só
   aponta quando as duas discordam (filtro "Cadastro e conferência").
