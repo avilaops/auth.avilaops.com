@@ -20,6 +20,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Minha conta" };
 
 const WEBMAIL = "https://mail.avilaops.com";
+/** Fora de "Seus sistemas": o e-mail tem o cartão dele, e a conta é esta página. */
+const FORA_DA_LISTA = new Set(["mail", "conta"]);
 
 function gb(bytes: number): string {
   const g = bytes / 1024 ** 3;
@@ -58,8 +60,8 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
   const apps = await listarApps();
   const sistemas =
     sessao.papel === "ADMIN"
-      ? apps.filter((app) => app.id !== "mail")
-      : apps.filter((app) => app.restrito && app.id !== "mail" && permissoes.includes(app.id));
+      ? apps.filter((app) => !FORA_DA_LISTA.has(app.id))
+      : apps.filter((app) => app.restrito && !FORA_DA_LISTA.has(app.id) && permissoes.includes(app.id));
   const vinculados = new Set(vinculos.map((v) => v.provedor));
   const disponiveis = ligados.filter((p) => !vinculados.has(p.id));
   const primeiroNome = sessao.nome.split(" ")[0];

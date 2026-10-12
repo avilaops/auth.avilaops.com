@@ -303,6 +303,13 @@ No login social (`src/lib/vinculos.ts`):
 desvincular logins, trocar senha. O admin vê e desvincula em
 `/admin/contas/[id]`.
 
+A mesma página atende em **`https://conta.avilaops.com`**, o endereço que o mapa
+do ecossistema dá à conta. É o mesmo serviço em outro host (`src/proxy.ts`,
+regra em `src/lib/hostDaConta.ts`): a raiz mostra a conta, `/login` manda para o
+login do Auth pedindo a volta para lá (aplicação `conta` no cadastro), e painel,
+OIDC e recuperação de senha são redirecionados para `auth.avilaops.com`.
+`auth.avilaops.com/conta` continua funcionando.
+
 A página é dividida em seções, uma por tela, escolhidas por `?secao=`
 (`src/lib/secoesDaConta.ts`): **Início** (caixas de e-mail e sistemas),
 **Meus dados** (`?secao=dados`) e **Segurança** (`?secao=seguranca`: formas de
