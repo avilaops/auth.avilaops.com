@@ -368,8 +368,11 @@ export class RemocaoRecusada extends Error {}
 
 /** O que ainda aponta para a conta, pelo nome da restrição que o banco citou. */
 export function motivoDaRecusa(restricao: string | undefined): string {
+  if (restricao?.includes("product_access")) {
+    return "Esta conta recebeu acesso a produto dentro de uma empresa, e esse histórico aponta para ela. Desligue a conta em vez de remover.";
+  }
   if (restricao?.includes("memberships")) {
-    return "Esta conta já participou de uma empresa no portal, e esse histórico aponta para ela. Desligue a conta em vez de remover.";
+    return "Esta conta tem participação em vigor numa empresa do portal. Desligue a conta primeiro; com a participação suspensa, a remoção passa.";
   }
   if (restricao?.includes("orders")) return "Esta conta tem pedidos no app.avilaops.com. Desligue a conta em vez de remover.";
   if (restricao?.includes("connections")) return "Esta conta autorizou conexões (Meta, Google) que ainda existem. Desligue a conta em vez de remover.";
@@ -382,14 +385,24 @@ export function motivoDaRecusa(restricao: string | undefined): string {
  * Toda conta tem uma linha-espelho em `core.identity_links`, criada pelo
  * gatilho `core_portal_identity_mirror`, e a chave dela proíbe apagar a conta.
  * Sem tirar o espelho antes, nenhuma remoção passava. Ele sai junto, na mesma
- * transação. O resto que aponta para a conta com proibição (participação em
- * empresa, pedidos, conexões) continua barrando, de propósito: é histórico de
- * verdade, e a recusa volta como `RemocaoRecusada`, não como erro de tela.
+ * transação, com o que é da própria conta e não é histórico:
+ *
+ * - as seleções de escopo do portal (`portal_client_scope_selections`), que
+ *   toda conta ganha ao nascer e barravam até conta de teste nunca usada;
+ * - a participação em empresa criada pelo espelho (`source = 'LEGACY'`) que já
+ *   não está em vigor: suspensa, porque a conta foi desligada, ou revogada.
+ *
+ * O resto continua barrando, de propósito: participação em vigor (a conta
+ * ainda entra na empresa; desligue antes), acesso a produto, pedidos e
+ * conexões são histórico de verdade. A recusa volta como `RemocaoRecusada`,
+ * não como erro de tela.
  */
 export async function removerConta(id: string): Promise<void> {
   const conexao = await getPool().connect();
   try {
     await conexao.query("begin");
+    await conexao.query(`delete from portal_client_scope_selections where client_id = $1`, [id]);
+    await conexao.query(`delete from core.memberships where identity_id = $1 and source = 'LEGACY' and status in ('SUSPENDED', 'REVOKED')`, [id]);
     await conexao.query(`delete from core.identity_links where identity_id = $1 and source = 'LEGACY' and issuer = 'portal_clients'`, [id]);
     await conexao.query(`delete from portal_clients where id = $1`, [id]);
     await conexao.query("commit");
