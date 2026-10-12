@@ -36,6 +36,8 @@ export type TipoEvento =
   | "meta_token_entregue"
   | "meta_token_renovado"
   // Cadastro de integrações (clientes OIDC e de API) feito pelo painel.
+  // Refresh token do OIDC já gasto apresentado de novo: sinal de cópia.
+  | "oauth_refresh_reusado"
   | "integracao_criada"
   | "integracao_alterada"
   | "integracao_segredo_trocado"

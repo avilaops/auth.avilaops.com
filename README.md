@@ -399,6 +399,12 @@ coisas, que podem andar juntas ou separadas:
   migração, o `id_token` sai em HS256 com o segredo da sessão e a descoberta
   não anuncia `jwks_uri`. O access token é sempre HS256: só o
   `/oauth/userinfo` o lê. Não há rotação de chave pelo painel.
+  O `/oauth/token` devolve também um **refresh token** e aceita
+  `grant_type=refresh_token` (`src/lib/refreshOAuth.ts`). Vale 30 dias sem uso;
+  cada troca gasta o token e emite outro; token já gasto apresentado de novo
+  revoga a família e fica na Atividade. A conta é lida de novo a cada troca:
+  desligada, removida ou sem direito de entrar na aplicação não renova. Sair no
+  Auth revoga os refresh da conta.
   O `id_token` e o `/oauth/userinfo` levam, além de `papel` (`ADMIN` para a
   equipe da casa, `CLIENTE` para os demais), a claim `apps`: os identificadores
   das aplicações em que a conta pode entrar, pela mesma regra do login. No

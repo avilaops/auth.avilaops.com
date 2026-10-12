@@ -420,3 +420,24 @@ model ChaveOidc {
 
   @@map("chaves_oidc")
 }
+
+/// Refresh token do provedor OIDC (ver `lib/refreshOAuth.ts`). Só o hash vai ao
+/// banco. Cada troca gasta um token e emite outro da mesma `familia`; reuso de
+/// token já gasto derruba a família inteira.
+model RefreshOAuth {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique @map("token_hash")
+  familia    String
+  clienteId  String    @map("cliente_id")
+  sub        String
+  email      String
+  expiraEm   DateTime  @map("expira_em")
+  usadoEm    DateTime? @map("usado_em")
+  revogadoEm DateTime? @map("revogado_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+
+  @@index([familia])
+  @@index([sub])
+  @@index([expiraEm])
+  @@map("refresh_oauth")
+}
