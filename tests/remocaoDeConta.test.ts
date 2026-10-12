@@ -3,8 +3,14 @@ import { describe, it } from "node:test";
 import { motivoDaRecusa } from "@/lib/contas";
 
 describe("recusa do banco ao remover conta, em palavras de tela", () => {
-  it("participação em empresa", () => {
-    assert.match(motivoDaRecusa("memberships_identity_id_fkey"), /participou de uma empresa/);
+  it("participação em vigor: manda desligar primeiro, porque depois a remoção passa", () => {
+    const motivo = motivoDaRecusa("memberships_identity_id_fkey");
+    assert.match(motivo, /participação em vigor/);
+    assert.match(motivo, /Desligue a conta primeiro/);
+  });
+
+  it("acesso a produto é histórico e continua barrando", () => {
+    assert.match(motivoDaRecusa("product_access_membership_id_fkey"), /acesso a produto/);
   });
 
   it("pedidos", () => {

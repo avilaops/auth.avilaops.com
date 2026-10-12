@@ -363,8 +363,9 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
       <section className="mt-6 rounded-xl border border-[var(--color-marca-vermelho)]/40 p-6">
         <h2 className="mb-1 text-sm font-semibold text-[var(--color-marca-vermelho)]">Remover conta</h2>
         <p className="mb-3 text-xs text-[var(--color-texto-fraco)]">
-          Não tem volta: a conta, as liberações de aplicação e os logins sociais dela deixam de existir. Conta que já participou de uma
-          empresa, tem pedidos ou autorizou conexões não pode ser removida; para essas, o caminho é desligar.
+          Não tem volta: a conta, as liberações de aplicação, os logins sociais e as preferências dela no portal deixam de existir.
+          Conta ligada a uma empresa precisa estar desligada antes. Conta com pedidos, conexões autorizadas ou acesso a produto não
+          pode ser removida; para essas, o caminho é desligar.
         </p>
         <FormAcao acao={acaoRemoverConta}>
           <input type="hidden" name="id" value={conta.id} />

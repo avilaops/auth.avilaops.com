@@ -123,7 +123,11 @@ Quem é ADMIN (ou está em `SSO_SUPERADMINS`) entra em `https://auth.avilaops.co
   estado da senha (provisória/definida), último login e busca por nome/e-mail/CPF.
 - **Conta**, editar dados e papel; definir senha; gerar senha provisória; gerar
   link de recuperação (1 h, uso único); liberar/revogar apps restritos; atividade;
-  remover.
+  remover. A remoção leva junto o que é da própria conta (seleções de escopo do
+  portal, espelho de identidade e a participação em empresa já suspensa ou
+  revogada). Conta ligada a uma empresa precisa ser desligada antes; pedidos,
+  conexões autorizadas e acesso a produto continuam barrando, porque são
+  histórico (`removerConta`, em `src/lib/contas.ts`).
 - **Aplicações**, o cadastro de aplicações e sites: criar, editar, desativar,
   remover, e quem tem acesso explícito a cada uma.
   Embaixo da situação informada vai a **conferência**: o painel pede
