@@ -405,6 +405,11 @@ coisas, que podem andar juntas ou separadas:
   revoga a família e fica na Atividade. A conta é lida de novo a cada troca:
   desligada, removida ou sem direito de entrar na aplicação não renova. Sair no
   Auth revoga os refresh da conta.
+  **Aviso de saída** (back-channel logout): a integração pode cadastrar um
+  endereço de aviso em `/admin/integracoes`. Quando a pessoa sai no Auth, cada
+  endereço recebe um `POST` com `logout_token` (RS256, `typ: logout+jwt`,
+  conferível pelo JWKS) dizendo qual conta saiu (`src/lib/avisoDeLogout.ts`).
+  É aviso, não garantia: falha só fica no log, e a saída não depende dele.
   O `id_token` e o `/oauth/userinfo` levam, além de `papel` (`ADMIN` para a
   equipe da casa, `CLIENTE` para os demais), a claim `apps`: os identificadores
   das aplicações em que a conta pode entrar, pela mesma regra do login. No

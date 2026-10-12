@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
+import { avisarLogout } from "@/lib/avisoDeLogout";
 import { registrar } from "@/lib/eventos";
 import { revogarRefreshDaConta } from "@/lib/refreshOAuth";
 import { lerSessao, limparCookieSessao } from "@/lib/sessao";
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest) {
     // Sair vale para os sistemas que entram por OIDC também: sem isto, o
     // refresh token deles renovaria a sessão de quem acabou de sair.
     await revogarRefreshDaConta(sessao.sub);
+    // Depois de responder: a pessoa não espera os outros sistemas para sair.
+    const sub = sessao.sub;
+    after(() => avisarLogout(sub));
     await registrar({ tipo: "logout", email: sessao.email });
   }
 

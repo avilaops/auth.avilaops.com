@@ -40,6 +40,10 @@ export default async function IntegracaoPage({ params }: { params: Promise<{ id:
             <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereços de retorno (um por linha)
               <textarea name="redirectUris" rows={4} defaultValue={i.redirectUris.join("\n")} className={`${campo} font-mono text-xs`} />
             </label>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereço de aviso de saída (opcional)
+              <input name="logoutUri" defaultValue={i.logoutUri ?? ""} className={`${campo} font-mono text-xs`} autoComplete="off" autoCapitalize="none" spellCheck={false} />
+              <span className="text-[11px]">Quando a pessoa sai no Auth, este endereço recebe um aviso assinado para o sistema encerrar a sessão dela.</span>
+            </label>
             <label className="flex items-start gap-2 text-xs">
               <input type="checkbox" name="acessoMeta" defaultChecked={i.acessoMeta} className="mt-0.5" />
               <span>Pode ler as conexões da Meta dos clientes</span>

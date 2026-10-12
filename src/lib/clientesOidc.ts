@@ -15,6 +15,8 @@ export type Integracao = {
   redirectUris: string[];
   acessoMeta: boolean;
   ativo: boolean;
+  /** Endereço avisado quando a pessoa sai no Auth; nulo = não é avisada. */
+  logoutUri: string | null;
   origem: "codigo" | "painel";
   atualizadoEm: Date | null;
   atualizadoPor: string | null;
@@ -27,6 +29,8 @@ export type EntradaIntegracao = {
   redirectUris: string;
   acessoMeta: boolean;
   ativo: boolean;
+  /** Em branco ou ausente: a integração não é avisada da saída. */
+  logoutUri?: string | null;
 };
 
 /** P2021/P2022: migração ainda não aplicada. Mesmo critério do resto do auth. */
@@ -50,6 +54,7 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
     redirectUris: lerRedirectUris(l.redirectUris),
     acessoMeta: l.acessoMeta,
     ativo: l.ativo,
+    logoutUri: l.logoutUri,
     origem: "painel",
     atualizadoEm: l.atualizadoEm,
     atualizadoPor: l.atualizadoPor,
@@ -62,6 +67,7 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
     redirectUris: [...c.redirectUris],
     acessoMeta: c.acessoMeta,
     ativo: true,
+    logoutUri: null,
     origem: "codigo",
     atualizadoEm: null,
     atualizadoPor: null,
@@ -125,7 +131,25 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
     if (url.hash || u.includes("*")) return { ok: false, erro: `Endereço de retorno não pode ter # nem curinga: ${u}` };
   }
 
-  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo } };
+  // O aviso de saída leva um token assinado para este endereço: mesmas regras
+  // do retorno, e só faz sentido para quem faz login.
+  const logoutUri = (e.logoutUri ?? "").trim() || null;
+  if (logoutUri) {
+    if (uris.length === 0) return { ok: false, erro: "Aviso de saída só vale para integração com endereço de retorno." };
+    let url: URL;
+    try {
+      url = new URL(logoutUri);
+    } catch {
+      return { ok: false, erro: `Endereço de aviso de saída inválido: ${logoutUri}` };
+    }
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !(local && url.protocol === "http:")) {
+      return { ok: false, erro: `Endereço de aviso de saída precisa ser https: ${logoutUri}` };
+    }
+    if (url.hash || logoutUri.includes("*")) return { ok: false, erro: `Endereço de aviso de saída não pode ter # nem curinga: ${logoutUri}` };
+  }
+
+  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo, logoutUri } };
 }
 
 /** Cria e devolve o segredo — é a única vez que ele existe em claro. */
