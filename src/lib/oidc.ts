@@ -289,7 +289,7 @@ function segredoJwt(): string {
   return s;
 }
 
-function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null) {
+function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null, apps?: string[]) {
   return {
     sub: i.sub,
     email: i.email,
@@ -298,6 +298,9 @@ function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null) {
     preferred_username: i.email,
     picture: i.foto ?? undefined,
     papel: i.papel,
+    // Aplicações que a conta pode abrir (ver `appsDaConta`). Fica só no
+    // `id_token`: o access token é lido só por este serviço.
+    ...(apps ? { apps } : {}),
     ...(nonce ? { nonce } : {}),
   };
 }
@@ -307,10 +310,10 @@ function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null) {
  * (HS256) quando não há chave. Separado de `assinarIdToken` para ser testado
  * sem banco.
  */
-export function assinarIdTokenCom(chave: ChaveDeAssinatura | null, i: IdentidadeOIDC, clienteId: string, nonce: string | null): string {
+export function assinarIdTokenCom(chave: ChaveDeAssinatura | null, i: IdentidadeOIDC, clienteId: string, nonce: string | null, apps?: string[]): string {
   const opcoes = { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId };
-  if (!chave) return jwt.sign(conteudoDoToken(i, nonce), segredoJwt(), opcoes);
-  return jwt.sign(conteudoDoToken(i, nonce), chave.privadaPem, { ...opcoes, algorithm: "RS256", keyid: chave.kid });
+  if (!chave) return jwt.sign(conteudoDoToken(i, nonce, apps), segredoJwt(), opcoes);
+  return jwt.sign(conteudoDoToken(i, nonce, apps), chave.privadaPem, { ...opcoes, algorithm: "RS256", keyid: chave.kid });
 }
 
 /**
@@ -321,8 +324,8 @@ export function assinarIdTokenCom(chave: ChaveDeAssinatura | null, i: Identidade
  * para HS256 com o segredo da sessão, que nenhum cliente consegue conferir e
  * que os da casa nunca conferiram: a identidade deles vem do `/oauth/userinfo`.
  */
-export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce: string | null): Promise<string> {
-  return assinarIdTokenCom(await chaveDeAssinatura(), i, clienteId, nonce);
+export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce: string | null, apps?: string[]): Promise<string> {
+  return assinarIdTokenCom(await chaveDeAssinatura(), i, clienteId, nonce, apps);
 }
 
 /**
@@ -374,6 +377,6 @@ export function documentoDescoberta(comChave: boolean) {
     id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256", "plain"],
-    claims_supported: ["sub", "email", "email_verified", "name", "preferred_username", "picture"],
+    claims_supported: ["sub", "email", "email_verified", "name", "preferred_username", "picture", "papel", "apps"],
   };
 }
