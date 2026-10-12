@@ -23,6 +23,7 @@ export type Conferencia = { responde: boolean; status: number | null; detalhe: s
 export const VALIDADE_MS = 10 * 60 * 1000;
 const TEMPO_LIMITE_MS = 5000;
 const SIMULTANEAS = 6;
+const PAUSA_ANTES_DE_REPETIR_MS = 3000;
 
 /** Só se confere o que o cadastro diz existir: planejada e desativada ficam de fora. */
 export function precisaConferir(situacao: Situacao): boolean {
@@ -70,7 +71,7 @@ export function descrever(c: Pick<Conferencia, "responde" | "status" | "detalhe"
  * Pede a página inicial da aplicação. Não segue redirecionamento: o que
  * interessa é se o endereço cadastrado atende, não para onde ele manda.
  */
-async function sondar(host: string): Promise<Omit<Conferencia, "conferidaEm">> {
+async function pedir(host: string): Promise<Omit<Conferencia, "conferidaEm">> {
   try {
     const r = await fetch(`https://${host}/`, {
       redirect: "manual",
@@ -82,6 +83,17 @@ async function sondar(host: string): Promise<Omit<Conferencia, "conferidaEm">> {
   } catch (e) {
     return interpretar({ erro: motivoDaFalha(e) });
   }
+}
+
+/**
+ * Uma falha isolada não vira "fora do ar": tenta de novo depois de uma pausa.
+ * Sem isto, um deploy da aplicação no instante da conferência virava aviso.
+ */
+async function sondar(host: string): Promise<Omit<Conferencia, "conferidaEm">> {
+  const primeira = await pedir(host);
+  if (primeira.responde) return primeira;
+  await new Promise((r) => setTimeout(r, PAUSA_ANTES_DE_REPETIR_MS));
+  return pedir(host);
 }
 
 /** Tabela ainda não migrada: o painel segue sem conferência em vez de cair. */
@@ -102,24 +114,52 @@ export async function lerConferencias(): Promise<Map<string, Conferencia>> {
 
 let emAndamento = false;
 
+/** O que uma rodada observou numa aplicação, ao lado do que estava guardado. */
+export type Observacao = {
+  id: string;
+  host: string;
+  situacao: Situacao;
+  /** Resultado guardado antes desta rodada; `null` na primeira conferência. */
+  antes: boolean | null;
+  depois: boolean;
+  detalhe: string;
+};
+
+export type Aviso = { tipo: "parou" | "voltou"; id: string; host: string; detalhe: string };
+
 /**
- * Refaz as conferências vencidas e grava o resultado.
- *
- * Chamada depois de a página responder (`after`), para a listagem não esperar
- * pela rede: a tela mostra a última conferência guardada e a próxima abertura
- * já traz a nova. Uma rodada por vez neste processo; falha aqui só fica no log.
+ * O que merece aviso: aplicação que o cadastro diz estar no ar e que mudou de
+ * estado. Só a mudança avisa, para um endereço mudo não gerar um e-mail a cada
+ * rodada; a primeira conferência de uma aplicação não é mudança, e o que já
+ * nasce divergente aparece no painel.
  */
-export async function conferirVencidas(cadastro: Pick<Cadastro, "id" | "host" | "situacao">[], conhecidas: Map<string, Conferencia>): Promise<void> {
-  if (emAndamento) return;
+export function avisosDaRodada(observacoes: Observacao[]): Aviso[] {
+  return observacoes
+    .filter((o) => o.situacao === "no_ar" && o.antes !== null && o.antes !== o.depois)
+    .map((o) => ({ tipo: o.depois ? "voltou" : "parou", id: o.id, host: o.host, detalhe: o.detalhe }));
+}
+
+/**
+ * Refaz as conferências vencidas, grava o resultado e devolve o que observou.
+ *
+ * Chamada pela rotina (`lib/rotinaDeConferencia.ts`) e depois de a lista de
+ * aplicações responder (`after`), para a listagem não esperar pela rede. Uma
+ * rodada por vez neste processo; falha aqui só fica no log.
+ */
+export async function conferirVencidas(cadastro: Pick<Cadastro, "id" | "host" | "situacao">[], conhecidas: Map<string, Conferencia>): Promise<Observacao[]> {
+  if (emAndamento) return [];
   const agora = Date.now();
   const fila = cadastro.filter((c) => precisaConferir(c.situacao) && vencida(conhecidas.get(c.id)?.conferidaEm, agora));
-  if (fila.length === 0) return;
+  if (fila.length === 0) return [];
   emAndamento = true;
+  const observacoes: Observacao[] = [];
   try {
     const trabalhar = async () => {
       for (let c = fila.shift(); c; c = fila.shift()) {
-        const dados = { ...(await sondar(c.host)), conferidaEm: new Date() };
+        const resultado = await sondar(c.host);
+        const dados = { ...resultado, conferidaEm: new Date() };
         await prisma.conferencia.upsert({ where: { appId: c.id }, create: { appId: c.id, ...dados }, update: dados });
+        observacoes.push({ id: c.id, host: c.host, situacao: c.situacao, antes: conhecidas.get(c.id)?.responde ?? null, depois: resultado.responde, detalhe: descrever(resultado) });
       }
     };
     await Promise.all(Array.from({ length: SIMULTANEAS }, trabalhar));
@@ -128,4 +168,5 @@ export async function conferirVencidas(cadastro: Pick<Cadastro, "id" | "host" | 
   } finally {
     emAndamento = false;
   }
+  return observacoes;
 }

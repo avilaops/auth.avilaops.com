@@ -3,7 +3,8 @@ import { after } from "next/server";
 import { exigirAdmin } from "@/lib/admin";
 import { recebeLogin, SITUACOES, type Situacao } from "@/lib/apps";
 import { listarCadastro } from "@/lib/cadastro";
-import { conferirVencidas, descrever, divergencia, lerConferencias, precisaConferir, type Conferencia } from "@/lib/conferencia";
+import { descrever, divergencia, lerConferencias, precisaConferir, type Conferencia } from "@/lib/conferencia";
+import { conferirEAvisar } from "@/lib/rotinaDeConferencia";
 import { empresasDasAplicacoes, listarEmpresas, ROTULO_SEM_EMPRESA, SEM_EMPRESA } from "@/lib/empresas";
 import { agrupar, consultarEmMemoria, dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, plural, type Consulta, type DefLista } from "@/lib/listagem";
 import { permissoesPorApp } from "@/lib/permissoes";
@@ -81,7 +82,7 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
   ]);
   // A tela mostra a conferência guardada; as vencidas são refeitas depois de a
   // página responder, e a próxima abertura já traz o resultado.
-  after(() => conferirVencidas(cadastro, conferencias));
+  after(() => conferirEAvisar(cadastro, conferencias));
   const nomeEmpresa = new Map(empresas.map((e) => [e.id, e.nome]));
 
   const todas: App[] = cadastro.map((c) => {
@@ -224,7 +225,7 @@ export default async function AppsPage({ searchParams }: { searchParams: Promise
 
       <p className="mt-4 text-xs text-[var(--color-texto-fraco)]">
         A situação é a informada no cadastro por alguém da equipe. Embaixo dela vai a conferência: o painel pede o endereço de cada aplicação no ar ou fora do ar,
-        no máximo a cada 10 minutos e quando esta página é aberta, e mostra se houve resposta. Responder não garante que a aplicação funcione por dentro. Só recebe
+        a cada 10 minutos, e mostra se houve resposta. Quando uma aplicação no ar para de responder ou volta, a equipe do painel recebe um e-mail. Responder não garante que a aplicação funcione por dentro. Só recebe
         sessão o que tem login único habilitado.
       </p>
     </div>

@@ -1,6 +1,6 @@
 # Roadmap — auth.avilaops.com
 
-Atualizado em 10/10/2026. O que está em produção fica no README; aqui só o que
+Atualizado em 12/10/2026. O que está em produção fica no README; aqui só o que
 falta, em ordem de prioridade.
 
 ## Agora
@@ -31,10 +31,6 @@ falta, em ordem de prioridade.
   manda a pessoa de volta ao login) e trocar a chave de assinatura pelo painel.
 - **TMS conferir o `id_token`.** Ele descarta o `id_token` e busca a identidade
   no `/oauth/userinfo`, porque antes não havia como conferir a assinatura.
-- **Conferência das aplicações sem depender de alguém abrir a lista.** O painel
-  já confere se cada endereço responde, mas só quando `/admin/apps` é aberta.
-  Falta uma rotina (n8n) que rode sozinha e avise quando o cadastro diz "no ar"
-  e o endereço não responde.
 
 ## Decisões em aberto (do Nicolas)
 
