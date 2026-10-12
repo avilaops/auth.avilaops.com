@@ -1,12 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { decidirNoHostDaConta, ehHostDaConta } from "@/lib/hostDaConta";
+import { decidirNoHostDaConta, destinoDaContaNoAuth, ehHostDaConta, ehHostDoAuth } from "@/lib/hostDaConta";
 
 /**
- * Só age quando o pedido chega por conta.avilaops.com; no host do Auth tudo
- * segue como sempre. A regra está em `lib/hostDaConta.ts`.
+ * Dois hosts, um serviço. Em conta.avilaops.com só existe a página da conta;
+ * em auth.avilaops.com a página da conta é mandada para lá e o resto segue
+ * como sempre. A regra está em `lib/hostDaConta.ts`.
  */
 export function proxy(request: NextRequest) {
-  if (!ehHostDaConta(request.headers.get("host"))) return NextResponse.next();
+  const host = request.headers.get("host");
+  if (ehHostDoAuth(host)) {
+    const destino = destinoDaContaNoAuth(request.method, request.nextUrl.pathname, request.nextUrl.search);
+    return destino ? NextResponse.redirect(destino, 307) : NextResponse.next();
+  }
+  if (!ehHostDaConta(host)) return NextResponse.next();
 
   const base = (process.env.SSO_BASE_URL || "https://auth.avilaops.com").replace(/\/$/, "");
   const decisao = decidirNoHostDaConta(request.nextUrl.pathname, request.nextUrl.search, base);

@@ -308,7 +308,8 @@ do ecossistema dá à conta. É o mesmo serviço em outro host (`src/proxy.ts`,
 regra em `src/lib/hostDaConta.ts`): a raiz mostra a conta, `/login` manda para o
 login do Auth pedindo a volta para lá (aplicação `conta` no cadastro), e painel,
 OIDC e recuperação de senha são redirecionados para `auth.avilaops.com`.
-`auth.avilaops.com/conta` continua funcionando.
+`auth.avilaops.com/conta` redireciona para o endereço novo (só leitura; um
+formulário enviado de uma aba antiga ainda é atendido onde chegou).
 
 A página é dividida em seções, uma por tela, escolhidas por `?secao=`
 (`src/lib/secoesDaConta.ts`): **Início** (caixas de e-mail e sistemas),
