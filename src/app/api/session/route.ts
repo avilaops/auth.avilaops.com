@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buscarApp } from "@/lib/cadastro";
+import { comCors, origemPermitida } from "@/lib/cors";
 import { podeEntrar } from "@/lib/permissoes";
 import { lerSessao } from "@/lib/sessao";
 
@@ -18,31 +19,6 @@ export const runtime = "nodejs";
  * restrito — quem logou em outro sistema chega com o cookie do mesmo jeito. É
  * por aqui que o app pergunta, em vez de reimplementar a regra.
  */
-
-function origemPermitida(origin: string | null): string | null {
-  if (!origin) return null;
-  try {
-    const url = new URL(origin);
-    if (url.protocol !== "https:") return null;
-    // Igualdade no sufixo com o ponto: `.avilaops.com` não casa com
-    // `evil-avilaops.com`, que um `endsWith("avilaops.com")` deixaria passar.
-    if (url.host === "avilaops.com" || url.host.endsWith(".avilaops.com")) {
-      return url.origin;
-    }
-  } catch {
-    /* origem malformada */
-  }
-  return null;
-}
-
-function comCors(res: NextResponse, origem: string | null) {
-  if (origem) {
-    res.headers.set("Access-Control-Allow-Origin", origem);
-    res.headers.set("Access-Control-Allow-Credentials", "true");
-    res.headers.set("Vary", "Origin");
-  }
-  return res;
-}
 
 export async function GET(req: NextRequest) {
   const origem = origemPermitida(req.headers.get("origin"));
