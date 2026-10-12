@@ -398,6 +398,10 @@ coisas, que podem andar juntas ou separadas:
   migração, o `id_token` sai em HS256 com o segredo da sessão e a descoberta
   não anuncia `jwks_uri`. O access token é sempre HS256: só o
   `/oauth/userinfo` o lê. Não há rotação de chave pelo painel.
+  O `id_token` e o `/oauth/userinfo` levam, além de `papel` (`ADMIN` para a
+  equipe da casa, `CLIENTE` para os demais), a claim `apps`: os identificadores
+  das aplicações em que a conta pode entrar, pela mesma regra do login. No
+  `id_token` ela é a do instante do login; no `userinfo`, a de agora.
 - **Leitura da conexão da Meta** (`GET /api/meta/ativos`), só para integração
   marcada com essa permissão.
 

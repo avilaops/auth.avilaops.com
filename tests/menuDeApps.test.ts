@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Cadastro } from "@/lib/apps";
 import { origemPermitida } from "@/lib/cors";
-import { menuDeApps } from "@/lib/menuDeApps";
+import { appsDaConta, menuDeApps } from "@/lib/menuDeApps";
 
 function app(id: string, extra: Partial<Cadastro> = {}): Cadastro {
   return {
@@ -67,5 +67,17 @@ describe("menu de apps", () => {
     assert.equal(origemPermitida("https://evil-avilaops.com"), null);
     assert.equal(origemPermitida("http://cms.avilaops.com"), null);
     assert.equal(origemPermitida(null), null);
+  });
+
+  it("a claim apps diz onde a conta tem direito de entrar, no ar ou não", () => {
+    assert.deepEqual(appsDaConta(cadastro, "ADMIN", []), ["app", "conta", "crm", "docs", "erp", "tms"]);
+    assert.deepEqual(appsDaConta(cadastro, "CLIENTE", []), ["conta", "crm", "docs", "erp"]);
+    assert.deepEqual(appsDaConta(cadastro, "CLIENTE", ["tms", "app"]), ["conta", "crm", "docs", "erp", "tms"]);
+  });
+
+  it("desativada e site ficam fora da claim: o login não os reconhece", () => {
+    const apps = appsDaConta(cadastro, "ADMIN", ["jobs", "avilaops-com"]);
+    assert.equal(apps.includes("jobs"), false);
+    assert.equal(apps.includes("avilaops-com"), false);
   });
 });

@@ -27,6 +27,13 @@ describe("assinatura do id_token", () => {
     assert.equal(p.nonce, "n-1");
   });
 
+  it("a claim apps vai no id_token quando informada, e só nele", () => {
+    const com = jwt.decode(assinarIdTokenCom(chave, pessoa, "cms", null, ["cms", "conta"])) as jwt.JwtPayload;
+    assert.deepEqual(com.apps, ["cms", "conta"]);
+    assert.equal("apps" in (jwt.decode(assinarIdTokenCom(chave, pessoa, "cms", null)) as jwt.JwtPayload), false);
+    assert.equal("apps" in (jwt.decode(assinarAccessToken(pessoa, "cms")) as jwt.JwtPayload), false);
+  });
+
   it("o JWKS só leva a parte pública", () => {
     assert.deepEqual(Object.keys(jwk).sort(), ["alg", "e", "kid", "kty", "n", "use"]);
     assert.equal(jwk.kty, "RSA");

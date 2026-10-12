@@ -1,3 +1,4 @@
+import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
 import { NextRequest, NextResponse } from "next/server";
 import { verificarAccessToken } from "@/lib/oidc";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * `preferred_username` — sem isso ele recusa o login com erro de perfil
  * incompleto. Mandamos os três.
  */
-function claims(req: NextRequest) {
+async function claims(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {
     return NextResponse.json(
@@ -37,6 +38,9 @@ function claims(req: NextRequest) {
       preferred_username: id.email,
       picture: id.foto ?? undefined,
       papel: id.papel,
+      // Lida agora, e não do token: liberação ou revogação feita depois do
+      // login já aparece aqui.
+      apps: await appsDaIdentidade(id),
     },
     { headers: { "Cache-Control": "no-store" } },
   );

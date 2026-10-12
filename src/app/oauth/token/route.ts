@@ -1,3 +1,4 @@
+import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
 import { NextRequest, NextResponse } from "next/server";
 import {
   assinarAccessToken,
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       access_token: assinarAccessToken(identidade, cliente.id),
-      id_token: await assinarIdToken(identidade, cliente.id, resgate.nonce),
+      id_token: await assinarIdToken(identidade, cliente.id, resgate.nonce, await appsDaIdentidade(identidade)),
       token_type: "Bearer",
       expires_in: TTL_TOKEN_SEGUNDOS,
       scope: "openid profile email",
