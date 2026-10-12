@@ -8,6 +8,7 @@ import {
   atualizarIntegracao,
   buscarIntegracao,
   criarIntegracao,
+  exigeRetornoAoSalvar,
   jaExisteIntegracao,
   removerIntegracao,
   trocarSegredo,
@@ -76,7 +77,9 @@ export async function acaoSalvarIntegracao(_: Resultado | null, fd: FormData): P
   const atual = await buscarIntegracao(texto(fd, "id"));
   if (!atual || atual.origem !== "painel") return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
 
-  const v = validarIntegracao(ler(fd, atual.id), { exigeRetorno: fd.get("acessoMeta") !== "on" });
+  const v = validarIntegracao(ler(fd, atual.id), {
+    exigeRetorno: exigeRetornoAoSalvar(atual, fd.get("acessoMeta") === "on"),
+  });
   if (!v.ok) return { ok: false, erro: v.erro };
   if (!(await buscarCadastro(v.dados.appId))) return { ok: false, erro: "Aplicação não encontrada no cadastro." };
 

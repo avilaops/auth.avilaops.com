@@ -81,6 +81,18 @@ export async function integracoesDoApp(appId: string): Promise<Integracao[]> {
 export type Validacao = { ok: true; dados: EntradaIntegracao } | { ok: false; erro: string };
 
 /**
+ * Ao salvar uma integração que já existe: ela precisa de endereço de retorno?
+ * A que nunca teve é só de API e continua podendo ficar sem, com ou sem a
+ * leitura da Meta. Sem isto, tirar a permissão da Meta de uma integração só de
+ * API era recusado, e a permissão ficava marcada para sempre. A que tem
+ * retorno faz login e não pode ficar sem nenhum, a não ser que vire só de API
+ * com a leitura da Meta, como no cadastro.
+ */
+export function exigeRetornoAoSalvar(atual: { redirectUris: string[] }, acessoMeta: boolean): boolean {
+  return atual.redirectUris.length > 0 && !acessoMeta;
+}
+
+/**
  * Regras do formulário. O endereço de retorno é o que impede um código de
  * login de ser entregue a um site qualquer, então é o campo mais vigiado:
  * https obrigatório (http só em localhost), sem fragmento e sem curinga.
@@ -97,7 +109,7 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
 
   const uris = lerRedirectUris(e.redirectUris);
   if (opts.exigeRetorno && uris.length === 0) {
-    return { ok: false, erro: "Informe ao menos um endereço de retorno, ou marque só o acesso à API." };
+    return { ok: false, erro: "Informe ao menos um endereço de retorno. Só fica sem retorno a integração que usa apenas a API." };
   }
   for (const u of uris) {
     let url: URL;

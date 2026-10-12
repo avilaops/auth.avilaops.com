@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
-import { validarIntegracao } from "@/lib/clientesOidc";
+import { exigeRetornoAoSalvar, validarIntegracao } from "@/lib/clientesOidc";
 import { gerarSegredoCliente, lerCredencialCliente, lerRedirectUris, segredoConfere, type ClienteOIDC } from "@/lib/oidc";
 
 const base = { appId: "crm", nome: "CRM", acessoMeta: false, ativo: true };
@@ -24,6 +24,17 @@ describe("validação de integração", () => {
       assert.equal(validarIntegracao({ ...base, id: "crm", redirectUris: uri }, { exigeRetorno: true }).ok, false, uri);
     }
     assert.ok(validarIntegracao({ ...base, id: "crm", redirectUris: "http://localhost:3000/cb" }, { exigeRetorno: true }).ok);
+  });
+
+  it("integração só de API pode perder a leitura da Meta sem ganhar retorno", () => {
+    const soApi = { redirectUris: [] };
+    const comLogin = { redirectUris: ["https://crm.avilaops.com/cb"] };
+    assert.equal(exigeRetornoAoSalvar(soApi, false), false);
+    assert.equal(exigeRetornoAoSalvar(soApi, true), false);
+    // Quem faz login não fica sem retorno só por desmarcar a Meta.
+    assert.equal(exigeRetornoAoSalvar(comLogin, false), true);
+    assert.equal(exigeRetornoAoSalvar(comLogin, true), false);
+    assert.ok(validarIntegracao({ ...base, id: "cms", redirectUris: "" }, { exigeRetorno: exigeRetornoAoSalvar(soApi, false) }).ok);
   });
 
   it("sem retorno só passa quando a integração é só de API", () => {
