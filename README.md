@@ -469,6 +469,7 @@ Cloudflare), que é lento e falha. O n8n roda em outro VPS e já tem a credencia
 | `GET /api/auth/google/callback` | Retorno do Google. **É a única URI registrada no Console.** |
 | `POST /api/auth/logout?app=&returnTo=` | Logout global. POST de propósito, em GET, uma `<img>` desloga o usuário. |
 | `GET /api/session` | Sessão corrente em JSON. CORS restrito a `*.avilaops.com`. |
+| `GET /api/apps` | Menu de apps da sessão: `{ conta, apps: [{ id, nome, url }] }`, só com o que a conta pode abrir e está no ar. Mesma regra do login. CORS restrito a `*.avilaops.com`. |
 | `POST /api/auth/exchange` | Troca código de uso único por token. App nativo. |
 | `POST /api/auth/trocar-senha` | Usuário logado troca a própria senha (exige a atual). |
 | `POST /api/auth/recuperar` | Define senha por link de recuperação e loga. |
