@@ -374,6 +374,9 @@ export function documentoDescoberta(comChave: boolean) {
     grant_types_supported: ["authorization_code", "refresh_token"],
     subject_types_supported: ["public"],
     ...(comChave ? { jwks_uri: `${base}/oauth/jwks` } : {}),
+    // O aviso de saída é um token assinado: só existe com a chave RS256.
+    backchannel_logout_supported: comChave,
+    backchannel_logout_session_supported: false,
     id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256", "plain"],

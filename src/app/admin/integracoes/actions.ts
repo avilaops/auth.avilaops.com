@@ -39,12 +39,13 @@ function ler(fd: FormData, id: string): EntradaIntegracao {
     redirectUris: texto(fd, "redirectUris"),
     acessoMeta: fd.get("acessoMeta") === "on",
     ativo: fd.get("ativo") === "on",
+    logoutUri: texto(fd, "logoutUri"),
   };
 }
 
 function resumo(e: EntradaIntegracao): string {
   const retornos = e.redirectUris ? e.redirectUris.split("\n").length : 0;
-  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${e.acessoMeta ? " · acesso à Meta" : ""}${e.ativo ? "" : " · desativada"}`;
+  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${e.acessoMeta ? " · acesso à Meta" : ""}${e.logoutUri ? " · avisada da saída" : ""}${e.ativo ? "" : " · desativada"}`;
 }
 
 export async function acaoCriarIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {

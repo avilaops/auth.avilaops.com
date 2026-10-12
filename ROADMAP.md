@@ -28,9 +28,9 @@ falta, em ordem de prioridade.
   aviso ao cliente quando a conexão estiver para vencer.
 - **Rotação de chave no OIDC.** O `id_token` sai em RS256 com `jwks_uri` e o
   refresh token existe. Falta trocar a chave de assinatura pelo painel.
-- **Aviso de logout aos sistemas (back-channel).** Sair no Auth apaga o cookie e
-  revoga os refresh tokens, mas o sistema que entrou por OIDC só percebe quando
-  o access token dele vence (até 8 h) ou quando tenta renovar.
+- **Sistemas ouvindo o aviso de saída.** O Auth já avisa a integração que
+  cadastrar um endereço; nenhum sistema cadastrou ainda. Sem isso, quem entrou
+  por OIDC só percebe a saída quando o access token vence ou ao tentar renovar.
 - **TMS conferir o `id_token`.** Ele descarta o `id_token` e busca a identidade
   no `/oauth/userinfo`, porque antes não havia como conferir a assinatura.
 

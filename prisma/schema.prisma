@@ -355,6 +355,8 @@ model ClienteOidc {
   /// Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`).
   acessoMeta  Boolean @default(false) @map("acesso_meta")
   ativo       Boolean @default(true)
+  /// Endereço avisado quando a pessoa sai no Auth (`lib/avisoDeLogout.ts`).
+  logoutUri   String? @map("logout_uri")
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
