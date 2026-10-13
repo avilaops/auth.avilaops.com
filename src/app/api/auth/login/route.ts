@@ -3,6 +3,7 @@ import { destinoInicial } from "@/lib/admin";
 import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { autenticarCaixa } from "@/lib/caixaEmail";
+import { autenticarDonoDeLoja } from "@/lib/senhaDaLoja";
 import { autenticar, papelDaRole, type Conta } from "@/lib/contas";
 import { resolverLogin } from "@/lib/vinculos";
 import { registrar } from "@/lib/eventos";
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
 
   let conta: Conta | null = await autenticar(login, senha);
   let viaCaixa = false;
+  let viaLoja = false;
 
   // Sem conta Avila Ops (ou senha diferente): pode ser a senha da caixa de
   // e-mail. Provar a senha da caixa prova a posse do endereço, então vale
@@ -68,6 +70,23 @@ export async function POST(req: NextRequest) {
       } else {
         // Conta ADMIN com esse e-mail: senha da caixa não pode virar sessão da equipe.
         await registrar({ tipo: "login_falhou", email: caixa.address, appId, ip, detalhe: `mail: ${r.motivo}` });
+        return NextResponse.json({ erro: "Login ou senha inválidos." }, { status: 401 });
+      }
+    }
+  }
+
+  // Ainda sem conta: pode ser a senha da loja de quem se cadastrou no Lojas
+  // (conta só lá). Mesmo raciocínio da caixa: o dono confirmou o e-mail no
+  // cadastro, então a senha da loja prova a posse do endereço.
+  if (!conta && login.includes("@")) {
+    const dono = await autenticarDonoDeLoja(login, senha);
+    if (dono) {
+      const r = await resolverLogin("lojas", { id: dono.id, email: dono.email, emailVerificado: true, nome: null, foto: null }, ip);
+      if (r.ok) {
+        conta = r.conta;
+        viaLoja = true;
+      } else {
+        await registrar({ tipo: "login_falhou", email: dono.email, appId, ip, detalhe: `lojas: ${r.motivo}` });
         return NextResponse.json({ erro: "Login ou senha inválidos." }, { status: 401 });
       }
     }
@@ -110,8 +129,8 @@ export async function POST(req: NextRequest) {
       destino,
       app,
       // Quem entrou pela senha da caixa não tem senha Avila Ops para trocar.
-      senhaProvisoria: conta.senhaProvisoria && !viaCaixa,
-      via: viaCaixa ? "senha da caixa de e-mail" : "senha",
+      senhaProvisoria: conta.senhaProvisoria && !viaCaixa && !viaLoja,
+      via: viaCaixa ? "senha da caixa de e-mail" : viaLoja ? "senha da loja" : "senha",
     },
     ip,
   );
