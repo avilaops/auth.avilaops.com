@@ -6,4 +6,6 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { iniciarRotinaDeConferencia } = await import("@/lib/rotinaDeConferencia");
   iniciarRotinaDeConferencia();
+  const { iniciarRotinaDeSinais } = await import("@/lib/ssfFila");
+  iniciarRotinaDeSinais();
 }

@@ -470,3 +470,27 @@ model SsfCanal {
 
   @@map("ssf_canais")
 }
+
+/// Sinal de segurança que o receptor não aceitou na hora, à espera de reenvio
+/// (`lib/ssfFila.ts`). Guarda o SET já assinado: o reenvio manda o mesmo evento.
+model SsfPendente {
+  id         String   @id @default(uuid())
+  canalId    String   @map("canal_id")
+  setJwt     String   @map("set_jwt")
+  tentativas Int      @default(1)
+  proximaEm  DateTime @map("proxima_em")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@index([proximaEm])
+  @@index([canalId])
+  @@map("ssf_pendentes")
+}
+
+/// Marca de até onde uma rotina do próprio processo já olhou.
+model RotinaEstado {
+  chave        String   @id
+  valor        String
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("rotinas_estado")
+}

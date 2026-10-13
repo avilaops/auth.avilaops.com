@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import { chaveDeAssinatura, type ChaveDeAssinatura } from "@/lib/chaveOidc";
 import { cifrar, decifrar } from "@/lib/cripto";
+import { hostInterno, resolveParaRedeInterna } from "@/lib/enderecoDeSaida";
 import { EMISSOR } from "@/lib/oidc";
 import { prisma } from "@/lib/prisma";
 import { baseUrl } from "@/lib/urls";
@@ -23,7 +24,8 @@ import { baseUrl } from "@/lib/urls";
  *   `/oauth/jwks` do `id_token`) empurrado para o endereço do canal (RFC 8935).
  *
  * Só entrega por push. A entrega por consulta (RFC 8936) não existe: nenhum
- * receptor pediu, e ela obrigaria a guardar fila de eventos.
+ * receptor pediu. Evento que o receptor não aceita na hora vai para a fila de
+ * reenvio (`lib/ssfFila.ts`).
  *
  * Os eventos saem para **todas** as contas (`default_subjects: ALL`): o
  * receptor ignora quem ele não conhece. Por isso abrir canal é permissão de
@@ -37,10 +39,13 @@ export const ENTREGA_PUSH = "urn:ietf:rfc:8935";
 export const EVENTO_VERIFICACAO = "https://schemas.openid.net/secevent/ssf/event-type/verification";
 export const EVENTO_SESSAO_REVOGADA = "https://schemas.openid.net/secevent/caep/event-type/session-revoked";
 export const EVENTO_CREDENCIAL_MUDOU = "https://schemas.openid.net/secevent/caep/event-type/credential-change";
+export const EVENTO_CONTA_DESLIGADA = "https://schemas.openid.net/secevent/risc/event-type/account-disabled";
 /** O que este transmissor sabe emitir, fora a verificação (que vale sempre). */
-export const EVENTOS_SUPORTADOS = [EVENTO_SESSAO_REVOGADA, EVENTO_CREDENCIAL_MUDOU] as const;
+export const EVENTOS_SUPORTADOS = [EVENTO_SESSAO_REVOGADA, EVENTO_CREDENCIAL_MUDOU, EVENTO_CONTA_DESLIGADA] as const;
 
 const TEMPO_LIMITE_MS = 5000;
+/** Espera antes da primeira nova tentativa de um evento recusado. */
+export const ESPERA_INICIAL_MS = 5 * 60 * 1000;
 
 /** O documento de `/.well-known/ssf-configuration`. */
 export function configuracaoSsf() {
@@ -67,7 +72,8 @@ export type Validacao = { ok: true; dados: EntradaDoCanal } | { ok: false; erro:
  * Confere o que o receptor mandou para criar ou substituir o canal.
  *
  * O endereço de entrega recebe eventos de todas as contas, então segue a regra
- * dos outros endereços de saída do Auth: só `https`.
+ * dos outros endereços de saída do Auth: só `https`. E não pode apontar para a
+ * rede interna do servidor (ver `lib/enderecoDeSaida.ts`).
  */
 export function validarCanal(corpo: unknown): Validacao {
   if (typeof corpo !== "object" || corpo === null) return { ok: false, erro: "Corpo inválido." };
@@ -83,6 +89,7 @@ export function validarCanal(corpo: unknown): Validacao {
     return { ok: false, erro: "`delivery.endpoint_url` inválido." };
   }
   if (url.protocol !== "https:" || url.hash) return { ok: false, erro: "`delivery.endpoint_url` precisa ser https, sem fragmento." };
+  if (url.username || url.password || hostInterno(url.hostname)) return { ok: false, erro: "`delivery.endpoint_url` precisa ser um endereço público, sem usuário e senha." };
 
   const autorizacao = c.delivery.authorization_header;
   if (autorizacao !== undefined && autorizacao !== null && (typeof autorizacao !== "string" || autorizacao.length > 4096 || /[\r\n]/.test(autorizacao))) {
@@ -192,6 +199,21 @@ export async function mudarStatusDoCanal(id: string, status: StatusDoCanal, moti
 
 export async function apagarCanal(id: string): Promise<void> {
   await prisma.ssfCanal.delete({ where: { id } });
+  await prisma.ssfPendente.deleteMany({ where: { canalId: id } }).catch(() => undefined);
+}
+
+/**
+ * Guarda o SET antes de tentar a entrega e devolve o identificador da guarda.
+ * Guardar primeiro é o que impede o evento de sumir se o processo cair no meio
+ * do envio. Falha aqui só fica no log: o envio é tentado do mesmo jeito.
+ */
+async function guardarParaReenvio(canalId: string, set: string): Promise<string | null> {
+  try {
+    return (await prisma.ssfPendente.create({ data: { canalId, setJwt: set, proximaEm: new Date(Date.now() + ESPERA_INICIAL_MS) } })).id;
+  } catch (e) {
+    console.error("[ssf] evento não guardado para reenvio", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 /** Sujeito de um evento de conta: a pessoa, pelo e-mail, que é o que o receptor conhece. */
@@ -213,8 +235,12 @@ export function montarSet(chave: ChaveDeAssinatura, dados: { aud: string; subId:
 }
 
 /** Empurra um SET para o canal (RFC 8935). Devolve se o receptor aceitou. */
-async function empurrar(l: Linha, set: string): Promise<boolean> {
+export async function empurrar(l: Linha, set: string): Promise<boolean> {
   try {
+    if (await resolveParaRedeInterna(new URL(l.endpointUrl).hostname)) {
+      console.warn(`[ssf] ${l.clienteId}: endereço de entrega não é público, evento não enviado`);
+      return false;
+    }
     const r = await fetch(l.endpointUrl, {
       method: "POST",
       headers: { "content-type": "application/secevent+jwt", accept: "application/json", ...(l.autorizacaoEnc ? { authorization: decifrar(l.autorizacaoEnc) } : {}) },
@@ -256,6 +282,8 @@ export function sinalDoEvento(tipo: string, agora: number = Date.now()): Sinal |
     case "logout":
     case "conta_removida":
       return { tipo: EVENTO_SESSAO_REVOGADA, conteudo: quando };
+    case "conta_desligada":
+      return { tipo: EVENTO_CONTA_DESLIGADA, conteudo: quando };
     case "senha_trocada":
     case "senha_redefinida":
     case "recuperacao_usada":
@@ -280,7 +308,14 @@ export async function emitirSinal(sinal: Sinal, email: string): Promise<void> {
       console.warn("[ssf] sem chave de assinatura: sinal não enviado");
       return;
     }
-    await Promise.all(canais.map((c) => empurrar(c, montarSet(chave, { aud: c.clienteId, subId: sujeitoDaConta(email), tipo: sinal.tipo, conteudo: sinal.conteudo }))));
+    await Promise.all(
+      canais.map(async (c) => {
+        const set = montarSet(chave, { aud: c.clienteId, subId: sujeitoDaConta(email), tipo: sinal.tipo, conteudo: sinal.conteudo });
+        // Entregue, sai da fila. Não aceitou agora: fica, e a rotina tenta de novo.
+        const guardado = await guardarParaReenvio(c.id, set);
+        if ((await empurrar(c, set)) && guardado) await prisma.ssfPendente.deleteMany({ where: { id: guardado } });
+      }),
+    );
   } catch (e) {
     const codigo = (e as { code?: unknown })?.code;
     // Tabela ainda não migrada: ninguém abriu canal.

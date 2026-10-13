@@ -356,7 +356,8 @@ function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null, apps?: string[
  */
 export function assinarIdTokenCom(chave: ChaveDeAssinatura | null, i: IdentidadeOIDC, clienteId: string, nonce: string | null, apps?: string[]): string {
   const opcoes = { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId };
-  if (!chave) return jwt.sign(conteudoDoToken(i, nonce, apps), segredoJwt(), opcoes);
+  // Sem chave o `id_token` sai com o mesmo segredo do access token: `token_use` é o que os separa.
+  if (!chave) return jwt.sign({ ...conteudoDoToken(i, nonce, apps), token_use: "id" }, segredoJwt(), opcoes);
   return jwt.sign(conteudoDoToken(i, nonce, apps), chave.privadaPem, { ...opcoes, algorithm: "RS256", keyid: chave.kid });
 }
 
@@ -378,7 +379,7 @@ export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce
  * conferi-lo.
  */
 export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string, escopo: string = ESCOPO_PADRAO): string {
-  return jwt.sign({ ...conteudoDoToken(i, null), scope: escopo }, segredoJwt(), { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId });
+  return jwt.sign({ ...conteudoDoToken(i, null), scope: escopo, token_use: "access" }, segredoJwt(), { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId });
 }
 
 export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string; escopos: string[] }) | null {
@@ -386,6 +387,8 @@ export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: st
     // Só HS256: um `id_token` RS256 não serve de access token.
     const p = jwt.verify(token, segredoJwt(), { issuer: EMISSOR, algorithms: ["HS256"] }) as jwt.JwtPayload;
     if (!p.sub || typeof p.email !== "string") return null;
+    // Token emitido antes de `token_use` existir não traz a marca e continua valendo.
+    if (p.token_use !== undefined && p.token_use !== "access") return null;
     return {
       sub: p.sub,
       email: p.email,

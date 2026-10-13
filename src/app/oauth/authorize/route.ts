@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buscarApp } from "@/lib/cadastro";
+import { buscarConta, papelDaRole } from "@/lib/contas";
 import { registrar } from "@/lib/eventos";
 import {
   buscarCliente,
@@ -98,13 +99,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // O papel do cookie pode ter até oito horas. Para os escopos do SSF vale o da conta de agora.
+  const contaDeAgora = cliente.ssf ? await buscarConta(sessao.sub) : null;
+  const papelParaEscopo = cliente.ssf ? (contaDeAgora?.ativa ? papelDaRole(contaDeAgora.role) : "CLIENTE") : sessao.papel;
+
   const codigo = await emitirCodigoOAuth({
     clienteId: cliente.id,
     redirectUri: redirectUri as string,
     nonce: q.get("nonce"),
     codeChallenge: q.get("code_challenge"),
     codeChallengeMethod: q.get("code_challenge_method") ?? (q.get("code_challenge") ? "S256" : null),
-    escopo: escopoConcedido(q.get("scope"), { clienteSsf: cliente.ssf, papel: sessao.papel }),
+    escopo: escopoConcedido(q.get("scope"), { clienteSsf: cliente.ssf, papel: papelParaEscopo }),
     sub: sessao.sub,
     email: sessao.email,
     nome: sessao.nome,

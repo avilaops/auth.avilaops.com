@@ -4,11 +4,14 @@ import { describe, it } from "node:test";
 import jwt from "jsonwebtoken";
 import { gerarPar, paraJwks } from "@/lib/chaveOidc";
 import { validarIntegracao } from "@/lib/clientesOidc";
-import { assinarAccessToken, documentoDescoberta, escopoConcedido, nomePartido, verificarAccessToken } from "@/lib/oidc";
+import { assinarAccessToken, assinarIdTokenCom, documentoDescoberta, escopoConcedido, nomePartido, verificarAccessToken } from "@/lib/oidc";
+import { hostInterno, ipInterno } from "@/lib/enderecoDeSaida";
+import { MAXIMO_DE_TENTATIVAS, proximaTentativa, recemDesligadas } from "@/lib/ssfFila";
 import {
   canalParaOReceptor,
   configuracaoSsf,
   ENTREGA_PUSH,
+  EVENTO_CONTA_DESLIGADA,
   EVENTO_CREDENCIAL_MUDOU,
   EVENTO_SESSAO_REVOGADA,
   EVENTO_VERIFICACAO,
@@ -47,6 +50,11 @@ describe("escopos do OIDC", () => {
   it("o access token carrega o escopo, e token antigo vale o padrão", () => {
     assert.deepEqual(verificarAccessToken(assinarAccessToken(pessoa, "apple", "openid profile email ssf.manage"))?.escopos, ["openid", "profile", "email", "ssf.manage"]);
     assert.deepEqual(verificarAccessToken(jwt.sign({ sub: "c1", email: "a@b.c" }, "segredo-de-teste", { issuer: "https://auth.avilaops.com", audience: "x" }))?.escopos, ["openid", "profile", "email"]);
+  });
+
+  it("id_token assinado com o segredo da sessão não passa por access token", () => {
+    assert.equal(verificarAccessToken(assinarIdTokenCom(null, pessoa, "apple", null)), null);
+    assert.equal(verificarAccessToken(jwt.sign({ sub: "c1", email: "a@b.c", token_use: "outro" }, "segredo-de-teste", { issuer: "https://auth.avilaops.com", audience: "x" })), null);
   });
 
   it("nome partido em primeiro nome e o resto", () => {
@@ -108,7 +116,7 @@ describe("transmissor de sinais (SSF)", () => {
       iss: "https://auth.avilaops.com",
       aud: "apple",
       delivery: { method: ENTREGA_PUSH, endpoint_url: "https://r.exemplo.com/e" },
-      events_supported: [EVENTO_SESSAO_REVOGADA, EVENTO_CREDENCIAL_MUDOU],
+      events_supported: [EVENTO_SESSAO_REVOGADA, EVENTO_CREDENCIAL_MUDOU, EVENTO_CONTA_DESLIGADA],
       events_requested: [EVENTO_SESSAO_REVOGADA, "urn:outro"],
       events_delivered: [EVENTO_SESSAO_REVOGADA],
     });
@@ -148,5 +156,45 @@ describe("transmissor de sinais (SSF)", () => {
 
   it("login, falha de login e o resto da auditoria não viram sinal", () => {
     for (const t of ["login_ok", "login_falhou", "conta_criada", "conta_editada", "permissao_concedida", "ssf_canal_criado"]) assert.equal(sinalDoEvento(t), null, t);
+  });
+
+  it("conta desligada vira o sinal próprio do RISC", () => {
+    assert.deepEqual(sinalDoEvento("conta_desligada", 1_700_000_000_000), { tipo: EVENTO_CONTA_DESLIGADA, conteudo: { event_timestamp: 1_700_000_000 } });
+    assert.deepEqual(eventosEntregues([EVENTO_CONTA_DESLIGADA]), [EVENTO_CONTA_DESLIGADA]);
+  });
+
+  it("reenvio: a espera dobra a cada tentativa", () => {
+    const nasceu = new Date(1_700_000_000_000);
+    const agora = nasceu.getTime();
+    const minutos = (t: number) => ((proximaTentativa(t, nasceu, agora) as Date).getTime() - agora) / 60000;
+    assert.deepEqual([1, 2, 3, 4].map(minutos), [5, 10, 20, 40]);
+  });
+
+  it("reenvio: desiste depois do máximo de tentativas ou quando o evento passaria de um dia", () => {
+    const nasceu = new Date(1_700_000_000_000);
+    assert.equal(proximaTentativa(MAXIMO_DE_TENTATIVAS, nasceu, nasceu.getTime()), null);
+    const quaseUmDia = nasceu.getTime() + 23.9 * 60 * 60 * 1000;
+    assert.equal(proximaTentativa(2, nasceu, quaseUmDia), null);
+    assert.ok(proximaTentativa(2, nasceu, nasceu.getTime() + 60 * 60 * 1000));
+  });
+
+  it("o endereço de entrega não pode apontar para a rede interna nem levar usuário e senha", () => {
+    const com = (endpoint_url: string) => validarCanal({ delivery: { method: ENTREGA_PUSH, endpoint_url } }).ok;
+    for (const interno of ["https://localhost/e", "https://127.0.0.1/e", "https://10.1.2.3:8443/e", "https://172.31.0.10/e", "https://192.168.0.1/e", "https://169.254.169.254/e", "https://[::1]/e", "https://[fd00::1]/e", "https://banco.internal/e", "https://u:s@receptor.exemplo/e"]) {
+      assert.equal(com(interno), false, interno);
+    }
+    assert.equal(com("https://receptor.exemplo/e"), true);
+    assert.equal(com("https://8.8.8.8/e"), true);
+    assert.equal(ipInterno("::ffff:10.0.0.1"), true);
+    assert.equal(ipInterno("172.32.0.1"), false);
+    assert.equal(hostInterno("LOCALHOST."), true);
+  });
+
+  it("conta desligada: avisa só a que não estava desligada na passada anterior", () => {
+    const agora = [{ id: "1" }, { id: "2" }, { id: "3" }];
+    assert.deepEqual(recemDesligadas(agora, ["1", "3"]), [{ id: "2" }]);
+    assert.deepEqual(recemDesligadas(agora, ["1", "2", "3", "9"]), []);
+    // Religada e desligada de novo: saiu da lista no meio, então volta a avisar.
+    assert.deepEqual(recemDesligadas([{ id: "1" }], []), [{ id: "1" }]);
   });
 });
