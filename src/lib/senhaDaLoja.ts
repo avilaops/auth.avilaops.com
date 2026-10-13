@@ -32,6 +32,14 @@ function getPool(): Pool | null {
   return pool;
 }
 
+/**
+ * O app do Lojas no cadastro de aplicações. Quem prova a senha de dono de uma
+ * loja ganha a liberação dele: ser dono da loja é justamente o que dá direito
+ * a entrar no painel do Lojas. Sem isto o conector criava a conta e o login
+ * parava em "Sua conta não tem acesso a Lojas".
+ */
+export const APP_DO_LOJAS = "lojas-avilaops-com";
+
 export type DonoDeLoja = { id: string; email: string };
 
 type Linha = { id: string; loginEmail: string; senhaHash: string | null; status: string };
