@@ -410,6 +410,25 @@ coisas, que podem andar juntas ou separadas:
   endereço recebe um `POST` com `logout_token` (RS256, `typ: logout+jwt`,
   conferível pelo JWKS) dizendo qual conta saiu (`src/lib/avisoDeLogout.ts`).
   É aviso, não garantia: falha só fica no log, e a saída não depende dele.
+  **Escopos.** `openid profile email` vai em todo token, peça o cliente ou não.
+  `offline_access` é ecoado quando pedido, e o refresh concedido com ele não é
+  revogado quando a pessoa sai (é o que mantém a ligação de um serviço como o
+  Apple Business). `ssf.manage` e `ssf.read` só são concedidos com as três
+  condições juntas: o cliente pediu, a integração está marcada para sinais de
+  segurança e quem autoriza é da equipe da casa. O `id_token` e o `userinfo`
+  levam também `given_name` e `family_name`.
+- **Sinais de segurança (SSF)**, para provedores que exigem o Shared Signals
+  Framework, como o Apple Business (`src/lib/ssf.ts`). Descoberta em
+  `/.well-known/ssf-configuration`. Com um access token de escopo `ssf.manage`,
+  o receptor abre **um canal** por integração em `POST /ssf/stream`, dizendo
+  para onde quer receber (só entrega por push, RFC 8935, e só em `https`);
+  `GET`/`PATCH`/`PUT`/`DELETE` no mesmo endereço, situação em `/ssf/status` e
+  pedido de verificação em `/ssf/verify`. Cada evento é um SET (`secevent+jwt`,
+  RS256, conferível pelo `/oauth/jwks`). Eventos: sessão revogada (sair, conta
+  removida) e credencial alterada (senha, segundo fator), além da verificação.
+  Saem para todas as contas; o sujeito é o e-mail. Não há fila: evento que o
+  receptor não aceitou na hora não é reenviado. Abrir, alterar e fechar canal
+  fica na Atividade.
   O `id_token` e o `/oauth/userinfo` levam, além de `papel` (`ADMIN` para a
   equipe da casa, `CLIENTE` para os demais), a claim `apps`: os identificadores
   das aplicações em que a conta pode entrar, pela mesma regra do login. No

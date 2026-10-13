@@ -17,6 +17,7 @@ import {
 } from "@/lib/clientesOidc";
 import { registrar } from "@/lib/eventos";
 import { CLIENTES_OIDC } from "@/lib/oidc";
+import { apagarCanalDoCliente } from "@/lib/ssf";
 import type { Resultado } from "../actions";
 
 /**
@@ -40,12 +41,13 @@ function ler(fd: FormData, id: string): EntradaIntegracao {
     acessoMeta: fd.get("acessoMeta") === "on",
     ativo: fd.get("ativo") === "on",
     logoutUri: texto(fd, "logoutUri"),
+    ssf: fd.get("ssf") === "on",
   };
 }
 
 function resumo(e: EntradaIntegracao): string {
   const retornos = e.redirectUris ? e.redirectUris.split("\n").length : 0;
-  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${e.acessoMeta ? " · acesso à Meta" : ""}${e.logoutUri ? " · avisada da saída" : ""}${e.ativo ? "" : " · desativada"}`;
+  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${e.acessoMeta ? " · acesso à Meta" : ""}${e.logoutUri ? " · avisada da saída" : ""}${e.ssf ? " · recebe sinais de segurança" : ""}${e.ativo ? "" : " · desativada"}`;
 }
 
 export async function acaoCriarIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {
@@ -109,6 +111,7 @@ export async function acaoRemoverIntegracao(_: Resultado | null, fd: FormData): 
   if (!atual || atual.origem !== "painel") return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
 
   await removerIntegracao(atual.id);
+  await apagarCanalDoCliente(atual.id);
   await registrar({ tipo: "integracao_removida", appId: atual.appId, autor: admin.email, detalhe: atual.id });
   revalidatePath("/admin/integracoes");
   redirect("/admin/integracoes");

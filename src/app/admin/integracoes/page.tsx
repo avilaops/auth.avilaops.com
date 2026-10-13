@@ -118,6 +118,10 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
               <input type="checkbox" name="acessoMeta" className="mt-0.5" />
               <span>Pode ler as conexões da Meta dos clientes<span className="block text-[11px] text-[var(--color-texto-fraco)]">Entrega o token de Páginas, WhatsApp e anúncios. Só para sistema da casa.</span></span>
             </label>
+            <label className="flex min-h-11 items-start gap-2 text-xs">
+              <input type="checkbox" name="ssf" className="mt-0.5" />
+              <span>Pode receber sinais de segurança (SSF)<span className="block text-[11px] text-[var(--color-texto-fraco)]">Avisa o sistema quando qualquer conta sai, troca a senha ou muda o segundo fator. É o que o Apple Business exige.</span></span>
+            </label>
             <button type="submit" className={botao}>Criar e gerar segredo</button>
           </FormAcao>
         </Folha>

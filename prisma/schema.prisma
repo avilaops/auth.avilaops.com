@@ -80,6 +80,8 @@ model CodigoOAuth {
   /// PKCE. Nulos quando o cliente é confidencial e não mandou desafio.
   codeChallenge       String?   @map("code_challenge")
   codeChallengeMethod String?   @map("code_challenge_method")
+  /// Escopo concedido, separado por espaço. Nulo = o padrão de antes do campo.
+  escopo              String?
 
   sub   String
   email String
@@ -357,6 +359,8 @@ model ClienteOidc {
   ativo       Boolean @default(true)
   /// Endereço avisado quando a pessoa sai no Auth (`lib/avisoDeLogout.ts`).
   logoutUri   String? @map("logout_uri")
+  /// Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`).
+  ssf         Boolean @default(false)
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -433,6 +437,8 @@ model RefreshOAuth {
   clienteId  String    @map("cliente_id")
   sub        String
   email      String
+  /// Escopo concedido no login, herdado a cada troca.
+  escopo     String?
   expiraEm   DateTime  @map("expira_em")
   usadoEm    DateTime? @map("usado_em")
   revogadoEm DateTime? @map("revogado_em")
@@ -442,4 +448,25 @@ model RefreshOAuth {
   @@index([sub])
   @@index([expiraEm])
   @@map("refresh_oauth")
+}
+
+/// Canal de sinais de segurança (stream do Shared Signals Framework) de uma
+/// integração: para onde o Auth empurra os eventos e o que o receptor pediu.
+/// Um por integração. O cabeçalho de autorização do receptor é credencial dele
+/// e fica cifrado, como os segredos dos conectores.
+model SsfCanal {
+  id             String   @id
+  clienteId      String   @unique @map("cliente_id")
+  endpointUrl    String   @map("endpoint_url")
+  autorizacaoEnc String?  @map("autorizacao_enc")
+  /// JSON com os tipos de evento pedidos pelo receptor.
+  eventosPedidos String   @default("[]") @map("eventos_pedidos")
+  descricao      String?
+  /// `enabled` | `paused` | `disabled`
+  status         String   @default("enabled")
+  motivo         String?
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("ssf_canais")
 }
