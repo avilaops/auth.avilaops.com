@@ -3,11 +3,11 @@ import { destinoInicial } from "@/lib/admin";
 import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { autenticarCaixa } from "@/lib/caixaEmail";
-import { autenticarDonoDeLoja } from "@/lib/senhaDaLoja";
+import { APP_DO_LOJAS, autenticarDonoDeLoja } from "@/lib/senhaDaLoja";
 import { autenticar, papelDaRole, type Conta } from "@/lib/contas";
 import { resolverLogin } from "@/lib/vinculos";
 import { registrar } from "@/lib/eventos";
-import { podeEntrar } from "@/lib/permissoes";
+import { concederPermissao, podeEntrar } from "@/lib/permissoes";
 import { entrar } from "@/lib/entrada";
 import { limitar, liberar } from "@/lib/rateLimit";
 
@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
       if (r.ok) {
         conta = r.conta;
         viaLoja = true;
+        // Dono da loja entra no Lojas: a liberação vem da própria prova de posse.
+        await concederPermissao(conta.email, APP_DO_LOJAS, "conector:lojas");
+        await registrar({ tipo: "permissao_concedida", email: conta.email, appId: APP_DO_LOJAS, ip, autor: "conector:lojas" });
       } else {
         await registrar({ tipo: "login_falhou", email: dono.email, appId, ip, detalhe: `lojas: ${r.motivo}` });
         return NextResponse.json({ erro: "Login ou senha inválidos." }, { status: 401 });

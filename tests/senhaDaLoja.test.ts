@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { randomBytes, scryptSync } from "node:crypto";
 import { describe, it } from "node:test";
-import { autenticarDonoDeLoja, conferirSenhaDaLoja } from "@/lib/senhaDaLoja";
+import { readFileSync } from "node:fs";
+import { APP_DO_LOJAS, autenticarDonoDeLoja, conferirSenhaDaLoja } from "@/lib/senhaDaLoja";
 
 /** Exatamente o `gerarHashSenha` do Lojas (`src/lib/sessao.ts` de lá). */
 function hashDoLojas(senha: string): string {
@@ -25,5 +26,11 @@ describe("senha da loja", () => {
   it("fica desligado sem LOJAS_DATABASE_URL", async () => {
     delete process.env.LOJAS_DATABASE_URL;
     assert.equal(await autenticarDonoDeLoja("dono@exemplo.com", "senha-forte-1"), null);
+  });
+
+  it("libera o app que o cadastro de aplicações conhece como o Lojas", () => {
+    // `concederPermissao` recusa app desconhecido: o id tem de ser o da migração.
+    const sql = readFileSync("prisma/migrations/20261006000000_cadastro_de_aplicacoes/migration.sql", "utf8");
+    assert.match(sql, new RegExp(`\\('${APP_DO_LOJAS}', 'lojas\\.avilaops\\.com'`));
   });
 });
