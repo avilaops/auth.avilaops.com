@@ -415,20 +415,32 @@ coisas, que podem andar juntas ou separadas:
   revogado quando a pessoa sai (é o que mantém a ligação de um serviço como o
   Apple Business). `ssf.manage` e `ssf.read` só são concedidos com as três
   condições juntas: o cliente pediu, a integração está marcada para sinais de
-  segurança e quem autoriza é da equipe da casa. O `id_token` e o `userinfo`
+  segurança e quem autoriza é da equipe da casa (pelo papel da conta na hora,
+  não pelo do cookie). O `id_token` e o `userinfo`
   levam também `given_name` e `family_name`.
 - **Sinais de segurança (SSF)**, para provedores que exigem o Shared Signals
   Framework, como o Apple Business (`src/lib/ssf.ts`). Descoberta em
   `/.well-known/ssf-configuration`. Com um access token de escopo `ssf.manage`,
   o receptor abre **um canal** por integração em `POST /ssf/stream`, dizendo
-  para onde quer receber (só entrega por push, RFC 8935, e só em `https`);
+  para onde quer receber (só entrega por push, RFC 8935, só em `https` e só em
+  endereço público: rede interna é recusada, `src/lib/enderecoDeSaida.ts`;
+  `SSF_REDE_INTERNA=1` libera, para o ambiente de teste);
   `GET`/`PATCH`/`PUT`/`DELETE` no mesmo endereço, situação em `/ssf/status` e
   pedido de verificação em `/ssf/verify`. Cada evento é um SET (`secevent+jwt`,
   RS256, conferível pelo `/oauth/jwks`). Eventos: sessão revogada (sair, conta
-  removida) e credencial alterada (senha, segundo fator), além da verificação.
-  Saem para todas as contas; o sujeito é o e-mail. Não há fila: evento que o
-  receptor não aceitou na hora não é reenviado. Abrir, alterar e fechar canal
-  fica na Atividade.
+  removida ou desligada), credencial alterada (senha, segundo fator) e conta
+  desligada, além da verificação.
+  Saem para todas as contas; o sujeito é o e-mail. Abrir, alterar e fechar canal
+  fica na Atividade. A API do canal confere a cada chamada que a integração
+  segue marcada e que quem autorizou o token segue na equipe, com a conta ligada.
+  Todo evento é guardado na fila (`ssf_pendentes`) antes do envio e sai dela
+  quando entregue; o que o receptor não aceita na hora fica e
+  é reenviado pela rotina do próprio processo (`src/lib/ssfFila.ts`), com espera
+  que dobra a cada tentativa (5, 10, 20 minutos…), por até 8 tentativas ou um
+  dia; canal pausado segura o evento sem gastar tentativa, até o mesmo limite de
+  um dia. A mesma rotina compara, a cada 5 minutos, as contas desligadas no banco
+  das contas com as da passada anterior (quem desliga é o app.avilaops.com, não
+  o Auth) e emite pelas novas "conta desligada" (RISC) e "sessão revogada".
   O `id_token` e o `/oauth/userinfo` levam, além de `papel` (`ADMIN` para a
   equipe da casa, `CLIENTE` para os demais), a claim `apps`: os identificadores
   das aplicações em que a conta pode entrar, pela mesma regra do login. No

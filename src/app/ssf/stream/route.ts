@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { registrar } from "@/lib/eventos";
+import { limitar } from "@/lib/rateLimit";
 import { apagarCanal, atualizarCanal, canalDoCliente, canalParaOReceptor, criarCanal, enviarVerificacao, validarCanal } from "@/lib/ssf";
 import { corpoJson, erroSsf, exigirSsf, semCache } from "@/lib/ssfAcesso";
 
@@ -19,6 +20,8 @@ export async function POST(req: NextRequest) {
 
   const v = validarCanal(await corpoJson(req));
   if (!v.ok) return erroSsf(400, v.erro);
+  // Criar dispara um evento de verificação: sem limite, apagar e criar em laço vira envio à vontade.
+  if (!(await limitar(`ssf-canal:${cliente.id}`, 10, 60 * 1000))) return semCache(NextResponse.json({ err: "too_many_requests", description: "Muitos canais criados em pouco tempo." }, { status: 429 }));
 
   const canal = await criarCanal(cliente.id, v.dados);
   if (!canal) return semCache(NextResponse.json({ err: "conflict", description: "Esta integração já tem um canal." }, { status: 409 }));
@@ -53,6 +56,8 @@ async function alterar(req: NextRequest, substituir: boolean) {
   if (!canal || canal.id !== pedido) return erroSsf(404, "Canal não encontrado.");
 
   const c = (corpo ?? {}) as { delivery?: unknown; events_requested?: unknown; description?: unknown };
+  // No PATCH, `delivery` sem `authorization_header` troca o endereço e mantém o cabeçalho guardado.
+  const veioCabecalho = typeof c.delivery === "object" && c.delivery !== null && "authorization_header" in c.delivery;
   // Para validar com a mesma regra da criação, o que não veio no PATCH é completado com o que já existe.
   const completo = {
     delivery: c.delivery ?? (substituir ? undefined : { method: "urn:ietf:rfc:8935", endpoint_url: canal.endpointUrl }),
@@ -66,8 +71,7 @@ async function alterar(req: NextRequest, substituir: boolean) {
     endpointUrl: v.dados.endpointUrl,
     eventosPedidos: v.dados.eventosPedidos,
     descricao: v.dados.descricao,
-    // O cabeçalho de autorização só muda quando o receptor manda `delivery` de novo.
-    ...(c.delivery !== undefined ? { autorizacao: v.dados.autorizacao } : {}),
+    ...(substituir || veioCabecalho ? { autorizacao: v.dados.autorizacao } : {}),
   });
   await registrar({ tipo: "ssf_canal_alterado", appId: cliente.appId, autor: `app:${cliente.id}`, detalhe: `${cliente.id} → ${new URL(novo.endpointUrl).host}` });
   return semCache(NextResponse.json(canalParaOReceptor(novo)));

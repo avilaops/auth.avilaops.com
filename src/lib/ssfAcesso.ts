@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { buscarConta, papelDaRole } from "@/lib/contas";
 import { buscarCliente, ESCOPO_SSF_GERIR, ESCOPO_SSF_LER, verificarAccessToken, type ClienteOIDC } from "@/lib/oidc";
 
 /**
  * Quem está chamando a API do canal de sinais.
  *
- * O receptor se apresenta com o access token do login (Bearer). Três coisas
- * precisam bater: o token vale, ele carrega o escopo pedido, e a integração
- * dona dele continua ativa e marcada para SSF. A última é conferida a cada
- * chamada: desmarcar no painel fecha a API na hora, sem esperar o token vencer.
+ * O receptor se apresenta com o access token do login (Bearer). Quatro coisas
+ * precisam bater: o token vale, ele carrega o escopo pedido, a integração dona
+ * dele continua ativa e marcada para SSF, e quem autorizou continua sendo da
+ * equipe da casa, com a conta ligada. As duas últimas são conferidas a cada
+ * chamada: desmarcar no painel, rebaixar ou desligar a pessoa fecha a API na
+ * hora, sem esperar o token vencer.
  */
 export function erroSsf(status: number, descricao: string): NextResponse {
   return NextResponse.json({ err: status === 401 ? "authentication_failed" : status === 403 ? "access_denied" : "invalid_request", description: descricao }, { status, headers: { "Cache-Control": "no-store", ...(status === 401 ? { "WWW-Authenticate": "Bearer" } : {}) } });
@@ -24,6 +27,9 @@ export async function exigirSsf(req: NextRequest, paraGerir: boolean): Promise<C
 
   const cliente = await buscarCliente(token.aud);
   if (!cliente || !cliente.ssf) return erroSsf(403, "Esta integração não está autorizada a receber sinais.");
+
+  const conta = await buscarConta(token.sub);
+  if (!conta || !conta.ativa || papelDaRole(conta.role) !== "ADMIN") return erroSsf(403, "Quem autorizou este acesso não é mais da equipe.");
   return cliente;
 }
 
