@@ -12,9 +12,17 @@ falta, em ordem de prioridade.
   a Meta quando ele for para o servidor, e exercitar a rota com uma conexão
   real. Receber mensagem por essa conexão continua em aberto: o webhook da Meta
   pede um segredo por app, e hoje o recebimento é da Messageria.
-- **Análise do app na Meta.** Cadastrar no painel da Meta a redirect URI e os
-  callbacks, conectar uma conta real em `/conta/meta` e gravar o screencast.
-  Pedir só as permissões que a tela mostra (tabela no README).
+- **Análise do app na Meta.** A redirect URI `/api/meta/callback` e o callback
+  de desautorização foram cadastrados no painel da Meta em 13/10/2026 (Login do
+  Facebook para Empresas → Configurações). A exclusão de dados segue como URL
+  de instruções (`avilaops.com/exclusao-de-dados`), não como o callback
+  `/api/meta/exclusao`. Falta conectar uma conta real em `/conta/meta` e gravar
+  o screencast. Pedir só as permissões que a tela mostra (tabela no README).
+- **Cadastro incorporado do WhatsApp.** O app na Meta tem a configuração
+  `1279500135254209` (cadastro incorporado, token de usuário do sistema), mas o
+  Auth só faz o redirecionamento comum: não abre a janela do SDK nem recebe a
+  conta e o número que ela devolve. Sem isso, cliente não liga o WhatsApp pelo
+  Auth com essa configuração.
 - **Migrar Notas e TMS para o cadastro do painel.** Hoje são integrações fixas
   em `src/lib/oidc.ts`, com segredo em variável de ambiente. Migrar é criar a
   integração no painel com o mesmo identificador, trocar o segredo no sistema e
