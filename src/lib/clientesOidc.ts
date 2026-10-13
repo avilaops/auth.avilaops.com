@@ -17,6 +17,8 @@ export type Integracao = {
   ativo: boolean;
   /** Endereço avisado quando a pessoa sai no Auth; nulo = não é avisada. */
   logoutUri: string | null;
+  /** Pode abrir um canal de sinais de segurança (SSF) e recebê-los. */
+  ssf: boolean;
   origem: "codigo" | "painel";
   atualizadoEm: Date | null;
   atualizadoPor: string | null;
@@ -31,6 +33,7 @@ export type EntradaIntegracao = {
   ativo: boolean;
   /** Em branco ou ausente: a integração não é avisada da saída. */
   logoutUri?: string | null;
+  ssf?: boolean;
 };
 
 /** P2021/P2022: migração ainda não aplicada. Mesmo critério do resto do auth. */
@@ -55,6 +58,7 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
     acessoMeta: l.acessoMeta,
     ativo: l.ativo,
     logoutUri: l.logoutUri,
+    ssf: l.ssf,
     origem: "painel",
     atualizadoEm: l.atualizadoEm,
     atualizadoPor: l.atualizadoPor,
@@ -68,6 +72,7 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
     acessoMeta: c.acessoMeta,
     ativo: true,
     logoutUri: null,
+    ssf: false,
     origem: "codigo",
     atualizadoEm: null,
     atualizadoPor: null,
@@ -149,7 +154,11 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
     if (url.hash || logoutUri.includes("*")) return { ok: false, erro: `Endereço de aviso de saída não pode ter # nem curinga: ${logoutUri}` };
   }
 
-  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo, logoutUri } };
+  // O canal de sinais é aberto por quem entrou pelo login: sem retorno não há como.
+  const ssf = e.ssf === true;
+  if (ssf && uris.length === 0) return { ok: false, erro: "Sinais de segurança só valem para integração com endereço de retorno." };
+
+  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo, logoutUri, ssf } };
 }
 
 /** Cria e devolve o segredo — é a única vez que ele existe em claro. */

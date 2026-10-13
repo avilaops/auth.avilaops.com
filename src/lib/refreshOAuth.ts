@@ -21,7 +21,8 @@ import { prisma } from "@/lib/prisma";
  *   `identidadeParaRenovar`): conta desligada, removida ou sem direito de
  *   entrar na aplicação não renova, mesmo com token válido.
  *
- * Sair no Auth revoga os refresh da conta (`revogarRefreshDaConta`).
+ * Sair no Auth revoga os refresh da conta (`revogarRefreshDaConta`), menos os
+ * concedidos com `offline_access`.
  *
  * Tabela ausente (migração pendente): não emite e não troca. O login por
  * código continua funcionando, como antes de o refresh existir.
@@ -39,7 +40,7 @@ function semTabela(e: unknown): boolean {
 }
 
 /** Emite um refresh token. `familia` vem da troca anterior; ausente, começa uma nova. */
-export async function emitirRefresh(dados: { clienteId: string; sub: string; email: string; familia?: string }): Promise<string | null> {
+export async function emitirRefresh(dados: { clienteId: string; sub: string; email: string; familia?: string; escopo?: string }): Promise<string | null> {
   const token = randomBytes(32).toString("hex");
   try {
     await prisma.refreshOAuth.create({
@@ -49,6 +50,7 @@ export async function emitirRefresh(dados: { clienteId: string; sub: string; ema
         clienteId: dados.clienteId,
         sub: dados.sub,
         email: dados.email.toLowerCase(),
+        escopo: dados.escopo ?? null,
         expiraEm: new Date(Date.now() + VALIDADE_REFRESH_MS),
       },
     });
@@ -60,7 +62,7 @@ export async function emitirRefresh(dados: { clienteId: string; sub: string; ema
 }
 
 export type TrocaDeRefresh =
-  | { ok: true; sub: string; email: string; familia: string }
+  | { ok: true; sub: string; email: string; familia: string; escopo: string | null }
   | { ok: false; motivo: "invalido" | "reuso"; email?: string };
 
 /**
@@ -79,7 +81,7 @@ export async function gastarRefresh(token: string, clienteId: string): Promise<T
       where: { tokenHash, usadoEm: null, revogadoEm: null, expiraEm: { gt: new Date() } },
       data: { usadoEm: new Date() },
     });
-    if (gasto.count === 1) return { ok: true, sub: registro.sub, email: registro.email, familia: registro.familia };
+    if (gasto.count === 1) return { ok: true, sub: registro.sub, email: registro.email, familia: registro.familia, escopo: registro.escopo };
 
     // Já gasto e ainda não revogado: alguém está usando uma cópia.
     if (registro.usadoEm && !registro.revogadoEm) {
@@ -97,10 +99,21 @@ export async function revogarFamilia(familia: string): Promise<void> {
   await prisma.refreshOAuth.updateMany({ where: { familia, revogadoEm: null }, data: { revogadoEm: new Date() } });
 }
 
-/** Sair no Auth: nenhum sistema renova mais a sessão desta conta sem novo login. */
+/**
+ * Sair no Auth: nenhum sistema renova mais a sessão desta conta sem novo login.
+ *
+ * Fica de fora o refresh concedido com `offline_access`. Esse escopo é o
+ * pedido explícito de acesso que continua valendo com a pessoa fora da sessão:
+ * é com ele que um serviço como o Apple Business mantém a ligação com o Auth,
+ * e sair do navegador não pode derrubar essa ligação. Conta desligada ou
+ * removida continua barrando a renovação, com qualquer escopo.
+ */
 export async function revogarRefreshDaConta(sub: string): Promise<void> {
   try {
-    await prisma.refreshOAuth.updateMany({ where: { sub, revogadoEm: null }, data: { revogadoEm: new Date() } });
+    await prisma.refreshOAuth.updateMany({
+      where: { sub, revogadoEm: null, OR: [{ escopo: null }, { NOT: { escopo: { contains: "offline_access" } } }] },
+      data: { revogadoEm: new Date() },
+    });
   } catch (e) {
     if (!semTabela(e)) throw e;
   }

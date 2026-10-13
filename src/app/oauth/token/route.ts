@@ -7,6 +7,7 @@ import {
   assinarAccessToken,
   assinarIdToken,
   autenticarCliente,
+  escopoConcedido,
   redirectUriValido,
   resgatarCodigoOAuth,
   TTL_TOKEN_SEGUNDOS,
@@ -28,17 +29,17 @@ function erro(code: string, descricao: string, status = 400) {
 }
 
 /** Corpo de sucesso do `token_endpoint`, igual para os dois caminhos. */
-async function tokens(identidade: IdentidadeOIDC, cliente: ClienteOIDC, nonce: string | null, familia?: string) {
-  const refresh = await emitirRefresh({ clienteId: cliente.id, sub: identidade.sub, email: identidade.email, familia });
+async function tokens(identidade: IdentidadeOIDC, cliente: ClienteOIDC, nonce: string | null, escopo: string, familia?: string) {
+  const refresh = await emitirRefresh({ clienteId: cliente.id, sub: identidade.sub, email: identidade.email, familia, escopo });
   return NextResponse.json(
     {
-      access_token: assinarAccessToken(identidade, cliente.id),
+      access_token: assinarAccessToken(identidade, cliente.id, escopo),
       id_token: await assinarIdToken(identidade, cliente.id, nonce, await appsDaIdentidade(identidade)),
       // Ausente só quando a tabela ainda não foi migrada.
       ...(refresh ? { refresh_token: refresh } : {}),
       token_type: "Bearer",
       expires_in: TTL_TOKEN_SEGUNDOS,
-      scope: "openid profile email",
+      scope: escopo,
     },
     { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } },
   );
@@ -69,7 +70,10 @@ async function renovar(cliente: ClienteOIDC, corpo: URLSearchParams) {
     await revogarFamilia(troca.familia);
     return erro("invalid_grant", "Refresh token inválido ou expirado.");
   }
-  return tokens(identidade, cliente, null, troca.familia);
+  // O escopo do SSF foi dado a alguém da equipe. Se a conta deixou de ser, a
+  // renovação perde esses dois escopos junto com o papel.
+  const escopo = escopoConcedido(troca.escopo, { clienteSsf: cliente.ssf, papel: identidade.papel });
+  return tokens(identidade, cliente, null, escopo, troca.familia);
 }
 
 /** `token_endpoint`: troca o código de uso único, ou um refresh token, pelos tokens. */
@@ -125,5 +129,5 @@ export async function POST(req: NextRequest) {
     papel: resgate.papel,
   };
 
-  return tokens(identidade, cliente, resgate.nonce);
+  return tokens(identidade, cliente, resgate.nonce, resgate.escopo);
 }

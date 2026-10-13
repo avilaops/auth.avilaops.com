@@ -3,6 +3,7 @@ import { VoltarLista } from "../../_componentes/lista/Interativos";
 import { notFound } from "next/navigation";
 import { listarCadastro } from "@/lib/cadastro";
 import { buscarIntegracao } from "@/lib/clientesOidc";
+import { canalParaOPainel } from "@/lib/ssf";
 import FormAcao from "../../_componentes/FormAcao";
 import { botao, botaoFraco, campo } from "../../_componentes/estilos";
 import { acaoRemoverIntegracao, acaoSalvarIntegracao, acaoTrocarSegredoIntegracao } from "../actions";
@@ -12,7 +13,7 @@ export const metadata = { title: "Integração" };
 
 export default async function IntegracaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [i, apps] = await Promise.all([buscarIntegracao(id), listarCadastro()]);
+  const [i, apps, canal] = await Promise.all([buscarIntegracao(id), listarCadastro(), canalParaOPainel(id)]);
   // Integração fixa do código não se edita aqui: o segredo dela está no .env.
   if (!i || i.origem !== "painel") notFound();
 
@@ -47,6 +48,15 @@ export default async function IntegracaoPage({ params }: { params: Promise<{ id:
             <label className="flex items-start gap-2 text-xs">
               <input type="checkbox" name="acessoMeta" defaultChecked={i.acessoMeta} className="mt-0.5" />
               <span>Pode ler as conexões da Meta dos clientes</span>
+            </label>
+            <label className="flex items-start gap-2 text-xs">
+              <input type="checkbox" name="ssf" defaultChecked={i.ssf} className="mt-0.5" />
+              <span>Pode receber sinais de segurança (SSF)
+                <span className="block text-[11px] text-[var(--color-texto-fraco)]">
+                  Avisa o sistema quando qualquer conta sai, troca a senha ou muda o segundo fator.{" "}
+                  {canal ? `Canal aberto, entregando em ${new URL(canal.endpointUrl).host} (${canal.status}).` : "Nenhum canal aberto ainda."}
+                </span>
+              </span>
             </label>
             <label className="flex items-start gap-2 text-xs">
               <input type="checkbox" name="ativo" defaultChecked={i.ativo} className="mt-0.5" />

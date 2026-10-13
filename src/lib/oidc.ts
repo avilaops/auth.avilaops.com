@@ -49,6 +49,8 @@ export type ClienteOIDC = {
   segredoHash?: string;
   /** Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`). */
   acessoMeta: boolean;
+  /** Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`). */
+  ssf: boolean;
   /** De onde veio: lista fixa abaixo ou cadastro em `/admin/integracoes`. */
   origem: "codigo" | "painel";
 };
@@ -66,6 +68,7 @@ export const CLIENTES_OIDC: readonly ClienteOIDC[] = [
     redirectUris: ["https://notas.avilaops.com/auth/oidc.callback"],
     envSegredo: "OIDC_SEGREDO_NOTAS",
     acessoMeta: false,
+    ssf: false,
     origem: "codigo",
   },
   {
@@ -79,6 +82,7 @@ export const CLIENTES_OIDC: readonly ClienteOIDC[] = [
     redirectUris: ["https://tms.avilaops.com/api/auth/callback/avilaops"],
     envSegredo: "OIDC_SEGREDO_TMS",
     acessoMeta: false,
+    ssf: false,
     origem: "codigo",
   },
 ] as const;
@@ -108,6 +112,7 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
         redirectUris: lerRedirectUris(linha.redirectUris),
         segredoHash: linha.segredoHash,
         acessoMeta: linha.acessoMeta,
+        ssf: linha.ssf,
         origem: "painel",
       };
     }
@@ -200,12 +205,42 @@ export type IdentidadeOIDC = {
   papel: Papel;
 };
 
+/** O que todo token leva, peça o cliente ou não: era o único escopo antes de haver outros. */
+export const ESCOPO_PADRAO = "openid profile email";
+export const ESCOPO_SSF_LER = "ssf.read";
+export const ESCOPO_SSF_GERIR = "ssf.manage";
+
+/**
+ * O escopo concedido a um pedido.
+ *
+ * `openid profile email` vai sempre, como sempre foi: os clientes que já
+ * existem nunca precisaram pedir, e passar a exigir quebraria o login deles.
+ * `offline_access` entra quando pedido (o refresh token é emitido de qualquer
+ * jeito; o escopo só é ecoado para o cliente que confere).
+ *
+ * Os dois escopos do SSF abrem o canal de sinais de segurança, por onde saem
+ * eventos de todas as contas. Por isso só são concedidos com as três condições
+ * juntas: o cliente pediu, a integração foi marcada para isso no painel e quem
+ * está autorizando é da equipe da casa.
+ */
+export function escopoConcedido(pedido: string | null | undefined, quem: { clienteSsf: boolean; papel: Papel }): string {
+  const pedidos = new Set((pedido ?? "").split(/\s+/).filter(Boolean));
+  const concedidos = ESCOPO_PADRAO.split(" ");
+  if (pedidos.has("offline_access")) concedidos.push("offline_access");
+  if (quem.clienteSsf && quem.papel === "ADMIN") {
+    for (const e of [ESCOPO_SSF_GERIR, ESCOPO_SSF_LER]) if (pedidos.has(e)) concedidos.push(e);
+  }
+  return concedidos.join(" ");
+}
+
 export type PedidoCodigo = IdentidadeOIDC & {
   clienteId: string;
   redirectUri: string;
   nonce: string | null;
   codeChallenge: string | null;
   codeChallengeMethod: string | null;
+  /** Escopo já decidido por `escopoConcedido`. */
+  escopo?: string;
 };
 
 export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
@@ -219,6 +254,7 @@ export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
       nonce: p.nonce,
       codeChallenge: p.codeChallenge,
       codeChallengeMethod: p.codeChallengeMethod,
+      escopo: p.escopo ?? null,
       sub: p.sub,
       email: p.email,
       nome: p.nome,
@@ -231,7 +267,7 @@ export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
   return codigo;
 }
 
-export type ResgateOAuth = IdentidadeOIDC & { nonce: string | null };
+export type ResgateOAuth = IdentidadeOIDC & { nonce: string | null; escopo: string };
 
 /**
  * Resgata o código, marcando-o como usado na mesma operação.
@@ -280,6 +316,7 @@ export async function resgatarCodigoOAuth(
     foto: registro.foto,
     papel: registro.papel as Papel,
     nonce: registro.nonce,
+    escopo: registro.escopo ?? ESCOPO_PADRAO,
   };
 }
 
@@ -289,12 +326,19 @@ function segredoJwt(): string {
   return s;
 }
 
+/** Primeiro nome e o resto, para quem pede os dois separados (a Apple pede). */
+export function nomePartido(nome: string): { given_name: string; family_name?: string } {
+  const [primeiro, ...resto] = nome.trim().split(/\s+/);
+  return { given_name: primeiro ?? "", ...(resto.length > 0 ? { family_name: resto.join(" ") } : {}) };
+}
+
 function conteudoDoToken(i: IdentidadeOIDC, nonce: string | null, apps?: string[]) {
   return {
     sub: i.sub,
     email: i.email,
     email_verified: true,
     name: i.nome,
+    ...nomePartido(i.nome),
     preferred_username: i.email,
     picture: i.foto ?? undefined,
     papel: i.papel,
@@ -333,11 +377,11 @@ export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce
  * isso continua em HS256 com o segredo da sessão: ninguém de fora precisa
  * conferi-lo.
  */
-export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string): string {
-  return assinarIdTokenCom(null, i, clienteId, null);
+export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string, escopo: string = ESCOPO_PADRAO): string {
+  return jwt.sign({ ...conteudoDoToken(i, null), scope: escopo }, segredoJwt(), { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId });
 }
 
-export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string }) | null {
+export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string; escopos: string[] }) | null {
   try {
     // Só HS256: um `id_token` RS256 não serve de access token.
     const p = jwt.verify(token, segredoJwt(), { issuer: EMISSOR, algorithms: ["HS256"] }) as jwt.JwtPayload;
@@ -349,6 +393,8 @@ export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: st
       foto: typeof p.picture === "string" ? p.picture : null,
       papel: (p.papel as Papel) ?? "CLIENTE",
       aud: typeof p.aud === "string" ? p.aud : "",
+      // Token emitido antes de o escopo existir vale o padrão.
+      escopos: (typeof p.scope === "string" ? p.scope : ESCOPO_PADRAO).split(/\s+/).filter(Boolean),
     };
   } catch {
     return null;
@@ -369,7 +415,7 @@ export function documentoDescoberta(comChave: boolean) {
     token_endpoint: `${base}/oauth/token`,
     userinfo_endpoint: `${base}/oauth/userinfo`,
     end_session_endpoint: `${base}/api/auth/logout`,
-    scopes_supported: ["openid", "profile", "email"],
+    scopes_supported: ["openid", "profile", "email", "offline_access", ESCOPO_SSF_GERIR, ESCOPO_SSF_LER],
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     subject_types_supported: ["public"],
@@ -380,6 +426,6 @@ export function documentoDescoberta(comChave: boolean) {
     id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256", "plain"],
-    claims_supported: ["sub", "email", "email_verified", "name", "preferred_username", "picture", "papel", "apps"],
+    claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "preferred_username", "picture", "papel", "apps"],
   };
 }

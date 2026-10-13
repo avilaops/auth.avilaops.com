@@ -50,7 +50,7 @@ describe("validação de integração", () => {
 });
 
 describe("segredo de cliente", () => {
-  const cliente = (extra: Partial<ClienteOIDC>): ClienteOIDC => ({ id: "x", appId: "x", nome: "X", redirectUris: [], acessoMeta: false, origem: "painel", ...extra });
+  const cliente = (extra: Partial<ClienteOIDC>): ClienteOIDC => ({ id: "x", appId: "x", nome: "X", redirectUris: [], acessoMeta: false, ssf: false, origem: "painel", ...extra });
 
   it("o hash guardado confere com o segredo gerado, e só com ele", () => {
     const { segredo, hash } = gerarSegredoCliente();

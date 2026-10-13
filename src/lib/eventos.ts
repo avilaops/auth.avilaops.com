@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitirSinal, sinalDoEvento } from "@/lib/ssf";
 
 export type TipoEvento =
   | "login_ok"
@@ -36,6 +37,10 @@ export type TipoEvento =
   | "meta_token_entregue"
   | "meta_token_renovado"
   // Cadastro de integrações (clientes OIDC e de API) feito pelo painel.
+  // Canal de sinais de segurança (SSF) aberto, alterado ou fechado por uma integração.
+  | "ssf_canal_criado"
+  | "ssf_canal_alterado"
+  | "ssf_canal_removido"
   // Refresh token do OIDC já gasto apresentado de novo: sinal de cópia.
   | "oauth_refresh_reusado"
   | "integracao_criada"
@@ -81,6 +86,10 @@ export async function registrar(e: {
     // Auditoria não pode derrubar o login.
     console.error("evento não registrado", err);
   }
+  // Sessão ou credencial mudou: os sistemas que abriram canal de sinais ficam
+  // sabendo. Sem esperar: o aviso não pode atrasar o login nem a saída.
+  const sinal = e.email ? sinalDoEvento(e.tipo) : null;
+  if (sinal && e.email) void emitirSinal(sinal, e.email);
 }
 
 export async function listarEventos(opts: { email?: string; tipo?: string; antes?: Date; limite?: number } = {}) {

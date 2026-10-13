@@ -4,6 +4,7 @@ import { registrar } from "@/lib/eventos";
 import {
   buscarCliente,
   emitirCodigoOAuth,
+  escopoConcedido,
   redirectUriValido,
 } from "@/lib/oidc";
 import { podeEntrar } from "@/lib/permissoes";
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest) {
     nonce: q.get("nonce"),
     codeChallenge: q.get("code_challenge"),
     codeChallengeMethod: q.get("code_challenge_method") ?? (q.get("code_challenge") ? "S256" : null),
+    escopo: escopoConcedido(q.get("scope"), { clienteSsf: cliente.ssf, papel: sessao.papel }),
     sub: sessao.sub,
     email: sessao.email,
     nome: sessao.nome,

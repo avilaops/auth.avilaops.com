@@ -1,6 +1,6 @@
 import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
 import { NextRequest, NextResponse } from "next/server";
-import { verificarAccessToken } from "@/lib/oidc";
+import { verificarAccessToken, nomePartido } from "@/lib/oidc";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +35,7 @@ async function claims(req: NextRequest) {
       email: id.email,
       email_verified: true,
       name: id.nome,
+      ...nomePartido(id.nome),
       preferred_username: id.email,
       picture: id.foto ?? undefined,
       papel: id.papel,
