@@ -18,11 +18,11 @@ falta, em ordem de prioridade.
   de instruções (`avilaops.com/exclusao-de-dados`), não como o callback
   `/api/meta/exclusao`. Falta conectar uma conta real em `/conta/meta` e gravar
   o screencast. Pedir só as permissões que a tela mostra (tabela no README).
-- **Cadastro incorporado do WhatsApp.** O app na Meta tem a configuração
-  `1279500135254209` (cadastro incorporado, token de usuário do sistema), mas o
-  Auth só faz o redirecionamento comum: não abre a janela do SDK nem recebe a
-  conta e o número que ela devolve. Sem isso, cliente não liga o WhatsApp pelo
-  Auth com essa configuração.
+- **Cadastro incorporado do WhatsApp: ligar e testar com conta real.** O
+  botão existe (README). Falta preencher `1279500135254209` no campo
+  "Configuration ID do cadastro incorporado do WhatsApp" do conector da Meta,
+  conferir que o webhook do WhatsApp desse app aponta para a Messageria, e
+  ligar um número de verdade.
 - **Apple Business como provedor de identidade.** O Auth já é transmissor SSF
   (README). Falta criar a integração do Apple Business em `/admin/integracoes`
   (retorno `https://gsa-ws.apple.com/grandslam/GsService2/acs`, com a marca de

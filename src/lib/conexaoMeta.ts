@@ -4,14 +4,18 @@ import { chaveConfigurada, cifrar, decifrar } from "@/lib/cripto";
 import {
   TIPOS_ATIVO,
   coletarAtivos,
+  inscreverWaba,
+  lerCadastroWhatsapp,
   lerEscopos,
   perfilMeta,
   permissoesMeta,
   renovarTokenMeta,
   revogarMeta,
+  trocarCodigoCadastro,
   type TipoAtivo,
   type TokenMeta,
 } from "@/lib/meta";
+import type { PedidoCadastro } from "@/lib/cadastroWhatsapp";
 import { prisma } from "@/lib/prisma";
 import { urlAbsoluta } from "@/lib/urls";
 
@@ -25,7 +29,17 @@ import { urlAbsoluta } from "@/lib/urls";
 
 export const COOKIE_FLUXO_META = "avila_meta_fluxo";
 
-export type AppMeta = { clientId: string; clientSecret: string; escopos: string[]; configId: string | null };
+export type AppMeta = {
+  clientId: string;
+  clientSecret: string;
+  escopos: string[];
+  configId: string | null;
+  /** Configuração do cadastro incorporado do WhatsApp; sem ela, o botão não aparece. */
+  configIdWhatsapp: string | null;
+};
+
+/** Ativo ligado pelo cadastro incorporado do WhatsApp. */
+export const ORIGEM_CADASTRO = "cadastro_incorporado";
 
 /**
  * App da Meta configurado em `/admin/conectores/facebook`.
@@ -42,6 +56,7 @@ export async function appMeta(): Promise<AppMeta | null> {
     clientSecret: cred.clientSecret,
     escopos: lerEscopos(cred.extras.escoposConexao),
     configId: cred.extras.configId?.trim() || null,
+    configIdWhatsapp: cred.extras.configIdWhatsapp?.trim() || null,
   };
 }
 
@@ -60,6 +75,7 @@ export type AtivoTela = {
   externoId: string;
   nome: string;
   detalhe: Record<string, string | number | boolean | null>;
+  origem: string;
 };
 
 export type ConexaoTela = {
@@ -115,7 +131,7 @@ export async function buscarConexao(contaId: string): Promise<ConexaoTela | null
     criadoEm: c.criadoEm,
     ativos: c.ativos
       .filter((a) => (TIPOS_ATIVO as readonly string[]).includes(a.tipo))
-      .map((a) => ({ tipo: a.tipo as TipoAtivo, externoId: a.externoId, nome: a.nome, detalhe: lerDetalhe(a.detalhe) })),
+      .map((a) => ({ tipo: a.tipo as TipoAtivo, externoId: a.externoId, nome: a.nome, detalhe: lerDetalhe(a.detalhe), origem: a.origem })),
   };
 }
 
@@ -123,7 +139,9 @@ export async function buscarConexao(contaId: string): Promise<ConexaoTela | null
  * Lê os ativos na Graph e deixa o banco igual ao que a Meta respondeu.
  *
  * Tipo que falhou fica como estava; tipo lido é substituído por inteiro —
- * inclusive por lista vazia, que é como um acesso perdido some daqui.
+ * inclusive por lista vazia, que é como um acesso perdido some daqui. O que
+ * foi ligado pelo cadastro incorporado não entra nessa conta: o token da
+ * pessoa não enxerga a conta do WhatsApp que ela deu à casa por lá.
  */
 async function gravarAtivos(conexaoId: string, token: string, segredo: string, concedidos: string[]): Promise<void> {
   const coleta = await coletarAtivos({ token, segredo }, concedidos);
@@ -131,11 +149,15 @@ async function gravarAtivos(conexaoId: string, token: string, segredo: string, c
 
   await prisma.$transaction(async (tx) => {
     for (const tipo of TIPOS_ATIVO) {
-      const lidos = coleta[tipo];
-      if (lidos === "falhou") continue;
+      const coletados = coleta[tipo];
+      if (coletados === "falhou") continue;
+      const doCadastro = new Set(
+        (await tx.ativoMeta.findMany({ where: { conexaoId, tipo, origem: ORIGEM_CADASTRO }, select: { externoId: true } })).map((a) => a.externoId),
+      );
+      const lidos = coletados.filter((a) => !doCadastro.has(a.externoId));
 
       await tx.ativoMeta.deleteMany({
-        where: { conexaoId, tipo, externoId: { notIn: lidos.map((a) => a.externoId) } },
+        where: { conexaoId, tipo, origem: { not: ORIGEM_CADASTRO }, externoId: { notIn: lidos.map((a) => a.externoId) } },
       });
       for (const a of lidos) {
         const dados = {
@@ -177,6 +199,72 @@ export async function conectar(conta: { id: string; email: string }, app: AppMet
 
   await gravarAtivos(c.id, tk.token, app.clientSecret, perms.concedidos);
   return { ativos: await prisma.ativoMeta.count({ where: { conexaoId: c.id } }) };
+}
+
+export type WhatsappLigado = { nomeDaConta: string; numero: string | null; inscrito: boolean };
+
+/**
+ * Grava o WhatsApp que a pessoa ligou pela janela da Meta (cadastro
+ * incorporado).
+ *
+ * Troca o código pelo token da empresa, lê com ele a conta e o número (é o que
+ * prova que os identificadores vindos do navegador são dessa empresa) e inscreve
+ * o app nos avisos da conta, para as mensagens chegarem.
+ *
+ * O número vira um ativo `whatsapp` com o token da empresa, no mesmo formato
+ * que os sistemas já leem em `/api/meta/ativos`. Conta sem conexão com a Meta
+ * ganha uma, feita com esse token: ele não vence, então a conexão também não.
+ */
+export async function ligarWhatsapp(conta: { id: string; email: string }, app: AppMeta, pedido: PedidoCadastro): Promise<WhatsappLigado> {
+  const tk = await trocarCodigoCadastro({ clientId: app.clientId, clientSecret: app.clientSecret, code: pedido.code });
+  const acesso = { token: tk.token, segredo: app.clientSecret };
+  const lido = await lerCadastroWhatsapp(acesso, pedido.wabaId, pedido.phoneNumberId);
+
+  let inscrito = true;
+  try {
+    await inscreverWaba(acesso, lido.wabaId);
+  } catch (e) {
+    // Fica gravado e a tela avisa: o número está ligado, mas as mensagens ainda não chegam.
+    inscrito = false;
+    console.error("[meta] inscrição nos avisos do WhatsApp", e instanceof Error ? e.message : e);
+  }
+
+  let conexao = await prisma.conexaoMeta.findUnique({ where: { contaId: conta.id } });
+  if (!conexao) {
+    const [perfil, perms] = await Promise.all([perfilMeta(acesso), permissoesMeta(acesso)]);
+    conexao = await prisma.conexaoMeta.create({
+      data: {
+        contaId: conta.id,
+        email: conta.email.toLowerCase(),
+        fbUserId: perfil.id,
+        nome: perfil.nome,
+        tokenEnc: cifrar(tk.token),
+        escopos: perms.concedidos.join(" "),
+        recusados: perms.recusados.join(" "),
+        expiraEm: tk.expiraEm,
+      },
+    });
+  }
+
+  const dados = {
+    nome: lido.nomeDaConta,
+    detalhe: JSON.stringify({
+      numeros: lido.numero?.exibido ?? null,
+      numeroIds: lido.numero?.id ?? null,
+      nomeVerificado: lido.numero?.nome ?? null,
+      negocioId: pedido.businessId,
+      avisos: inscrito ? "inscrito" : "falhou",
+    }),
+    tokenEnc: cifrar(tk.token),
+    origem: ORIGEM_CADASTRO,
+    sincronizadoEm: new Date(),
+  };
+  await prisma.ativoMeta.upsert({
+    where: { conexaoId_tipo_externoId: { conexaoId: conexao.id, tipo: "whatsapp", externoId: lido.wabaId } },
+    create: { conexaoId: conexao.id, tipo: "whatsapp", externoId: lido.wabaId, ...dados },
+    update: dados,
+  });
+  return { nomeDaConta: lido.nomeDaConta, numero: lido.numero?.exibido ?? null, inscrito };
 }
 
 /** Relê permissões e ativos com o token já guardado. */
@@ -323,6 +411,7 @@ export async function entregarConexao(email: string, app: AppMeta): Promise<Cone
         externoId: a.externoId,
         nome: a.nome,
         detalhe: lerDetalhe(a.detalhe),
+        origem: a.origem,
         token: a.tokenEnc ? decifrar(a.tokenEnc) : null,
       })),
   };

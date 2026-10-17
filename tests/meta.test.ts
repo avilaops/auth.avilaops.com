@@ -5,9 +5,12 @@ import {
   ESCOPOS_PADRAO,
   coletarAtivos,
   graphLista,
+  inscreverWaba,
+  lerCadastroWhatsapp,
   lerEscopos,
   lerPedidoAssinado,
   provaSegredo,
+  trocarCodigoCadastro,
   trocarCodigoMeta,
   urlConexao,
   type Buscar,
@@ -205,3 +208,50 @@ describe("coleta de ativos", () => {
     assert.ok(c.conta_anuncio !== "falhou" && c.conta_anuncio.length === 1);
   });
 });
+
+describe("cadastro incorporado do WhatsApp na Graph", () => {
+  it("troca o código sem redirect_uri e sem a troca pelo token longo", async () => {
+    const pedidos: URL[] = [];
+    const buscar: Buscar = async (url) => {
+      pedidos.push(new URL(url));
+      return new Response(JSON.stringify({ access_token: "token-da-empresa", token_type: "bearer" }), { status: 200 });
+    };
+    const t = await trocarCodigoCadastro({ clientId: "app", clientSecret: SEGREDO, code: "codigo", buscar });
+    assert.equal(t.token, "token-da-empresa");
+    assert.equal(t.expiraEm, null);
+    assert.equal(pedidos.length, 1);
+    assert.equal(pedidos[0].pathname.endsWith("/oauth/access_token"), true);
+    assert.equal(pedidos[0].searchParams.get("code"), "codigo");
+    assert.equal(pedidos[0].searchParams.has("redirect_uri"), false);
+    assert.equal(pedidos[0].searchParams.has("grant_type"), false);
+  });
+
+  it("lê a conta e o número com o token da empresa, com prova do segredo", async () => {
+    const { buscar, pedidos } = graphFalsa({
+      "/111111": { id: "111111", name: "Loja da Ana" },
+      "/222222": { id: "222222", display_phone_number: "+55 11 99999-0000", verified_name: "Loja da Ana" },
+    });
+    const lido = await lerCadastroWhatsapp({ token: "tok", segredo: SEGREDO, buscar }, "111111", "222222");
+    assert.deepEqual(lido, { wabaId: "111111", nomeDaConta: "Loja da Ana", numero: { id: "222222", exibido: "+55 11 99999-0000", nome: "Loja da Ana" } });
+    assert.ok(pedidos.every((u) => u.searchParams.get("appsecret_proof") === provaSegredo("tok", SEGREDO)));
+  });
+
+  it("conta que o token não enxerga derruba a leitura", async () => {
+    const { buscar } = graphFalsa({});
+    await assert.rejects(lerCadastroWhatsapp({ token: "tok", segredo: SEGREDO, buscar }, "111111", null));
+  });
+
+  it("inscreve o app nos avisos da conta por POST", async () => {
+    let metodo = "";
+    let caminho = "";
+    const buscar: Buscar = async (url, init) => {
+      metodo = init?.method ?? "GET";
+      caminho = new URL(url).pathname;
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    };
+    await inscreverWaba({ token: "tok", segredo: SEGREDO, buscar }, "111111");
+    assert.equal(metodo, "POST");
+    assert.equal(caminho.endsWith("/111111/subscribed_apps"), true);
+  });
+});
+

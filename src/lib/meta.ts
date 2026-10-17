@@ -33,6 +33,8 @@ export const ESCOPOS_CONHECIDOS: Record<string, string> = {
   business_management: "Ver os negócios (Business Manager) de que você participa",
   ads_read: "Ver suas contas de anúncio",
   whatsapp_business_management: "Ver suas contas e números do WhatsApp Business",
+  // Vem do cadastro incorporado do WhatsApp; a conexão comum não pede.
+  whatsapp_business_messaging: "Enviar e receber mensagens pelo seu número do WhatsApp Business",
   catalog_management: "Ver seus catálogos de produtos",
 };
 
@@ -227,6 +229,48 @@ export async function renovarTokenMeta(opts: { clientId: string; clientSecret: s
   url.searchParams.set("fb_exchange_token", opts.token);
   return comoToken(await ler<RespostaToken>(url.toString(), opts.buscar ?? fetch));
 }
+/**
+ * Troca o código do cadastro incorporado do WhatsApp pelo token da empresa.
+ *
+ * Diferente da conexão comum: não há `redirect_uri` (o código veio pelo SDK,
+ * numa janela, e não por redirecionamento) e o token que volta é de usuário de
+ * sistema da empresa do cliente, sem a troca pelo token longo. O código vale
+ * 30 segundos.
+ */
+export async function trocarCodigoCadastro(opts: { clientId: string; clientSecret: string; code: string; buscar?: Buscar }): Promise<TokenMeta> {
+  const url = new URL(`${GRAPH}/oauth/access_token`);
+  url.searchParams.set("client_id", opts.clientId);
+  url.searchParams.set("client_secret", opts.clientSecret);
+  url.searchParams.set("code", opts.code);
+  return comoToken(await ler<RespostaToken>(url.toString(), opts.buscar ?? fetch));
+}
+
+export type CadastroLido = { wabaId: string; nomeDaConta: string; numero: { id: string; exibido: string; nome: string | null } | null };
+
+/**
+ * Lê, com o token da empresa, a conta e o número que a janela informou.
+ *
+ * Os identificadores vêm do navegador. Ler com o token é o que prova que são
+ * da empresa que autorizou: identificador de outra empresa não responde.
+ */
+export async function lerCadastroWhatsapp(a: Acesso, wabaId: string, phoneNumberId: string | null): Promise<CadastroLido> {
+  const conta = await graph<{ id: string; name?: string }>(`/${wabaId}`, { fields: "id,name" }, a);
+  let numero: CadastroLido["numero"] = null;
+  if (phoneNumberId) {
+    const n = await graph<{ id: string; display_phone_number?: string; verified_name?: string }>(`/${phoneNumberId}`, { fields: "id,display_phone_number,verified_name" }, a);
+    numero = { id: n.id, exibido: n.display_phone_number ?? n.id, nome: n.verified_name ?? null };
+  }
+  return { wabaId: conta.id, nomeDaConta: conta.name ?? conta.id, numero };
+}
+
+/**
+ * Inscreve o app nos avisos (webhooks) da conta do WhatsApp do cliente. Sem
+ * isso, as mensagens que chegam ao número não são entregues ao app.
+ */
+export async function inscreverWaba(a: Acesso, wabaId: string): Promise<void> {
+  await ler(montar(`/${wabaId}/subscribed_apps`, {}, a), a.buscar ?? fetch, { method: "POST" });
+}
+
 export async function perfilMeta(a: Acesso): Promise<{ id: string; nome: string | null }> {
   const d = await graph<{ id?: string; name?: string }>("/me", { fields: "id,name" }, a);
   if (!d.id) throw new ErroGraph("perfil sem id");

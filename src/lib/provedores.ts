@@ -230,6 +230,11 @@ export const PROVEDORES: readonly Provedor[] = [
         rotulo: "Configuration ID (Login do Facebook para Empresas)",
         dica: "Opcional. Quando preenchido, a configuração criada no painel da Meta substitui a lista de permissões acima.",
       },
+      {
+        chave: "configIdWhatsapp",
+        rotulo: "Configuration ID do cadastro incorporado do WhatsApp",
+        dica: "Opcional. A configuração do tipo cadastro incorporado (Embedded Signup) criada no painel da Meta. Preenchida, /conta/meta ganha o botão \"Ligar o WhatsApp\".",
+      },
     ],
     docs: "https://developers.facebook.com/apps/",
     instrucoes: "Criar app tipo 'Consumer', adicionar o produto Facebook Login e cadastrar a Redirect URI abaixo em 'Valid OAuth Redirect URIs'. Publicar o app (Live) para aceitar usuários fora da equipe.",
