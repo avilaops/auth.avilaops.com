@@ -315,8 +315,11 @@ model AtivoMeta {
   nome      String
   /// JSON com o que a tela mostra (categoria, moeda, números…).
   detalhe   String?
-  /// Token próprio do ativo (Página), cifrado.
+  /// Token próprio do ativo (Página; número ligado pelo cadastro incorporado), cifrado.
   tokenEnc       String?  @map("token_enc")
+  /// "coleta" (lido com o token da pessoa) ou "cadastro_incorporado" (WhatsApp
+  /// ligado pela janela da Meta). A leitura comum só mexe nos de "coleta".
+  origem         String   @default("coleta")
   sincronizadoEm DateTime @default(now()) @map("sincronizado_em")
 
   conexao ConexaoMeta @relation(fields: [conexaoId], references: [id], onDelete: Cascade)

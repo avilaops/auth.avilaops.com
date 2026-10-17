@@ -463,6 +463,23 @@ mesmo segredo (nada mudou nos dois sistemas) e a lista saiu do código: toda
 integração, agora, está no painel. `OIDC_SEGREDO_NOTAS` e `OIDC_SEGREDO_TMS`
 no `.env` do servidor já não são lidas.
 
+### Cadastro incorporado do WhatsApp
+
+Com o "Configuration ID do cadastro incorporado do WhatsApp" preenchido em
+`/admin/conectores/facebook`, `/conta/meta` ganha o botão "Ligar o WhatsApp".
+Ele carrega o SDK da Meta só nessa tela e abre a janela do Embedded Signup v4.
+A janela devolve um código (vale 30 segundos) e, por `postMessage` de
+`facebook.com`, a conta do WhatsApp Business e o número. A tela manda os dois a
+`POST /api/meta/whatsapp` (mesma origem e sessão), que troca o código pelo token
+da empresa (sem `redirect_uri`), lê a conta e o número com esse token (é o que
+prova que são da empresa que autorizou), inscreve o app nos avisos da conta
+(`subscribed_apps`) e grava o número como ativo `whatsapp` com origem
+`cadastro_incorporado` e o token da empresa (`src/lib/conexaoMeta.ts`,
+`ligarWhatsapp`). Os sistemas leem como sempre, em `/api/meta/ativos`. A
+leitura comum ("Atualizar lista") não apaga o que veio pelo cadastro. Registrar
+o número para envio (PIN de duas etapas) e o meio de pagamento ficam com a
+equipe e o cliente, no WhatsApp Manager.
+
 ### API da conexão da Meta
 
 ```

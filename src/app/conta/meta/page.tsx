@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import IconeProvedor from "@/components/IconeProvedor";
-import { appMeta, buscarConexao, type AtivoTela } from "@/lib/conexaoMeta";
-import { ESCOPOS_CONHECIDOS, type TipoAtivo } from "@/lib/meta";
+import { appMeta, buscarConexao, ORIGEM_CADASTRO, type AppMeta, type AtivoTela } from "@/lib/conexaoMeta";
+import { ESCOPOS_CONHECIDOS, VERSAO_GRAPH, type TipoAtivo } from "@/lib/meta";
 import { lerSessao } from "@/lib/sessao";
 import { acaoDesconectarMeta, acaoSincronizarMeta } from "./actions";
+import LigarWhatsapp from "./LigarWhatsapp";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Conexão com a Meta" };
@@ -51,6 +52,7 @@ function resumo(a: AtivoTela): string {
   } else if (a.tipo === "whatsapp") {
     if (d.numeros) partes.push(String(d.numeros));
     if (d.negocio) partes.push(String(d.negocio));
+    if (a.origem === ORIGEM_CADASTRO) partes.push(d.avisos === "falhou" ? "ligado pela janela, mensagens ainda não chegam" : "ligado pela janela da Meta");
   } else if (a.tipo === "conta_anuncio") {
     if (d.moeda) partes.push(String(d.moeda));
     partes.push(d.ativa ? "ativa" : "inativa");
@@ -106,6 +108,8 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
           <p className="text-sm text-[var(--color-texto-fraco)]">A conexão com a Meta ainda não foi configurada. Fale com a equipe da Avila Ops.</p>
         </Cartao>
       ) : !conexao ? (
+        <div className="flex flex-col gap-6">
+        <CadastroWhatsapp app={app} />
         <Cartao titulo="Nenhuma conta conectada">
           <p className="text-sm leading-relaxed text-[var(--color-texto-fraco)]">
             Você será levado ao Facebook para escolher o que autorizar. A Avila Ops só enxerga o que você marcar lá, e você pode desconectar quando quiser.
@@ -125,6 +129,7 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
             Conectar com o Facebook
           </a>
         </Cartao>
+        </div>
       ) : (
         <div className="flex flex-col gap-6">
           <Cartao titulo={conexao.nome ? `Conectado como ${conexao.nome}` : "Conta conectada"}>
@@ -158,20 +163,22 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
             <ul className="flex flex-col gap-1.5 text-xs">
               {conexao.escopos.map((e) => (
                 <li key={e} className="flex items-baseline justify-between gap-3">
-                  <span>{ESCOPOS_CONHECIDOS[e] ?? e}</span>
-                  <code className="shrink-0 text-[11px] text-[var(--color-texto-fraco)]">{e}</code>
+                  <span className="min-w-0">{ESCOPOS_CONHECIDOS[e] ?? e}</span>
+                  <code className="min-w-0 max-w-[45%] break-all text-right text-[11px] text-[var(--color-texto-fraco)]">{e}</code>
                 </li>
               ))}
               {conexao.recusados.map((e) => (
                 <li key={e} className="flex items-baseline justify-between gap-3 text-[var(--color-texto-fraco)] line-through">
-                  <span>{ESCOPOS_CONHECIDOS[e] ?? e}</span>
-                  <code className="shrink-0 text-[11px]">{e}</code>
+                  <span className="min-w-0">{ESCOPOS_CONHECIDOS[e] ?? e}</span>
+                  <code className="min-w-0 max-w-[45%] break-all text-right text-[11px]">{e}</code>
                 </li>
               ))}
             </ul>
           </Cartao>
 
-          {GRUPOS.filter((g) => EXIGE[g.tipo].every((e) => conexao.escopos.includes(e))).map((g) => {
+          <CadastroWhatsapp app={app} />
+
+          {GRUPOS.filter((g) => EXIGE[g.tipo].every((e) => conexao.escopos.includes(e)) || conexao.ativos.some((a) => a.tipo === g.tipo && a.origem === ORIGEM_CADASTRO)).map((g) => {
             const itens = conexao.ativos.filter((a) => a.tipo === g.tipo);
             return (
               <Cartao key={g.tipo} titulo={`${g.titulo} (${itens.length})`}>
@@ -201,6 +208,19 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
         Facebook → Configurações → Apps e sites; o efeito aqui é o mesmo.
       </p>
     </main>
+  );
+}
+
+/** O WhatsApp pela janela da Meta. Só aparece com a configuração do cadastro incorporado preenchida no conector. */
+function CadastroWhatsapp({ app }: { app: AppMeta }) {
+  if (!app.configIdWhatsapp) return null;
+  return (
+    <Cartao titulo="Ligar o WhatsApp da sua empresa">
+      <p className="mb-4 text-sm leading-relaxed text-[var(--color-texto-fraco)]">
+        Abre uma janela da Meta onde você escolhe a conta do WhatsApp Business e o número. O número passa a atender pelos sistemas da Avila Ops; o app do celular deixa de usar esse número.
+      </p>
+      <LigarWhatsapp appId={app.clientId} configId={app.configIdWhatsapp} versao={VERSAO_GRAPH} />
+    </Cartao>
   );
 }
 
