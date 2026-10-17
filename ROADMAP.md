@@ -1,6 +1,6 @@
 # Roadmap — auth.avilaops.com
 
-Atualizado em 12/10/2026. O que está em produção fica no README; aqui só o que
+Atualizado em 16/10/2026. O que está em produção fica no README; aqui só o que
 falta, em ordem de prioridade.
 
 ## Agora
@@ -23,6 +23,10 @@ falta, em ordem de prioridade.
   Auth só faz o redirecionamento comum: não abre a janela do SDK nem recebe a
   conta e o número que ela devolve. Sem isso, cliente não liga o WhatsApp pelo
   Auth com essa configuração.
+- **Apple Business como provedor de identidade.** O Auth já é transmissor SSF
+  (README). Falta criar a integração do Apple Business em `/admin/integracoes`
+  (retorno `https://gsa-ws.apple.com/grandslam/GsService2/acs`, com a marca de
+  sinais de segurança) e ligar na Apple; só a tela da Apple confirma a ligação.
 - **Migrar Notas e TMS para o cadastro do painel.** Hoje são integrações fixas
   em `src/lib/oidc.ts`, com segredo em variável de ambiente. Migrar é criar a
   integração no painel com o mesmo identificador, trocar o segredo no sistema e
@@ -34,8 +38,6 @@ falta, em ordem de prioridade.
   renovado quando um sistema lê a conexão a menos de 15 dias do vencimento.
   Conta que ninguém lê por 60 dias vence. Falta uma rotina diária (n8n) e o
   aviso ao cliente quando a conexão estiver para vencer.
-- **Rotação de chave no OIDC.** O `id_token` sai em RS256 com `jwks_uri` e o
-  refresh token existe. Falta trocar a chave de assinatura pelo painel.
 - **Sistemas ouvindo o aviso de saída.** O Auth já avisa a integração que
   cadastrar um endereço; nenhum sistema cadastrou ainda. Sem isso, quem entrou
   por OIDC só percebe a saída quando o access token vence ou ao tentar renovar.

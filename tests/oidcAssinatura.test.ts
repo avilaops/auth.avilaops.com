@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { createPublicKey } from "node:crypto";
 import { describe, it } from "node:test";
 import jwt from "jsonwebtoken";
-import { gerarPar, paraJwks } from "@/lib/chaveOidc";
-import { assinarAccessToken, assinarIdTokenCom, documentoDescoberta, EMISSOR, verificarAccessToken } from "@/lib/oidc";
+import { ESPERA_DA_TROCA_MS, gerarPar, paraJwks, RETENCAO_DA_ANTIGA_MS, situacaoDasChaves } from "@/lib/chaveOidc";
+import { assinarAccessToken, assinarIdTokenCom, documentoDescoberta, EMISSOR, TTL_TOKEN_SEGUNDOS, verificarAccessToken } from "@/lib/oidc";
 
 process.env.SSO_JWT_SECRET = "segredo-de-teste";
 
@@ -62,5 +62,49 @@ describe("assinatura do id_token", () => {
     const sem = documentoDescoberta(false);
     assert.deepEqual(sem.id_token_signing_alg_values_supported, ["HS256"]);
     assert.equal("jwks_uri" in sem, false);
+  });
+});
+
+describe("troca da chave de assinatura", () => {
+  const hora = 60 * 60 * 1000;
+  const t0 = 1_700_000_000_000;
+  const chave = (kid: string, assinaDesde: number) => ({ kid, assinaDesde: new Date(assinaDesde) });
+  const kids = (l: { kid: string }[]) => l.map((c) => c.kid);
+
+  it("a antiga fica publicada mais que a validade do id_token", () => {
+    assert.ok(RETENCAO_DA_ANTIGA_MS > TTL_TOKEN_SEGUNDOS * 1000);
+  });
+
+  it("troca agendada: a nova é publicada antes de assinar", () => {
+    const linhas = [chave("velha", t0), chave("nova", t0 + ESPERA_DA_TROCA_MS)];
+    const s = situacaoDasChaves(linhas, t0 + hora);
+    assert.equal(s.assina?.kid, "velha");
+    assert.equal(s.proxima?.kid, "nova");
+    assert.deepEqual(kids(s.publicadas), ["velha", "nova"]);
+    assert.deepEqual(s.vencidas, []);
+  });
+
+  it("quando a nova começa, a velha para de assinar mas segue publicada até a retenção acabar", () => {
+    const linhas = [chave("velha", t0), chave("nova", t0 + ESPERA_DA_TROCA_MS)];
+    const virou = t0 + ESPERA_DA_TROCA_MS;
+    const logoDepois = situacaoDasChaves(linhas, virou + hora);
+    assert.equal(logoDepois.assina?.kid, "nova");
+    assert.equal(logoDepois.proxima, null);
+    assert.deepEqual(kids(logoDepois.publicadas), ["velha", "nova"]);
+    const passou = situacaoDasChaves(linhas, virou + RETENCAO_DA_ANTIGA_MS);
+    assert.deepEqual(kids(passou.publicadas), ["nova"]);
+    assert.deepEqual(kids(passou.vencidas), ["velha"]);
+  });
+
+  it("duas chaves nascidas juntas: todo mundo assina com a mesma, e as duas vão no JWKS", () => {
+    const s = situacaoDasChaves([chave("b", t0), chave("a", t0)], t0 + 1000);
+    assert.equal(s.assina?.kid, "b");
+    assert.deepEqual(kids(s.publicadas), ["a", "b"]);
+  });
+
+  it("sem chave nenhuma não há quem assine", () => {
+    const s = situacaoDasChaves([], t0);
+    assert.equal(s.assina, null);
+    assert.deepEqual(s.publicadas, []);
   });
 });

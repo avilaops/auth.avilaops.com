@@ -54,6 +54,8 @@ export const EVENTOS: Record<string, Entrada> = {
   integracao_alterada: { rotulo: "Integração alterada", resultado: "informativo" },
   integracao_segredo_trocado: { rotulo: "Segredo de integração trocado", resultado: "atencao" },
   integracao_removida: { rotulo: "Integração removida", resultado: "atencao" },
+  chave_oidc_agendada: { rotulo: "Troca da chave de assinatura agendada", resultado: "informativo" },
+  chave_oidc_trocada: { rotulo: "Chave de assinatura trocada na hora", resultado: "atencao" },
   caixa_criada: { rotulo: "Caixa de e-mail criada", resultado: "sucesso" },
   caixa_falhou: { rotulo: "Caixa de e-mail falhou", resultado: "falha" },
   mfa_ativado: { rotulo: "2FA ativada", resultado: "sucesso", proprio: true },

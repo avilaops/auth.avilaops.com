@@ -417,12 +417,15 @@ model Conferencia {
 
 /// Par de chaves RSA que assina o `id_token` (RS256). A pública é servida em
 /// `/oauth/jwks`; a privada fica cifrada com `AUTH_ENCRYPTION_KEY`, como os
-/// segredos dos conectores. Quem assina é a mais antiga (ver `lib/chaveOidc.ts`).
+/// segredos dos conectores. Quem assina é a mais nova que já chegou ao
+/// `assinaDesde` (ver `lib/chaveOidc.ts`).
 model ChaveOidc {
-  kid        String   @id
-  publicaJwk String   @map("publica_jwk")
-  privadaEnc String   @map("privada_enc")
-  criadaEm   DateTime @default(now()) @map("criada_em")
+  kid         String   @id
+  publicaJwk  String   @map("publica_jwk")
+  privadaEnc  String   @map("privada_enc")
+  /// Desde quando esta chave assina. Numa troca agendada, a nova nasce com data futura (ver `lib/chaveOidc.ts`).
+  assinaDesde DateTime @default(now()) @map("assina_desde")
+  criadaEm    DateTime @default(now()) @map("criada_em")
 
   @@map("chaves_oidc")
 }
