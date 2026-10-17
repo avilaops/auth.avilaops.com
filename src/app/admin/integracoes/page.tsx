@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/admin";
 import { listarCadastro } from "@/lib/cadastro";
+import { situacaoParaOPainel, type SituacaoParaOPainel } from "@/lib/chaveOidc";
 import { listarIntegracoes, type Integracao } from "@/lib/clientesOidc";
 import { empresasDasAplicacoes, listarEmpresas, ROTULO_SEM_EMPRESA, SEM_EMPRESA } from "@/lib/empresas";
 import { agrupar, consultarEmMemoria, dataHora, filtrosAtivos, lerConsulta, paginar, type Consulta, type DefLista } from "@/lib/listagem";
 import { baseUrl } from "@/lib/urls";
 import FormAcao from "../_componentes/FormAcao";
-import { botao, campo } from "../_componentes/estilos";
+import { botao, botaoFraco, campo } from "../_componentes/estilos";
 import BarraLista from "../_componentes/lista/BarraLista";
 import Folha from "../_componentes/lista/Folha";
 import { ExpandirGrupos, ItemIndisponivel, itemDeMenu, MenuAcoes } from "../_componentes/lista/Interativos";
 import { celula, Estado, linha, moldura, Paginacao, Resumo, SecaoGrupo, secundario, Th, Vazio } from "../_componentes/lista/Partes";
-import { acaoCriarIntegracao } from "./actions";
+import { acaoAgendarTrocaDeChave, acaoCriarIntegracao, acaoTrocarChaveAgora } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Integrações" };
@@ -29,7 +30,7 @@ type Linha = Integracao & { appNome: string; empresaId: string | null; empresaNo
  */
 export default async function IntegracoesPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [sessao, integracoes, apps, empresas, vinculos] = await Promise.all([exigirAdmin(BASE), listarIntegracoes(), listarCadastro(), listarEmpresas(), empresasDasAplicacoes()]);
+  const [sessao, integracoes, apps, empresas, vinculos, chave] = await Promise.all([exigirAdmin(BASE), listarIntegracoes(), listarCadastro(), listarEmpresas(), empresasDasAplicacoes(), situacaoParaOPainel()]);
   const nomeApp = new Map(apps.map((a) => [a.id, a.nome]));
   const nomeEmpresa = new Map(empresas.map((e) => [e.id, e.nome]));
   const base = baseUrl();
@@ -164,7 +165,7 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
       {/* Referência, não tarefa do dia: fica recolhida para a listagem caber na tela. */}
       <details className="group mt-4 rounded-xl border border-[var(--color-borda)]">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--color-texto-fraco)] transition-transform group-open:rotate-90"><path d="m7 4 6 6-6 6" /></svg>
+          {icone}
           Endereços para configurar no sistema
         </summary>
         <dl className="grid gap-x-4 gap-y-2 border-t border-[var(--color-borda)] p-3 text-xs text-[var(--color-texto-fraco)] sm:grid-cols-[150px_1fr]">
@@ -175,7 +176,61 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
           <dt>Conexões da Meta</dt><dd><code className="select-all break-all">{base}/api/meta/ativos?email=…</code> (Basic com identificador e segredo)</dd>
         </dl>
       </details>
+
+      <ChaveDeAssinatura chave={chave} />
     </div>
+  );
+}
+
+const icone = (
+  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--color-texto-fraco)] transition-transform group-open:rotate-90"><path d="m7 4 6 6-6 6" /></svg>
+);
+
+/**
+ * A chave que assina o `id_token`, os avisos de saída e os sinais de
+ * segurança. Recolhida como a referência acima: trocar a chave é raro.
+ */
+function ChaveDeAssinatura({ chave }: { chave: SituacaoParaOPainel | null }) {
+  return (
+    <details className="group mt-3 rounded-xl border border-[var(--color-borda)]">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        {icone}
+        Chave de assinatura do login
+        {chave?.proxima && <span className="ml-auto"><Estado tom="neutro">Troca agendada</Estado></span>}
+      </summary>
+      <div className="flex flex-col gap-3 border-t border-[var(--color-borda)] p-3 text-xs text-[var(--color-texto-fraco)]">
+        {!chave ? (
+          <p>Sem chave: falta <code>AUTH_ENCRYPTION_KEY</code> ou a migração. O <code>id_token</code> sai em HS256.</p>
+        ) : (
+          <>
+            <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[150px_1fr]">
+              <dt>Assina agora</dt>
+              <dd><code>{chave.assina?.kid ?? "nenhuma"}</code>{chave.assina && <> · desde <span className="tabular-nums">{dataHora(chave.assina.desde, "")}</span></>}</dd>
+              {chave.proxima && (
+                <>
+                  <dt>Próxima</dt>
+                  <dd><code>{chave.proxima.kid}</code> · assina a partir de <span className="tabular-nums">{dataHora(chave.proxima.desde, "")}</span></dd>
+                </>
+              )}
+              <dt>No JWKS</dt>
+              <dd>{chave.publicadas} {chave.publicadas === 1 ? "chave" : "chaves"}</dd>
+            </dl>
+            <FormAcao acao={acaoAgendarTrocaDeChave} className="flex flex-col gap-1">
+              <p>A chave nova entra no JWKS agora e começa a assinar em 24 horas, tempo de os sistemas renovarem a cópia que guardam. A atual sai sozinha quando os tokens dela vencem. Ninguém precisa fazer nada.</p>
+              <button type="submit" disabled={Boolean(chave.proxima)} className={`${botaoFraco} self-start`}>Agendar troca da chave</button>
+            </FormAcao>
+            <FormAcao acao={acaoTrocarChaveAgora} className="flex flex-col gap-1 border-t border-[var(--color-borda)] pt-3">
+              <p>Só se a chave vazou: a nova assina na hora e a atual sai do JWKS na hora. Quem entrou por OIDC com um token já emitido deixa de ser conferido e precisa entrar de novo.</p>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="checkbox" name="confirmar" className="h-4 w-4 shrink-0" />
+                <span>Entendo que os tokens já emitidos deixam de valer</span>
+              </label>
+              <button type="submit" className={`${botaoFraco} self-start text-[var(--color-marca-vermelho)]`}>Trocar a chave agora</button>
+            </FormAcao>
+          </>
+        )}
+      </div>
+    </details>
   );
 }
 

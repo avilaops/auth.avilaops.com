@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { exigirAdminAction } from "@/lib/admin";
 import { buscarCadastro } from "@/lib/cadastro";
+import { agendarTroca, trocarAgora } from "@/lib/chaveOidc";
 import {
   atualizarIntegracao,
   buscarIntegracao,
@@ -115,4 +116,25 @@ export async function acaoRemoverIntegracao(_: Resultado | null, fd: FormData): 
   await registrar({ tipo: "integracao_removida", appId: atual.appId, autor: admin.email, detalhe: atual.id });
   revalidatePath("/admin/integracoes");
   redirect("/admin/integracoes");
+}
+
+/** Troca agendada da chave de assinatura: a nova é publicada agora e assina daqui a um dia. */
+export async function acaoAgendarTrocaDeChave(_: Resultado | null, _fd: FormData): Promise<Resultado> {
+  void _fd;
+  const admin = await exigirAdminAction();
+  const nova = await agendarTroca();
+  if (!nova) return { ok: false, erro: "Já há uma troca agendada. Espere ela entrar em vigor." };
+  await registrar({ tipo: "chave_oidc_agendada", autor: admin.email, detalhe: `${nova.kid} assina a partir de ${nova.assinaDesde.toISOString()}` });
+  revalidatePath("/admin/integracoes");
+  return { ok: true, mensagem: "Chave nova publicada. Ela passa a assinar em 24 horas; a atual sai sozinha depois." };
+}
+
+/** Troca na hora, para chave vazada. Pede confirmação: tokens já emitidos deixam de conferir. */
+export async function acaoTrocarChaveAgora(_: Resultado | null, fd: FormData): Promise<Resultado> {
+  const admin = await exigirAdminAction();
+  if (fd.get("confirmar") !== "on") return { ok: false, erro: "Marque a confirmação: os tokens já emitidos deixam de conferir." };
+  const kid = await trocarAgora();
+  await registrar({ tipo: "chave_oidc_trocada", autor: admin.email, detalhe: `${kid} assina a partir de agora; as anteriores foram apagadas` });
+  revalidatePath("/admin/integracoes");
+  return { ok: true, mensagem: "Chave trocada. A anterior já não confere nenhum token." };
 }

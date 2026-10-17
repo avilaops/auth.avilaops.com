@@ -398,7 +398,11 @@ coisas, que podem andar juntas ou separadas:
   `AUTH_ENCRYPTION_KEY` (`src/lib/chaveOidc.ts`). Sem essa variável ou sem a
   migração, o `id_token` sai em HS256 com o segredo da sessão e a descoberta
   não anuncia `jwks_uri`. O access token é sempre HS256: só o
-  `/oauth/userinfo` o lê. Não há rotação de chave pelo painel.
+  `/oauth/userinfo` o lê. A chave é trocada pelo painel, em Integrações → "Chave
+  de assinatura do login": a troca agendada publica a nova no JWKS na hora e só
+  a põe para assinar 24 horas depois; a antiga segue publicada 9 horas depois
+  disso (validade do token com folga) e é apagada sozinha. A troca imediata,
+  para chave vazada, assina com a nova na hora e apaga as outras.
   O `/oauth/token` devolve também um **refresh token** e aceita
   `grant_type=refresh_token` (`src/lib/refreshOAuth.ts`). Vale 30 dias sem uso;
   cada troca gasta o token e emite outro; token já gasto apresentado de novo

@@ -47,6 +47,9 @@ export type TipoEvento =
   | "integracao_alterada"
   | "integracao_segredo_trocado"
   | "integracao_removida"
+  // Chave que assina o id_token, os avisos de saída e os sinais de segurança.
+  | "chave_oidc_agendada"
+  | "chave_oidc_trocada"
   | "caixa_criada"
   | "caixa_falhou"
   // Verificação em duas etapas. `mfa_indisponivel` é o aviso de que a
