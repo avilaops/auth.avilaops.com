@@ -457,9 +457,11 @@ mostrado uma vez e guardado só como hash (tabela `clientes_oidc`); se perder,
 gera-se outro e o anterior deixa de valer. Desativar recusa login e chamadas
 na hora, sem apagar o cadastro.
 
-Notas e TMS continuam como integrações fixas em `src/lib/oidc.ts`, com segredo
-em variável de ambiente. Um cadastro do painel com o mesmo identificador tem
-precedência sobre a entrada do código.
+Notas e TMS ficavam numa lista fixa em `src/lib/oidc.ts`, com segredo em
+variável de ambiente. Em 16/10/2026 foram cadastrados no painel com o hash do
+mesmo segredo (nada mudou nos dois sistemas) e a lista saiu do código: toda
+integração, agora, está no painel. `OIDC_SEGREDO_NOTAS` e `OIDC_SEGREDO_TMS`
+no `.env` do servidor já não são lidas.
 
 ### API da conexão da Meta
 

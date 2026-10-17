@@ -1,4 +1,4 @@
-import { CLIENTES_OIDC, gerarSegredoCliente, lerRedirectUris } from "@/lib/oidc";
+import { gerarSegredoCliente, lerRedirectUris } from "@/lib/oidc";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -19,7 +19,6 @@ export type Integracao = {
   logoutUri: string | null;
   /** Pode abrir um canal de sinais de segurança (SSF) e recebê-los. */
   ssf: boolean;
-  origem: "codigo" | "painel";
   atualizadoEm: Date | null;
   atualizadoPor: string | null;
 };
@@ -42,7 +41,7 @@ function semTabela(e: unknown): boolean {
   return codigo === "P2021" || codigo === "P2022";
 }
 
-/** Tudo o que existe: o cadastro do painel e, abaixo, a lista fixa do código. */
+/** Todas as integrações cadastradas no painel. */
 export async function listarIntegracoes(): Promise<Integracao[]> {
   let linhas: Awaited<ReturnType<typeof prisma.clienteOidc.findMany>> = [];
   try {
@@ -59,25 +58,10 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
     ativo: l.ativo,
     logoutUri: l.logoutUri,
     ssf: l.ssf,
-    origem: "painel",
     atualizadoEm: l.atualizadoEm,
     atualizadoPor: l.atualizadoPor,
   }));
-  const ids = new Set(doPainel.map((i) => i.id));
-  const doCodigo: Integracao[] = CLIENTES_OIDC.filter((c) => !ids.has(c.id)).map((c) => ({
-    id: c.id,
-    appId: c.appId,
-    nome: c.nome,
-    redirectUris: [...c.redirectUris],
-    acessoMeta: c.acessoMeta,
-    ativo: true,
-    logoutUri: null,
-    ssf: false,
-    origem: "codigo",
-    atualizadoEm: null,
-    atualizadoPor: null,
-  }));
-  return [...doPainel, ...doCodigo];
+  return doPainel;
 }
 
 export async function buscarIntegracao(id: string): Promise<Integracao | null> {

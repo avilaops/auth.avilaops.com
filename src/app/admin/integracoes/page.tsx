@@ -10,7 +10,7 @@ import FormAcao from "../_componentes/FormAcao";
 import { botao, botaoFraco, campo } from "../_componentes/estilos";
 import BarraLista from "../_componentes/lista/BarraLista";
 import Folha from "../_componentes/lista/Folha";
-import { ExpandirGrupos, ItemIndisponivel, itemDeMenu, MenuAcoes } from "../_componentes/lista/Interativos";
+import { ExpandirGrupos, itemDeMenu, MenuAcoes } from "../_componentes/lista/Interativos";
 import { celula, Estado, linha, moldura, Paginacao, Resumo, SecaoGrupo, secundario, Th, Vazio } from "../_componentes/lista/Partes";
 import { acaoAgendarTrocaDeChave, acaoCriarIntegracao, acaoTrocarChaveAgora } from "./actions";
 
@@ -49,7 +49,6 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
       { chave: "situacao", rotulo: "Situação", tipo: "unico", opcoes: [{ valor: "ativa", rotulo: "Ativa" }, { valor: "desativada", rotulo: "Desativada" }] },
       { chave: "uso", rotulo: "Tipo", tipo: "unico", opcoes: [{ valor: "oidc", rotulo: "Login por OIDC" }, { valor: "api", rotulo: "Só API" }] },
       { chave: "meta", rotulo: "Conexões da Meta", tipo: "unico", opcoes: [{ valor: "sim", rotulo: "Pode ler" }, { valor: "nao", rotulo: "Não pode ler" }] },
-      { chave: "origem", rotulo: "Origem", tipo: "unico", opcoes: [{ valor: "painel", rotulo: "Cadastrada no painel" }, { valor: "codigo", rotulo: "Fixa no código" }] },
     ],
     ordens: [
       { campo: "nome", rotulo: "Nome" },
@@ -75,7 +74,6 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
       : chave === "situacao" ? [i.ativo ? "ativa" : "desativada"]
       : chave === "uso" ? [i.uso]
       : chave === "meta" ? [i.acessoMeta ? "sim" : "nao"]
-      : chave === "origem" ? [i.origem]
       : [],
     ordem: (i, campo) => (campo === "app" ? i.appNome : campo === "empresa" ? i.empresaNome : campo === "situacao" ? (i.ativo ? 0 : 1) : campo === "atualizado" ? i.atualizadoEm : i.nome),
   });
@@ -237,9 +235,7 @@ function ChaveDeAssinatura({ chave }: { chave: SituacaoParaOPainel | null }) {
 function Acoes({ i }: { i: Linha }) {
   return (
     <MenuAcoes rotulo={i.nome}>
-      {i.origem === "painel"
-        ? <Link role="menuitem" href={`/admin/integracoes/${i.id}`} className={itemDeMenu}>Abrir a ficha</Link>
-        : <ItemIndisponivel motivo="Esta integração é fixa no código; muda por deploy.">Abrir a ficha</ItemIndisponivel>}
+      <Link role="menuitem" href={`/admin/integracoes/${i.id}`} className={itemDeMenu}>Abrir a ficha</Link>
       <Link role="menuitem" href={`/admin/apps/${i.appId}`} className={itemDeMenu}>Abrir a aplicação</Link>
       <Link role="menuitem" href={`/admin/eventos?f_app=${encodeURIComponent(i.appId)}`} className={itemDeMenu}>Ver a atividade da aplicação</Link>
     </MenuAcoes>
@@ -247,17 +243,13 @@ function Acoes({ i }: { i: Linha }) {
 }
 
 function Nome({ i }: { i: Linha }) {
-  return i.origem === "painel"
-    ? <Link href={`/admin/integracoes/${i.id}`} className="block truncate font-medium hover:text-[var(--color-marca)]">{i.nome}</Link>
-    : <span className="block truncate font-medium">{i.nome}</span>;
+  return <Link href={`/admin/integracoes/${i.id}`} className="block truncate font-medium hover:text-[var(--color-marca)]">{i.nome}</Link>;
 }
 
-/** No celular a linha inteira abre a ficha; integração fixa no código não tem ficha. */
+/** No celular a linha inteira abre a ficha. */
 function ItemMovel({ i, children }: { i: Linha; children: React.ReactNode }) {
   const classe = "min-w-0 flex-1 px-3 py-2.5";
-  return i.origem === "painel"
-    ? <Link href={`/admin/integracoes/${i.id}`} className={`${classe} active:bg-[var(--color-cartao)]`}>{children}</Link>
-    : <div className={classe}>{children}</div>;
+  return <Link href={`/admin/integracoes/${i.id}`} className={`${classe} active:bg-[var(--color-cartao)]`}>{children}</Link>;
 }
 
 function Integracoes({ linhas, consulta, def, semMoldura }: { linhas: Linha[]; consulta: Consulta; def: DefLista; semMoldura?: boolean }) {
@@ -303,7 +295,7 @@ function Integracoes({ linhas, consulta, def, semMoldura }: { linhas: Linha[]; c
               <tr key={i.id} className={linha}>
                 <td className={`${celula} max-w-0`}>
                   <Nome i={i} />
-                  <div data-secundario className={secundario}><code>{i.id}</code>{i.origem === "codigo" ? " · fixa no código" : ""}</div>
+                  <div data-secundario className={secundario}><code>{i.id}</code></div>
                 </td>
                 <td data-col="app" className={`${celula} max-w-0`}><Link href={`/admin/apps/${i.appId}`} className="block truncate hover:text-[var(--color-marca)]">{i.appNome}</Link></td>
                 <td data-col="empresa" className={`${celula} hidden max-w-0 xl:table-cell`}>

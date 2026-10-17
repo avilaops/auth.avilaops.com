@@ -14,8 +14,7 @@ export const metadata = { title: "Integração" };
 export default async function IntegracaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [i, apps, canal] = await Promise.all([buscarIntegracao(id), listarCadastro(), canalParaOPainel(id)]);
-  // Integração fixa do código não se edita aqui: o segredo dela está no .env.
-  if (!i || i.origem !== "painel") notFound();
+  if (!i) notFound();
 
   return (
     <div className="mx-auto max-w-4xl">
