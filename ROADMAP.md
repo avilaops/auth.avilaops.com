@@ -27,10 +27,6 @@ falta, em ordem de prioridade.
   (README). Falta criar a integração do Apple Business em `/admin/integracoes`
   (retorno `https://gsa-ws.apple.com/grandslam/GsService2/acs`, com a marca de
   sinais de segurança) e ligar na Apple; só a tela da Apple confirma a ligação.
-- **Migrar Notas e TMS para o cadastro do painel.** Hoje são integrações fixas
-  em `src/lib/oidc.ts`, com segredo em variável de ambiente. Migrar é criar a
-  integração no painel com o mesmo identificador, trocar o segredo no sistema e
-  remover a entrada do código.
 
 ## Depois
 

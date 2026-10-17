@@ -50,7 +50,7 @@ describe("validação de integração", () => {
 });
 
 describe("segredo de cliente", () => {
-  const cliente = (extra: Partial<ClienteOIDC>): ClienteOIDC => ({ id: "x", appId: "x", nome: "X", redirectUris: [], acessoMeta: false, ssf: false, origem: "painel", ...extra });
+  const cliente = (extra: Partial<ClienteOIDC>): ClienteOIDC => ({ id: "x", appId: "x", nome: "X", redirectUris: [], segredoHash: "", acessoMeta: false, ssf: false, ...extra });
 
   it("o hash guardado confere com o segredo gerado, e só com ele", () => {
     const { segredo, hash } = gerarSegredoCliente();
@@ -63,14 +63,6 @@ describe("segredo de cliente", () => {
     assert.equal(segredoConfere(c, undefined), false);
   });
 
-  it("cliente do código continua conferindo pela variável de ambiente", () => {
-    process.env.OIDC_SEGREDO_TESTE = "valor-do-env";
-    const c = cliente({ origem: "codigo", envSegredo: "OIDC_SEGREDO_TESTE" });
-    assert.equal(segredoConfere(c, "valor-do-env"), true);
-    assert.equal(segredoConfere(c, "outro"), false);
-    delete process.env.OIDC_SEGREDO_TESTE;
-    assert.equal(segredoConfere(c, "valor-do-env"), false);
-  });
 
   it("cliente sem segredo configurado não aceita nada", () => {
     assert.equal(segredoConfere(cliente({}), "qualquer"), false);

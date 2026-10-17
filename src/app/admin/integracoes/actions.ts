@@ -17,7 +17,6 @@ import {
   type EntradaIntegracao,
 } from "@/lib/clientesOidc";
 import { registrar } from "@/lib/eventos";
-import { CLIENTES_OIDC } from "@/lib/oidc";
 import { apagarCanalDoCliente } from "@/lib/ssf";
 import type { Resultado } from "../actions";
 
@@ -59,9 +58,6 @@ export async function acaoCriarIntegracao(_: Resultado | null, fd: FormData): Pr
   const v = validarIntegracao(entrada, { exigeRetorno: !entrada.acessoMeta });
   if (!v.ok) return { ok: false, erro: v.erro };
 
-  if (CLIENTES_OIDC.some((c) => c.id === v.dados.id)) {
-    return { ok: false, erro: "Este identificador já é usado por uma integração fixa do código." };
-  }
   if (!(await buscarCadastro(v.dados.appId))) return { ok: false, erro: "Aplicação não encontrada no cadastro." };
 
   let segredo: string;
@@ -79,7 +75,7 @@ export async function acaoCriarIntegracao(_: Resultado | null, fd: FormData): Pr
 export async function acaoSalvarIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {
   const admin = await exigirAdminAction();
   const atual = await buscarIntegracao(texto(fd, "id"));
-  if (!atual || atual.origem !== "painel") return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
+  if (!atual) return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
 
   const v = validarIntegracao(ler(fd, atual.id), {
     exigeRetorno: exigeRetornoAoSalvar(atual, fd.get("acessoMeta") === "on"),
@@ -99,7 +95,7 @@ export async function acaoSalvarIntegracao(_: Resultado | null, fd: FormData): P
 export async function acaoTrocarSegredoIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {
   const admin = await exigirAdminAction();
   const atual = await buscarIntegracao(texto(fd, "id"));
-  if (!atual || atual.origem !== "painel") return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
+  if (!atual) return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
 
   const segredo = await trocarSegredo(atual.id, admin.email);
   await registrar({ tipo: "integracao_segredo_trocado", appId: atual.appId, autor: admin.email, detalhe: atual.id });
@@ -109,7 +105,7 @@ export async function acaoTrocarSegredoIntegracao(_: Resultado | null, fd: FormD
 export async function acaoRemoverIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {
   const admin = await exigirAdminAction();
   const atual = await buscarIntegracao(texto(fd, "id"));
-  if (!atual || atual.origem !== "painel") return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
+  if (!atual) return { ok: false, erro: "Integração não encontrada no cadastro do painel." };
 
   await removerIntegracao(atual.id);
   await apagarCanalDoCliente(atual.id);

@@ -43,49 +43,13 @@ export type ClienteOIDC = {
    * `https://notas.avilaops.com/auth/oidc.callback.evil.io` passar.
    */
   redirectUris: readonly string[];
-  /** Cliente do código: nome da variável de ambiente que guarda o segredo. */
-  envSegredo?: string;
-  /** Cliente do painel: SHA-256 do segredo, que só foi mostrado uma vez. */
-  segredoHash?: string;
+  /** SHA-256 do segredo, que só foi mostrado uma vez, na tela do painel. */
+  segredoHash: string;
   /** Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`). */
   acessoMeta: boolean;
   /** Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`). */
   ssf: boolean;
-  /** De onde veio: lista fixa abaixo ou cadastro em `/admin/integracoes`. */
-  origem: "codigo" | "painel";
 };
-
-/**
- * Clientes fixos. Continuam aqui porque já estão em produção com o segredo em
- * variável de ambiente; sistema novo entra pelo painel, sem commit nem deploy.
- * Um cadastro do painel com o mesmo `id` tem precedência.
- */
-export const CLIENTES_OIDC: readonly ClienteOIDC[] = [
-  {
-    id: "notas",
-    appId: "notas",
-    nome: "Notas",
-    redirectUris: ["https://notas.avilaops.com/auth/oidc.callback"],
-    envSegredo: "OIDC_SEGREDO_NOTAS",
-    acessoMeta: false,
-    ssf: false,
-    origem: "codigo",
-  },
-  {
-    // TMS (avilaops/TMS). É da casa, mas entra por OIDC e não pelo cookie
-    // `avila_sso`: o produto atende várias transportadoras e vai rodar também
-    // em domínio próprio de cliente, onde o cookie de `.avilaops.com` não chega.
-    // Domínio novo do TMS = endereço de retorno novo nesta lista.
-    id: "tms",
-    appId: "tms",
-    nome: "TMS",
-    redirectUris: ["https://tms.avilaops.com/api/auth/callback/avilaops"],
-    envSegredo: "OIDC_SEGREDO_TMS",
-    acessoMeta: false,
-    ssf: false,
-    origem: "codigo",
-  },
-] as const;
 
 /** Um endereço por linha, como o painel grava. */
 export function lerRedirectUris(texto: string): string[] {
@@ -93,11 +57,11 @@ export function lerRedirectUris(texto: string): string[] {
 }
 
 /**
- * Procura o cliente: primeiro no cadastro do painel, depois na lista fixa.
+ * Procura o cliente no cadastro do painel (`/admin/integracoes`).
  *
- * Cliente desativado no painel não cai para a lista fixa de mesmo `id` —
- * desativar tem de fechar a porta, não reabrir a antiga. Se a tabela ainda não
- * existe (migração pendente), vale só a lista fixa.
+ * Notas e TMS ficavam numa lista fixa neste arquivo, com o segredo em variável
+ * de ambiente. Em 16/10/2026 foram cadastrados no painel com o hash do mesmo
+ * segredo, e a lista saiu: integração, agora, só pelo painel.
  */
 export async function buscarCliente(id: string | null | undefined): Promise<ClienteOIDC | null> {
   if (!id) return null;
@@ -113,14 +77,13 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
         segredoHash: linha.segredoHash,
         acessoMeta: linha.acessoMeta,
         ssf: linha.ssf,
-        origem: "painel",
       };
     }
   } catch (e) {
     const codigo = (e as { code?: unknown })?.code;
     if (codigo !== "P2021" && codigo !== "P2022") throw e;
   }
-  return CLIENTES_OIDC.find((c) => c.id === id) ?? null;
+  return null;
 }
 
 export function redirectUriValido(cliente: ClienteOIDC, uri: string | null | undefined): boolean {
@@ -140,13 +103,8 @@ function iguais(a: Buffer, b: Buffer): boolean {
  * correto pelo tempo de resposta, e segredo se descobre caractere a caractere.
  */
 export function segredoConfere(cliente: ClienteOIDC, enviado: string | null | undefined): boolean {
-  if (!enviado) return false;
-  if (cliente.segredoHash) {
-    return iguais(Buffer.from(cliente.segredoHash, "hex"), createHash("sha256").update(enviado).digest());
-  }
-  const esperado = cliente.envSegredo ? process.env[cliente.envSegredo] : undefined;
-  if (!esperado) return false;
-  return iguais(Buffer.from(esperado), Buffer.from(enviado));
+  if (!enviado || !cliente.segredoHash) return false;
+  return iguais(Buffer.from(cliente.segredoHash, "hex"), createHash("sha256").update(enviado).digest());
 }
 
 /** Segredo novo para um cliente do painel, e o hash que vai ao banco. */
