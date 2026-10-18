@@ -24,7 +24,9 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
   const clienteA = `lojas-${sufixo}`;
   const clienteB = `crm-${sufixo}`;
   const conta = `conta-${sufixo}`;
+  const contaB = `conta-b-${sufixo}`;
   const contaEmail = `comprador-${sufixo}@example.com`;
+  const contaEmailB = `comprador-b-${sufixo}@example.com`;
   const portal = poolPortal();
 
   before(async () => {
@@ -44,9 +46,10 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
     )`);
     await portal.query(
       `INSERT INTO portal_clients (id, nome, email, role, senha_hash, senha_provisoria, criado_em, ativo)
-       VALUES ($1, 'Comprador', $2, 'CLIENT', 'teste', false, now(), true)
+       VALUES ($1, 'Comprador', $2, 'CLIENT', 'teste', false, now(), true),
+              ($3, 'Comprador B', $4, 'CLIENT', 'teste', false, now(), true)
        ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, ativo = true`,
-      [conta, contaEmail],
+      [conta, contaEmail, contaB, contaEmailB],
     );
     await prisma.evento.deleteMany({ where: { autor: { in: [`app:${clienteA}`, `app:${clienteB}`] } } });
     await prisma.clienteOidc.createMany({
@@ -65,7 +68,7 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
     await prisma.organizacaoCorporativa.deleteMany({ where: { id: { in: ids } } });
     await prisma.evento.deleteMany({ where: { autor: { in: [`app:${clienteA}`, `app:${clienteB}`] } } });
     await prisma.clienteOidc.deleteMany({ where: { id: { in: [clienteA, clienteB] } } });
-    await portal.query("DELETE FROM portal_clients WHERE id = $1", [conta]);
+    await portal.query("DELETE FROM portal_clients WHERE id = ANY($1::text[])", [[conta, contaB]]);
     await portal.end();
     await prisma.$disconnect();
   });
@@ -99,6 +102,130 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
       [1, 2, 1, 2],
     );
     assert.equal(segundo.versao, primeiro.versao);
+  });
+
+  it("ignora intenção atrasada sem sobrescrever a versão mais nova", async () => {
+    const referenciaOrganizacao = `monotona-${sufixo}`;
+    const base = {
+      clienteId: clienteA,
+      referenciaOrganizacao,
+      nomeOrganizacao: "Empresa Monotônica",
+      contaId: conta,
+      contaEmail,
+      convidadoPor: null,
+      unidades: [],
+      autor: `app:${clienteA}`,
+    };
+    const nova = await provisionarContextoCorporativo({
+      ...base,
+      intencaoVersao: 4,
+      organizacaoVersao: 1,
+      autorizacoes: [{ papel: "APROVADOR" as const, referenciaUnidade: null, limiteAprovacaoCentavos: 500_000 }],
+    });
+    const atrasada = await provisionarContextoCorporativo({
+      ...base,
+      intencaoVersao: 3,
+      organizacaoVersao: 1,
+      autorizacoes: [{ papel: "COMPRADOR" as const, referenciaUnidade: null, limiteAprovacaoCentavos: null }],
+    });
+    assert.equal(atrasada.intencaoVersaoAplicada, 4);
+    const vinculo = await prisma.vinculoCorporativo.findUniqueOrThrow({ where: { id: nova.vinculoId }, include: { autorizacoes: true } });
+    assert.equal(vinculo.ultimaIntencaoVersao, 4);
+    assert.deepEqual(vinculo.autorizacoes.map((a) => [a.papel, a.limiteAprovacaoCentavos]), [["APROVADOR", 500_000]]);
+
+    await prisma.autorizacaoCorporativa.deleteMany({ where: { vinculoId: nova.vinculoId } });
+    await prisma.vinculoCorporativo.delete({ where: { id: nova.vinculoId } });
+    await prisma.organizacaoCorporativa.delete({ where: { id: nova.organizacaoId } });
+  });
+
+  it("ordena o snapshot compartilhado por organização e suspende unidade omitida", async () => {
+    const referenciaOrganizacao = `org-monotona-${sufixo}`;
+    const comum = {
+      clienteId: clienteA,
+      referenciaOrganizacao,
+      nomeOrganizacao: "Empresa Atual",
+      convidadoPor: null,
+      autor: `app:${clienteA}`,
+    };
+    const atual = await provisionarContextoCorporativo({
+      ...comum,
+      contaId: conta,
+      contaEmail,
+      intencaoVersao: 1,
+      organizacaoVersao: 5,
+      unidades: [{ referencia: "matriz", nome: "Matriz" }],
+      autorizacoes: [{ papel: "COMPRADOR" as const, referenciaUnidade: "matriz", limiteAprovacaoCentavos: null }],
+    });
+    await provisionarContextoCorporativo({
+      ...comum,
+      contaId: contaB,
+      contaEmail: contaEmailB,
+      intencaoVersao: 1,
+      organizacaoVersao: 4,
+      nomeOrganizacao: "Nome atrasado",
+      unidades: [{ referencia: "filial-atrasada", nome: "Filial atrasada" }],
+      autorizacoes: [{ papel: "ADMINISTRADOR" as const, referenciaUnidade: null, limiteAprovacaoCentavos: null }],
+    });
+    const aposAtrasada = await prisma.organizacaoCorporativa.findUniqueOrThrow({ where: { id: atual.organizacaoId }, include: { unidades: true } });
+    assert.equal(aposAtrasada.nome, "Empresa Atual");
+    assert.equal(aposAtrasada.ultimaIntencaoVersao, 5);
+    assert.deepEqual(aposAtrasada.unidades.map((u) => [u.referenciaExterna, u.situacao]), [["matriz", "ATIVO"]]);
+
+    await provisionarContextoCorporativo({
+      ...comum,
+      contaId: conta,
+      contaEmail,
+      intencaoVersao: 2,
+      organizacaoVersao: 6,
+      unidades: [],
+      autorizacoes: [{ papel: "COMPRADOR" as const, referenciaUnidade: null, limiteAprovacaoCentavos: null }],
+    });
+    assert.equal((await prisma.unidadeCorporativa.findFirstOrThrow({ where: { organizacaoId: atual.organizacaoId, referenciaExterna: "matriz" } })).situacao, "SUSPENSO");
+    await assert.rejects(provisionarContextoCorporativo({
+      ...comum,
+      contaId: `conta-legada-${sufixo}`,
+      contaEmail: `legada-${sufixo}@example.com`,
+      unidades: [{ referencia: "obsoleta", nome: "Obsoleta" }],
+      autorizacoes: [{ papel: "ADMINISTRADOR" as const, referenciaUnidade: null, limiteAprovacaoCentavos: null }],
+    }), /já usa o provisionamento corporativo v2/i);
+    assert.equal(await prisma.vinculoCorporativo.count({ where: { organizacaoId: atual.organizacaoId } }), 2);
+    assert.equal(await prisma.unidadeCorporativa.count({ where: { organizacaoId: atual.organizacaoId, referenciaExterna: "obsoleta" } }), 0);
+
+    const vinculos = await prisma.vinculoCorporativo.findMany({ where: { organizacaoId: atual.organizacaoId }, select: { id: true } });
+    await prisma.autorizacaoCorporativa.deleteMany({ where: { vinculoId: { in: vinculos.map((v) => v.id) } } });
+    await prisma.vinculoCorporativo.deleteMany({ where: { organizacaoId: atual.organizacaoId } });
+    await prisma.unidadeCorporativa.deleteMany({ where: { organizacaoId: atual.organizacaoId } });
+    await prisma.organizacaoCorporativa.delete({ where: { id: atual.organizacaoId } });
+  });
+
+  it("duas primeiras provisões concorrentes reutilizam a mesma organização", async () => {
+    const referenciaOrganizacao = `concorrente-${sufixo}`;
+    const entrada = (contaId: string, email: string) => ({
+      clienteId: clienteA,
+      referenciaOrganizacao,
+      nomeOrganizacao: "Empresa Concorrente",
+      contaId,
+      contaEmail: email,
+      convidadoPor: null,
+      intencaoVersao: 1,
+      organizacaoVersao: 1,
+      unidades: [{ referencia: "matriz", nome: "Matriz" }],
+      autorizacoes: [{ papel: "COMPRADOR" as const, referenciaUnidade: "matriz", limiteAprovacaoCentavos: null }],
+      autor: `app:${clienteA}`,
+    });
+    const resultados = await Promise.all([
+      provisionarContextoCorporativo(entrada(conta, contaEmail)),
+      provisionarContextoCorporativo(entrada(contaB, contaEmailB)),
+    ]);
+    assert.equal(new Set(resultados.map((r) => r.organizacaoId)).size, 1);
+    const organizacaoId = resultados[0].organizacaoId;
+    assert.equal(await prisma.vinculoCorporativo.count({ where: { organizacaoId } }), 2);
+
+    const vinculos = await prisma.vinculoCorporativo.findMany({ where: { organizacaoId }, select: { id: true } });
+    await prisma.autorizacaoCorporativa.deleteMany({ where: { vinculoId: { in: vinculos.map((v) => v.id) } } });
+    await prisma.vinculoCorporativo.deleteMany({ where: { organizacaoId } });
+    await prisma.unidadeCorporativa.deleteMany({ where: { organizacaoId } });
+    await prisma.organizacaoCorporativa.delete({ where: { id: organizacaoId } });
   });
 
   it("uma conta participa de várias organizações e cada cliente enxerga somente as próprias", async () => {
@@ -171,15 +298,15 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
   });
 
   it("suspensão e revogação somem da consulta imediatamente e deixam auditoria", async () => {
-    assert.equal(await alterarSituacaoDoVinculo({ clienteId: clienteA, referenciaOrganizacao: "tenant-1", contaId: conta, contaEmail, situacao: "SUSPENSO", autor: `app:${clienteA}` }), true);
+    assert.ok(await alterarSituacaoDoVinculo({ clienteId: clienteA, referenciaOrganizacao: "tenant-1", contaId: conta, contaEmail, situacao: "SUSPENSO", autor: `app:${clienteA}`, intencaoVersao: 2 }));
     assert.deepEqual((await listarContextosCorporativos(conta, clienteA)).map((c) => c.referenciaExterna), ["tenant-2"]);
-    assert.equal(await alterarSituacaoDoVinculo({ clienteId: clienteA, referenciaOrganizacao: "tenant-1", contaId: conta, contaEmail, situacao: "REVOGADO", autor: `app:${clienteA}` }), true);
+    assert.ok(await alterarSituacaoDoVinculo({ clienteId: clienteA, referenciaOrganizacao: "tenant-1", contaId: conta, contaEmail, situacao: "REVOGADO", autor: `app:${clienteA}`, intencaoVersao: 3 }));
     const eventos = await prisma.evento.findMany({ where: { email: contaEmail, tipo: { in: ["vinculo_corporativo_suspenso", "vinculo_corporativo_revogado"] } }, orderBy: { criadoEm: "asc" } });
     assert.deepEqual(eventos.map((e) => e.tipo), ["vinculo_corporativo_suspenso", "vinculo_corporativo_revogado"]);
   });
 
   it("cliente diferente não altera organização alheia", async () => {
-    assert.equal(await alterarSituacaoDoVinculo({ clienteId: clienteB, referenciaOrganizacao: "tenant-2", contaId: conta, contaEmail, situacao: "REVOGADO", autor: `app:${clienteB}` }), false);
+    assert.equal(await alterarSituacaoDoVinculo({ clienteId: clienteB, referenciaOrganizacao: "tenant-2", contaId: conta, contaEmail, situacao: "REVOGADO", autor: `app:${clienteB}`, intencaoVersao: 4 }), null);
     assert.equal((await listarContextosCorporativos(conta, clienteA)).some((c) => c.referenciaExterna === "tenant-2"), true);
   });
 });
