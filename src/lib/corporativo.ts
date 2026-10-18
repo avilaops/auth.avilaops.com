@@ -2,6 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const CONTRATO_CORPORATIVO = "avila.corporativo.v1" as const;
+export const CONTRATO_PROVISIONAMENTO_CORPORATIVO = "avila.corporativo.v2" as const;
+
+export class ContratoCorporativoLegadoEncerrado extends Error {}
 
 export const PAPEIS_CORPORATIVOS = [
   "ADMINISTRADOR",
@@ -58,9 +61,14 @@ export type EntradaContextoCorporativo = {
   unidades: Array<{ referencia: string; nome: string }>;
   autorizacoes: AutorizacaoProvisionada[];
   autor: string;
+  intencaoVersao?: number | null;
+  organizacaoVersao?: number | null;
 };
 
-export type PedidoDeProvisionamentoCorporativo = Omit<EntradaContextoCorporativo, "clienteId" | "contaId" | "contaEmail" | "autor"> & { email: string };
+export type PedidoDeProvisionamentoCorporativo = Omit<EntradaContextoCorporativo, "clienteId" | "contaId" | "contaEmail" | "autor"> & {
+  contrato: typeof CONTRATO_CORPORATIVO | typeof CONTRATO_PROVISIONAMENTO_CORPORATIVO;
+  email: string;
+};
 
 function textoDoPedido(valor: unknown, max: number): string | null {
   if (typeof valor !== "string") return null;
@@ -71,7 +79,14 @@ function textoDoPedido(valor: unknown, max: number): string | null {
 export function lerPedidoDeProvisionamentoCorporativo(valor: unknown): PedidoDeProvisionamentoCorporativo | null {
   if (!valor || typeof valor !== "object") return null;
   const corpo = valor as Record<string, unknown>;
-  if (corpo.versao !== CONTRATO_CORPORATIVO) return null;
+  if (corpo.versao !== CONTRATO_CORPORATIVO && corpo.versao !== CONTRATO_PROVISIONAMENTO_CORPORATIVO) return null;
+  const contrato = corpo.versao;
+  const intencaoVersao = contrato === CONTRATO_PROVISIONAMENTO_CORPORATIVO ? corpo.intencaoVersao : null;
+  const organizacaoVersao = contrato === CONTRATO_PROVISIONAMENTO_CORPORATIVO ? corpo.organizacaoVersao : null;
+  if (contrato === CONTRATO_PROVISIONAMENTO_CORPORATIVO && (
+    !Number.isSafeInteger(intencaoVersao) || Number(intencaoVersao) <= 0
+    || !Number.isSafeInteger(organizacaoVersao) || Number(organizacaoVersao) <= 0
+  )) return null;
   const email = textoDoPedido(corpo.email, 254)?.toLowerCase() ?? null;
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
   if (!corpo.organizacao || typeof corpo.organizacao !== "object") return null;
@@ -107,7 +122,17 @@ export function lerPedidoDeProvisionamentoCorporativo(valor: unknown): PedidoDeP
 
   const convidadoPor = corpo.convidadoPor === undefined || corpo.convidadoPor === null ? null : textoDoPedido(corpo.convidadoPor, 160);
   if (corpo.convidadoPor !== undefined && corpo.convidadoPor !== null && !convidadoPor) return null;
-  return { email, referenciaOrganizacao, nomeOrganizacao, unidades, autorizacoes, convidadoPor };
+  return {
+    contrato,
+    email,
+    intencaoVersao: intencaoVersao === null ? null : Number(intencaoVersao),
+    organizacaoVersao: organizacaoVersao === null ? null : Number(organizacaoVersao),
+    referenciaOrganizacao,
+    nomeOrganizacao,
+    unidades,
+    autorizacoes,
+    convidadoPor,
+  };
 }
 
 export type ContextoCorporativo = {
@@ -146,6 +171,13 @@ export async function provisionarContextoCorporativo(entrada: EntradaContextoCor
   const nomeOrganizacao = textoObrigatorio(entrada.nomeOrganizacao, "nomeOrganizacao", 160);
   const contaId = textoObrigatorio(entrada.contaId, "contaId");
   const contaEmail = textoObrigatorio(entrada.contaEmail, "contaEmail", 254).toLowerCase();
+  const legado = entrada.intencaoVersao == null && entrada.organizacaoVersao == null;
+  if (!legado && (
+    !Number.isSafeInteger(entrada.intencaoVersao) || Number(entrada.intencaoVersao) <= 0
+    || !Number.isSafeInteger(entrada.organizacaoVersao) || Number(entrada.organizacaoVersao) <= 0
+  )) throw new Error("versão da intenção inválida");
+  const intencaoVersao = legado ? null : Number(entrada.intencaoVersao);
+  const organizacaoVersao = legado ? null : Number(entrada.organizacaoVersao);
   const unidades = entrada.unidades.map((u) => ({ referencia: textoObrigatorio(u.referencia, "referenciaUnidade"), nome: textoObrigatorio(u.nome, "nomeUnidade", 160) }));
   if (new Set(unidades.map((u) => u.referencia)).size !== unidades.length) throw new Error("unidade repetida");
   if (entrada.autorizacoes.length === 0) throw new Error("informe ao menos uma autorização");
@@ -162,48 +194,82 @@ export async function provisionarContextoCorporativo(entrada: EntradaContextoCor
     try {
       return await prisma.$transaction(async (tx) => {
         let mudou = false;
-        let versaoJaIncrementada = false;
         let organizacao = await tx.organizacaoCorporativa.findUnique({
           where: { clienteId_referenciaExterna: { clienteId, referenciaExterna: referenciaOrganizacao } },
         });
+        if (organizacao && legado && organizacao.provisionamentoV2) throw new ContratoCorporativoLegadoEncerrado("A organização já usa o provisionamento corporativo v2.");
+        const organizacaoCriada = !organizacao;
         if (!organizacao) {
-          organizacao = await tx.organizacaoCorporativa.create({ data: { clienteId, referenciaExterna: referenciaOrganizacao, nome: nomeOrganizacao } });
+          organizacao = await tx.organizacaoCorporativa.create({
+            data: { clienteId, referenciaExterna: referenciaOrganizacao, nome: nomeOrganizacao, ultimaIntencaoVersao: organizacaoVersao ?? 0, provisionamentoV2: !legado },
+          });
           mudou = true;
-        } else if (organizacao.nome !== nomeOrganizacao || organizacao.situacao !== "ATIVO") {
-          organizacao = await tx.organizacaoCorporativa.update({ where: { id: organizacao.id }, data: { nome: nomeOrganizacao, situacao: "ATIVO", versao: { increment: 1 } } });
-          mudou = true;
-          versaoJaIncrementada = true;
+        } else if (!legado && !organizacao.provisionamentoV2) {
+          organizacao = await tx.organizacaoCorporativa.update({ where: { id: organizacao.id }, data: { provisionamentoV2: true } });
         }
 
         const existentes = await tx.unidadeCorporativa.findMany({ where: { organizacaoId: organizacao.id } });
         const unidadesPorReferencia = new Map(existentes.map((u) => [u.referenciaExterna, u]));
-        for (const desejada of unidades) {
-          const atual = unidadesPorReferencia.get(desejada.referencia);
-          if (!atual) {
-            const criada = await tx.unidadeCorporativa.create({ data: { organizacaoId: organizacao.id, referenciaExterna: desejada.referencia, nome: desejada.nome } });
-            unidadesPorReferencia.set(desejada.referencia, criada);
+        const aplicaOrganizacao = organizacaoCriada || (organizacao.ultimaIntencaoVersao === 0
+          ? legado || organizacaoVersao !== null
+          : organizacaoVersao !== null && organizacaoVersao > organizacao.ultimaIntencaoVersao);
+        if (aplicaOrganizacao) {
+          if (organizacao.nome !== nomeOrganizacao || organizacao.situacao !== "ATIVO" || organizacao.ultimaIntencaoVersao !== (organizacaoVersao ?? 0)) {
+            organizacao = await tx.organizacaoCorporativa.update({
+              where: { id: organizacao.id },
+              data: { nome: nomeOrganizacao, situacao: "ATIVO", ultimaIntencaoVersao: organizacaoVersao ?? 0 },
+            });
             mudou = true;
-          } else if (atual.nome !== desejada.nome || atual.situacao !== "ATIVO") {
-            const atualizada = await tx.unidadeCorporativa.update({ where: { id: atual.id }, data: { nome: desejada.nome, situacao: "ATIVO" } });
-            unidadesPorReferencia.set(desejada.referencia, atualizada);
+          }
+          for (const desejada of unidades) {
+            const atual = unidadesPorReferencia.get(desejada.referencia);
+            if (!atual) {
+              const criada = await tx.unidadeCorporativa.create({ data: { organizacaoId: organizacao.id, referenciaExterna: desejada.referencia, nome: desejada.nome } });
+              unidadesPorReferencia.set(desejada.referencia, criada);
+              mudou = true;
+            } else if (atual.nome !== desejada.nome || atual.situacao !== "ATIVO") {
+              const atualizada = await tx.unidadeCorporativa.update({ where: { id: atual.id }, data: { nome: desejada.nome, situacao: "ATIVO" } });
+              unidadesPorReferencia.set(desejada.referencia, atualizada);
+              mudou = true;
+            }
+          }
+          const omitidas = existentes.filter((u) => u.situacao === "ATIVO" && !unidades.some((d) => d.referencia === u.referenciaExterna));
+          if (omitidas.length) {
+            await tx.unidadeCorporativa.updateMany({ where: { id: { in: omitidas.map((u) => u.id) } }, data: { situacao: "SUSPENSO" } });
+            for (const omitida of omitidas) unidadesPorReferencia.set(omitida.referenciaExterna, { ...omitida, situacao: "SUSPENSO" });
             mudou = true;
           }
         }
 
         let vinculo = await tx.vinculoCorporativo.findUnique({ where: { organizacaoId_contaId: { organizacaoId: organizacao.id, contaId } } });
+        const aplicaVinculo = !vinculo || (vinculo.ultimaIntencaoVersao === 0 ? legado || intencaoVersao !== null : intencaoVersao !== null && intencaoVersao > vinculo.ultimaIntencaoVersao);
+        if (vinculo && !aplicaVinculo) {
+          return {
+            organizacaoId: organizacao.id,
+            vinculoId: vinculo.id,
+            versao: organizacao.versao,
+            intencaoVersaoAplicada: vinculo.ultimaIntencaoVersao,
+            organizacaoVersaoAplicada: organizacao.ultimaIntencaoVersao,
+          };
+        }
         if (!vinculo) {
-          vinculo = await tx.vinculoCorporativo.create({ data: { organizacaoId: organizacao.id, contaId, convidadoPor: entrada.convidadoPor?.trim() || null } });
+          vinculo = await tx.vinculoCorporativo.create({ data: { organizacaoId: organizacao.id, contaId, convidadoPor: entrada.convidadoPor?.trim() || null, ultimaIntencaoVersao: intencaoVersao ?? 0 } });
           mudou = true;
-        } else if (vinculo.situacao !== "ATIVO" || vinculo.convidadoPor !== (entrada.convidadoPor?.trim() || null)) {
-          vinculo = await tx.vinculoCorporativo.update({ where: { id: vinculo.id }, data: { situacao: "ATIVO", revogadoEm: null, convidadoPor: entrada.convidadoPor?.trim() || null } });
-          mudou = true;
+        } else {
+          const reativou = vinculo.situacao !== "ATIVO" || vinculo.convidadoPor !== (entrada.convidadoPor?.trim() || null);
+          vinculo = await tx.vinculoCorporativo.update({ where: { id: vinculo.id }, data: { situacao: "ATIVO", revogadoEm: null, convidadoPor: entrada.convidadoPor?.trim() || null, ultimaIntencaoVersao: intencaoVersao ?? 0 } });
+          mudou ||= reativou;
         }
 
-        const desejadas = entrada.autorizacoes.map((a) => ({
-          papel: a.papel,
-          unidadeId: a.referenciaUnidade === null ? null : unidadesPorReferencia.get(a.referenciaUnidade)!.id,
-          limiteAprovacaoCentavos: a.limiteAprovacaoCentavos,
-        }));
+        const desejadas = entrada.autorizacoes.map((a) => {
+          const unidade = a.referenciaUnidade === null ? null : unidadesPorReferencia.get(a.referenciaUnidade);
+          if (a.referenciaUnidade !== null && unidade?.situacao !== "ATIVO") throw new Error("unidade da autorização não está ativa");
+          return {
+            papel: a.papel,
+            unidadeId: unidade?.id ?? null,
+            limiteAprovacaoCentavos: a.limiteAprovacaoCentavos,
+          };
+        });
         const atuais = await tx.autorizacaoCorporativa.findMany({ where: { vinculoId: vinculo.id } });
         if (!conjuntosIguais(atuais.map(chaveAutorizacao), desejadas.map(chaveAutorizacao))) {
           await tx.autorizacaoCorporativa.deleteMany({ where: { vinculoId: vinculo.id } });
@@ -211,17 +277,23 @@ export async function provisionarContextoCorporativo(entrada: EntradaContextoCor
           mudou = true;
         }
 
-        if (mudou && !versaoJaIncrementada && (existentes.length > 0 || atuais.length > 0)) {
+        if (mudou && (existentes.length > 0 || atuais.length > 0)) {
           organizacao = await tx.organizacaoCorporativa.update({ where: { id: organizacao.id }, data: { versao: { increment: 1 } } });
         }
 
         if (mudou) {
           await tx.evento.create({ data: { tipo: "contexto_corporativo_provisionado", email: contaEmail, appId: clienteId, autor: entrada.autor, detalhe: JSON.stringify({ contaId, organizacaoId: organizacao.id, vinculoId: vinculo.id, versao: organizacao.versao, autorizacoes: entrada.autorizacoes }) } });
         }
-        return { organizacaoId: organizacao.id, vinculoId: vinculo.id, versao: organizacao.versao };
+        return {
+          organizacaoId: organizacao.id,
+          vinculoId: vinculo.id,
+          versao: organizacao.versao,
+          intencaoVersaoAplicada: vinculo.ultimaIntencaoVersao,
+          organizacaoVersaoAplicada: organizacao.ultimaIntencaoVersao,
+        };
       }, { isolationLevel: "Serializable" });
     } catch (erro) {
-      if (tentativa < 3 && erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2034") continue;
+      if (tentativa < 3 && erro instanceof Prisma.PrismaClientKnownRequestError && (erro.code === "P2034" || erro.code === "P2002")) continue;
       throw erro;
     }
   }
@@ -266,16 +338,25 @@ export async function alterarSituacaoDoVinculo(entrada: {
   contaEmail: string;
   situacao: Exclude<SituacaoCorporativa, "ATIVO">;
   autor: string;
-}): Promise<boolean> {
+  intencaoVersao: number | null;
+}): Promise<{ intencaoVersaoAplicada: number } | null> {
   return prisma.$transaction(async (tx) => {
     const organizacao = await tx.organizacaoCorporativa.findUnique({ where: { clienteId_referenciaExterna: { clienteId: entrada.clienteId, referenciaExterna: entrada.referenciaOrganizacao } } });
-    if (!organizacao) return false;
+    if (!organizacao) return null;
+    const legado = entrada.intencaoVersao === null;
+    if (legado && organizacao.provisionamentoV2) throw new ContratoCorporativoLegadoEncerrado("A organização já usa o provisionamento corporativo v2.");
+    if (!legado && !organizacao.provisionamentoV2) {
+      await tx.organizacaoCorporativa.update({ where: { id: organizacao.id }, data: { provisionamentoV2: true } });
+    }
     const vinculo = await tx.vinculoCorporativo.findUnique({ where: { organizacaoId_contaId: { organizacaoId: organizacao.id, contaId: entrada.contaId } } });
-    if (!vinculo) return false;
-    if (vinculo.situacao === entrada.situacao) return true;
-    await tx.vinculoCorporativo.update({ where: { id: vinculo.id }, data: { situacao: entrada.situacao, revogadoEm: entrada.situacao === "REVOGADO" ? new Date() : null } });
+    if (!vinculo) return null;
+    if (!legado && (!Number.isSafeInteger(entrada.intencaoVersao) || Number(entrada.intencaoVersao) <= 0)) throw new Error("versão da intenção inválida");
+    if ((legado && vinculo.ultimaIntencaoVersao > 0) || (!legado && Number(entrada.intencaoVersao) <= vinculo.ultimaIntencaoVersao)) {
+      return { intencaoVersaoAplicada: vinculo.ultimaIntencaoVersao };
+    }
+    await tx.vinculoCorporativo.update({ where: { id: vinculo.id }, data: { situacao: entrada.situacao, revogadoEm: entrada.situacao === "REVOGADO" ? new Date() : null, ultimaIntencaoVersao: entrada.intencaoVersao ?? 0 } });
     await tx.organizacaoCorporativa.update({ where: { id: organizacao.id }, data: { versao: { increment: 1 } } });
     await tx.evento.create({ data: { tipo: entrada.situacao === "REVOGADO" ? "vinculo_corporativo_revogado" : "vinculo_corporativo_suspenso", email: entrada.contaEmail.trim().toLowerCase(), appId: entrada.clienteId, autor: entrada.autor, detalhe: JSON.stringify({ contaId: entrada.contaId, organizacaoId: organizacao.id, vinculoId: vinculo.id }) } });
-    return true;
+    return { intencaoVersaoAplicada: entrada.intencaoVersao ?? 0 };
   }, { isolationLevel: "Serializable" });
 }

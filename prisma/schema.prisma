@@ -13,15 +13,15 @@ datasource db {
 /// Google a cada login. Guardar o papel no banco criaria uma segunda fonte de
 /// verdade que silenciosamente diverge quando alguém sai do Workspace.
 model Usuario {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  nome       String
-  foto       String?
-  criadoEm   DateTime @default(now()) @map("criado_em")
+  id          String    @id @default(uuid())
+  email       String    @unique
+  nome        String
+  foto        String?
+  criadoEm    DateTime  @default(now()) @map("criado_em")
   ultimoLogin DateTime? @map("ultimo_login")
 
-  identidades   Identidade[]
-  codigosTroca  CodigoTroca[]
+  identidades  Identidade[]
+  codigosTroca CodigoTroca[]
 
   @@map("usuarios")
 }
@@ -47,13 +47,13 @@ model Identidade {
 /// avilaops.com. Guardado como hash: se o banco vazar, os códigos não são
 /// reutilizáveis.
 model CodigoTroca {
-  id        String    @id @default(uuid())
-  codigoHash String   @unique @map("codigo_hash")
-  usuarioId String    @map("usuario_id")
-  papel     String
-  expiraEm  DateTime  @map("expira_em")
-  usadoEm   DateTime? @map("usado_em")
-  criadoEm  DateTime  @default(now()) @map("criado_em")
+  id         String    @id @default(uuid())
+  codigoHash String    @unique @map("codigo_hash")
+  usuarioId  String    @map("usuario_id")
+  papel      String
+  expiraEm   DateTime  @map("expira_em")
+  usadoEm    DateTime? @map("usado_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
@@ -72,14 +72,14 @@ model CodigoTroca {
 /// Só o hash do código vai ao banco, como no `CodigoTroca`: um dump não permite
 /// resgatar sessão nenhuma.
 model CodigoOAuth {
-  id                  String    @id @default(uuid())
-  codigoHash          String    @unique @map("codigo_hash")
-  clienteId           String    @map("cliente_id")
-  redirectUri         String    @map("redirect_uri")
+  id                  String  @id @default(uuid())
+  codigoHash          String  @unique @map("codigo_hash")
+  clienteId           String  @map("cliente_id")
+  redirectUri         String  @map("redirect_uri")
   nonce               String?
   /// PKCE. Nulos quando o cliente é confidencial e não mandou desafio.
-  codeChallenge       String?   @map("code_challenge")
-  codeChallengeMethod String?   @map("code_challenge_method")
+  codeChallenge       String? @map("code_challenge")
+  codeChallengeMethod String? @map("code_challenge_method")
   /// Escopo concedido, separado por espaço. Nulo = o padrão de antes do campo.
   escopo              String?
 
@@ -147,14 +147,14 @@ model TokenRecuperacao {
 /// Conector de login (Google, Apple, GitHub…). Uma linha por provedor; o
 /// segredo fica cifrado com `AUTH_ENCRYPTION_KEY` (só no .env do servidor).
 model Conector {
-  id             String   @id
-  ligado         Boolean  @default(false)
-  clientId       String?  @map("client_id")
-  clientSecretEnc String? @map("client_secret_enc")
+  id              String   @id
+  ligado          Boolean  @default(false)
+  clientId        String?  @map("client_id")
+  clientSecretEnc String?  @map("client_secret_enc")
   /// Campos extras do provedor (tenant da Microsoft, team/key id da Apple…), JSON.
-  extras         String?
-  atualizadoEm   DateTime @default(now()) @updatedAt @map("atualizado_em")
-  atualizadoPor  String?  @map("atualizado_por")
+  extras          String?
+  atualizadoEm    DateTime @default(now()) @updatedAt @map("atualizado_em")
+  atualizadoPor   String?  @map("atualizado_por")
 
   @@map("conectores")
 }
@@ -189,13 +189,13 @@ model Vinculo {
 /// um dump do banco não gera código nenhum sem a chave, que só existe no .env
 /// do servidor.
 model SegundoFator {
-  id         String @id @default(uuid())
-  email      String @unique
-  segredoEnc String @map("segredo_enc")
+  id             String    @id @default(uuid())
+  email          String    @unique
+  segredoEnc     String    @map("segredo_enc")
   /// Nulo enquanto o cadastro não foi confirmado com um código do aplicativo.
   /// Fator não confirmado não desafia ninguém e não tranca ninguém fora: é só
   /// um segredo esperando prova de que o celular conseguiu lê-lo.
-  confirmadoEm DateTime? @map("confirmado_em")
+  confirmadoEm   DateTime? @map("confirmado_em")
   /// Maior contador TOTP já aceito. Um código vale uma vez só — sem isto ele
   /// continua bom pelos 30 segundos inteiros para quem o viu de relance.
   ultimoContador BigInt?   @map("ultimo_contador")
@@ -234,16 +234,16 @@ model CodigoBackup {
 model Aplicacao {
   /// Identificador usado em `?app=` e em `permissoes.app_id`. Não muda depois
   /// de criado: mudar deixaria as permissões concedidas apontando para nada.
-  id   String @id
+  id                String  @id
   /// Host exato. É o que valida o `returnTo`.
-  host String @unique
-  nome String
+  host              String  @unique
+  nome              String
   /// `app` | `site`
-  tipo String @default("app")
+  tipo              String  @default("app")
   /// Recebe sessão do login único.
-  login Boolean @default(false)
+  login             Boolean @default(false)
   /// `ADMIN` = só equipe. Nulo = qualquer conta que passe em `restrito`.
-  papelExigido String? @map("papel_exigido")
+  papelExigido      String? @map("papel_exigido")
   /// Cliente só entra com permissão concedida na ficha da conta. Nasce ligado:
   /// esquecer de configurar fecha o acesso, em vez de abrir.
   restrito          Boolean @default(true)
@@ -252,18 +252,18 @@ model Aplicacao {
   deepLink          String? @map("deep_link")
 
   /// `dono/repositorio` no GitHub.
-  repositorio String?
-  servidor    String?
+  repositorio   String?
+  servidor      String?
   /// `estatico` | `container` | `systemd` | `externo`
-  publicacao  String?
+  publicacao    String?
   /// `no_ar` | `fora_do_ar` | `planejado` | `desativado`
-  situacao    String  @default("planejado")
+  situacao      String       @default("planejado")
   /// Empresa responsável (`operations.organizations.id`, no banco das contas).
   /// Sem chave estrangeira: são bancos diferentes. Só organiza o painel; não
   /// entra em nenhuma decisão de login.
-  organizacaoId String? @map("organizacao_id")
-  observacao  String?
-  conferencia Conferencia?
+  organizacaoId String?      @map("organizacao_id")
+  observacao    String?
+  conferencia   Conferencia?
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -283,15 +283,15 @@ model Aplicacao {
 /// Uma conexão por conta. Sem chave estrangeira para a conta pelo mesmo motivo
 /// de `vinculos`: ela vive em `portal_clients`, em outro banco.
 model ConexaoMeta {
-  id       String  @id @default(uuid())
-  contaId  String  @unique @map("conta_id")
-  email    String
-  fbUserId String  @map("fb_user_id")
-  nome     String?
-  tokenEnc String  @map("token_enc")
+  id             String    @id @default(uuid())
+  contaId        String    @unique @map("conta_id")
+  email          String
+  fbUserId       String    @map("fb_user_id")
+  nome           String?
+  tokenEnc       String    @map("token_enc")
   /// Permissões concedidas e recusadas no diálogo, separadas por espaço.
-  escopos   String @default("")
-  recusados String @default("")
+  escopos        String    @default("")
+  recusados      String    @default("")
   /// Nulo quando a Meta não informa validade.
   expiraEm       DateTime? @map("expira_em")
   sincronizadoEm DateTime? @map("sincronizado_em")
@@ -308,13 +308,13 @@ model ConexaoMeta {
 /// conta de WhatsApp, catálogo. `tipo` é texto, como em `aplicacoes`, para um
 /// tipo novo não exigir migração.
 model AtivoMeta {
-  id        String  @id @default(uuid())
-  conexaoId String  @map("conexao_id")
-  tipo      String
-  externoId String  @map("externo_id")
-  nome      String
+  id             String   @id @default(uuid())
+  conexaoId      String   @map("conexao_id")
+  tipo           String
+  externoId      String   @map("externo_id")
+  nome           String
   /// JSON com o que a tela mostra (categoria, moeda, números…).
-  detalhe   String?
+  detalhe        String?
   /// Token próprio do ativo (Página; número ligado pelo cadastro incorporado), cifrado.
   tokenEnc       String?  @map("token_enc")
   /// "coleta" (lido com o token da pessoa) ou "cadastro_incorporado" (WhatsApp
@@ -350,20 +350,20 @@ model ExclusaoMeta {
 /// por gente.
 model ClienteOidc {
   /// `client_id` mandado pelo sistema.
-  id          String  @id
+  id           String  @id
   /// Linha de `aplicacoes` que decide quem pode entrar por este cliente.
-  appId       String  @map("app_id")
-  nome        String
+  appId        String  @map("app_id")
+  nome         String
   /// Endereços de retorno, um por linha. Igualdade exata.
-  redirectUris String @map("redirect_uris")
-  segredoHash String  @map("segredo_hash")
+  redirectUris String  @map("redirect_uris")
+  segredoHash  String  @map("segredo_hash")
   /// Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`).
-  acessoMeta  Boolean @default(false) @map("acesso_meta")
-  ativo       Boolean @default(true)
+  acessoMeta   Boolean @default(false) @map("acesso_meta")
+  ativo        Boolean @default(true)
   /// Endereço avisado quando a pessoa sai no Auth (`lib/avisoDeLogout.ts`).
-  logoutUri   String? @map("logout_uri")
+  logoutUri    String? @map("logout_uri")
   /// Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`).
-  ssf         Boolean @default(false)
+  ssf          Boolean @default(false)
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -510,6 +510,8 @@ model OrganizacaoCorporativa {
   nome              String
   situacao          String   @default("ATIVO")
   versao            Int      @default(1)
+  ultimaIntencaoVersao Int   @default(0) @map("ultima_intencao_versao")
+  provisionamentoV2 Boolean  @default(false) @map("provisionamento_v2")
   criadoEm          DateTime @default(now()) @map("criado_em")
   atualizadoEm      DateTime @default(now()) @updatedAt @map("atualizado_em")
 
@@ -531,7 +533,7 @@ model UnidadeCorporativa {
   criadoEm          DateTime @default(now()) @map("criado_em")
   atualizadoEm      DateTime @default(now()) @updatedAt @map("atualizado_em")
 
-  organizacao OrganizacaoCorporativa @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
+  organizacao  OrganizacaoCorporativa   @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
   autorizacoes AutorizacaoCorporativa[]
 
   @@unique([organizacaoId, referenciaExterna])
@@ -542,16 +544,17 @@ model UnidadeCorporativa {
 /// Participação de uma conta existente numa organização. `contaId` referencia
 /// `portal_clients.id`, que vive em outro banco e por isso não tem FK local.
 model VinculoCorporativo {
-  id            String    @id @default(uuid())
-  organizacaoId String    @map("organizacao_id")
-  contaId       String    @map("conta_id")
-  situacao      String    @default("ATIVO")
-  convidadoPor  String?   @map("convidado_por")
-  criadoEm      DateTime  @default(now()) @map("criado_em")
-  atualizadoEm  DateTime  @default(now()) @updatedAt @map("atualizado_em")
-  revogadoEm    DateTime? @map("revogado_em")
+  id                   String    @id @default(uuid())
+  organizacaoId        String    @map("organizacao_id")
+  contaId              String    @map("conta_id")
+  situacao             String    @default("ATIVO")
+  convidadoPor         String?   @map("convidado_por")
+  ultimaIntencaoVersao Int       @default(0) @map("ultima_intencao_versao")
+  criadoEm             DateTime  @default(now()) @map("criado_em")
+  atualizadoEm         DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  revogadoEm           DateTime? @map("revogado_em")
 
-  organizacao OrganizacaoCorporativa @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
+  organizacao  OrganizacaoCorporativa   @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
   autorizacoes AutorizacaoCorporativa[]
 
   @@unique([organizacaoId, contaId])
@@ -561,16 +564,16 @@ model VinculoCorporativo {
 
 /// Papel e alçada num escopo organizacional (`unidadeId` nulo) ou de unidade.
 model AutorizacaoCorporativa {
-  id                       String   @id @default(uuid())
-  vinculoId                String   @map("vinculo_id")
-  unidadeId                String?  @map("unidade_id")
-  papel                    String
-  limiteAprovacaoCentavos  Int?     @map("limite_aprovacao_centavos")
-  moeda                    String   @default("BRL")
-  criadoEm                 DateTime @default(now()) @map("criado_em")
-  atualizadoEm             DateTime @default(now()) @updatedAt @map("atualizado_em")
+  id                      String   @id @default(uuid())
+  vinculoId               String   @map("vinculo_id")
+  unidadeId               String?  @map("unidade_id")
+  papel                   String
+  limiteAprovacaoCentavos Int?     @map("limite_aprovacao_centavos")
+  moeda                   String   @default("BRL")
+  criadoEm                DateTime @default(now()) @map("criado_em")
+  atualizadoEm            DateTime @default(now()) @updatedAt @map("atualizado_em")
 
-  vinculo VinculoCorporativo @relation(fields: [vinculoId], references: [id], onDelete: Cascade)
+  vinculo VinculoCorporativo  @relation(fields: [vinculoId], references: [id], onDelete: Cascade)
   unidade UnidadeCorporativa? @relation(fields: [unidadeId], references: [id], onDelete: Restrict)
 
   @@index([vinculoId])
