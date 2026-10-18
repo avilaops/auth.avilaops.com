@@ -95,31 +95,20 @@ Quem entra em qual aplicação é decidido por `motivoDoAcesso` (`src/lib/apps.t
 
 O vínculo com empresa não participa dessa decisão.
 
-## Limite: uma empresa por conta
+## Vínculo legado e contextos corporativos
 
-O campo que o painel edita guarda uma empresa. Quem administra duas empresas
-(dois CNPJs do mesmo dono, um contador que atende vários clientes, um gerente de
-duas unidades) hoje tem duas saídas, as duas ruins:
+O campo `portal_clients.organization_id` continua aceitando uma empresa e
+permanece como compatibilidade para o app.avilaops.com. Ele não é a fonte de
+autorização dos novos módulos B2B.
 
-- uma conta por empresa, com e-mails diferentes, e nenhuma visão conjunta;
-- uma conta ligada a uma empresa só, sem acesso às outras.
+Produtos corporativos usam `organizacoes_corporativas`,
+`unidades_corporativas`, `vinculos_corporativos` e
+`autorizacoes_corporativas`. Uma conta pode participar de várias organizações,
+com papéis e alçadas diferentes por organização ou unidade. O produto escolhe o
+contexto explicitamente e o servidor o revalida no Auth.
 
-O modelo do app já comporta mais: `core.memberships` é uma tabela de
-participações, com papel por empresa (`ADMIN` ou `MEMBER`), situação e período.
-O que falta não é tabela, é decisão. Antes de o painel gravar mais de uma
-participação por conta, é preciso definir:
-
-1. qual empresa é o contexto quando a pessoa entra (o campo legado
-   `organization_id` hoje faz esse papel);
-2. se o papel global (`ADMIN`/`CLIENT`) continua existindo ou se passa a valer
-   só o papel de cada participação. Hoje o gatilho deriva o segundo do primeiro,
-   então a mesma conta não pode ser administradora numa empresa e membro noutra;
-3. como as liberações de aplicação (`permissoes`, que são por conta) se combinam
-   com a empresa: liberar o TMS para a conta vale para todas as empresas dela?
-4. o que a auditoria grava como empresa de um evento quando a conta tem várias;
-5. quem pode conceder: só a casa, ou o administrador de cada empresa.
-
-Enquanto isso não estiver decidido, o painel não cria vínculos múltiplos.
+O contrato versionado, a sequência de provisionamento e as regras de revogação
+estão em `docs/CONTRATO-CORPORATIVO-V1.md`.
 
 ## Busca por CPF
 

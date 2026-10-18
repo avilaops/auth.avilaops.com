@@ -165,6 +165,7 @@ export type IdentidadeOIDC = {
 
 /** O que todo token leva, peça o cliente ou não: era o único escopo antes de haver outros. */
 export const ESCOPO_PADRAO = "openid profile email";
+export const ESCOPO_CONTEXTO_CORPORATIVO = "corporate_context";
 export const ESCOPO_SSF_LER = "ssf.read";
 export const ESCOPO_SSF_GERIR = "ssf.manage";
 
@@ -185,6 +186,7 @@ export function escopoConcedido(pedido: string | null | undefined, quem: { clien
   const pedidos = new Set((pedido ?? "").split(/\s+/).filter(Boolean));
   const concedidos = ESCOPO_PADRAO.split(" ");
   if (pedidos.has("offline_access")) concedidos.push("offline_access");
+  if (pedidos.has(ESCOPO_CONTEXTO_CORPORATIVO)) concedidos.push(ESCOPO_CONTEXTO_CORPORATIVO);
   if (quem.clienteSsf && quem.papel === "ADMIN") {
     for (const e of [ESCOPO_SSF_GERIR, ESCOPO_SSF_LER]) if (pedidos.has(e)) concedidos.push(e);
   }
@@ -375,8 +377,9 @@ export function documentoDescoberta(comChave: boolean) {
     authorization_endpoint: `${base}/oauth/authorize`,
     token_endpoint: `${base}/oauth/token`,
     userinfo_endpoint: `${base}/oauth/userinfo`,
+    corporate_context_endpoint: `${base}/api/corporativo/contextos`,
     end_session_endpoint: `${base}/api/auth/logout`,
-    scopes_supported: ["openid", "profile", "email", "offline_access", ESCOPO_SSF_GERIR, ESCOPO_SSF_LER],
+    scopes_supported: ["openid", "profile", "email", "offline_access", ESCOPO_CONTEXTO_CORPORATIVO, ESCOPO_SSF_GERIR, ESCOPO_SSF_LER],
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     subject_types_supported: ["public"],

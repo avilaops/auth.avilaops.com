@@ -2,7 +2,37 @@
   "schemaVersion": 1,
   "application": "avila-auth-avilaops-com",
   "members": [],
-  "tasks": [],
-  "decisions": [],
-  "integrations": []
+  "tasks": [
+    {
+      "id": "AVL-246",
+      "title": "Identidade corporativa B2B compartilhada",
+      "status": "in_progress",
+      "owner": "codex",
+      "evidence": [
+        "prisma/migrations/20261018190000_identidade_corporativa_b2b/migration.sql",
+        "tests/corporativo.test.ts",
+        "tests/corporativoBanco.test.ts"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "AVL-246-auth-source",
+      "decision": "Auth guarda identidade e autorização corporativa; produtos guardam dados comerciais e referências externas.",
+      "status": "active"
+    },
+    {
+      "id": "AVL-246-live-context",
+      "decision": "Tokens ficam mínimos; papéis, unidades e alçadas são consultados no endpoint corporativo para revogação imediata.",
+      "status": "active"
+    }
+  ],
+  "integrations": [
+    {
+      "id": "avila-corporativo-v1",
+      "consumer": "lojas.avilaops.com",
+      "contract": "docs/CONTRATO-CORPORATIVO-V1.md",
+      "status": "implementation"
+    }
+  ]
 }

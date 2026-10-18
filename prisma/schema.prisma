@@ -500,3 +500,80 @@ model RotinaEstado {
 
   @@map("rotinas_estado")
 }
+
+/// Organização cujo acesso é compartilhado entre produtos. Dados comerciais
+/// continuam no sistema proprietário; o Auth guarda somente identidade e autorização.
+model OrganizacaoCorporativa {
+  id                String   @id @default(uuid())
+  clienteId         String   @map("cliente_id")
+  referenciaExterna String   @map("referencia_externa")
+  nome              String
+  situacao          String   @default("ATIVO")
+  versao            Int      @default(1)
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  unidades UnidadeCorporativa[]
+  vinculos VinculoCorporativo[]
+
+  @@unique([clienteId, referenciaExterna])
+  @@index([clienteId, situacao])
+  @@map("organizacoes_corporativas")
+}
+
+/// Filial ou unidade operacional identificada pelo sistema proprietário.
+model UnidadeCorporativa {
+  id                String   @id @default(uuid())
+  organizacaoId     String   @map("organizacao_id")
+  referenciaExterna String   @map("referencia_externa")
+  nome              String
+  situacao          String   @default("ATIVO")
+  criadoEm          DateTime @default(now()) @map("criado_em")
+  atualizadoEm      DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  organizacao OrganizacaoCorporativa @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
+  autorizacoes AutorizacaoCorporativa[]
+
+  @@unique([organizacaoId, referenciaExterna])
+  @@index([organizacaoId, situacao])
+  @@map("unidades_corporativas")
+}
+
+/// Participação de uma conta existente numa organização. `contaId` referencia
+/// `portal_clients.id`, que vive em outro banco e por isso não tem FK local.
+model VinculoCorporativo {
+  id            String    @id @default(uuid())
+  organizacaoId String    @map("organizacao_id")
+  contaId       String    @map("conta_id")
+  situacao      String    @default("ATIVO")
+  convidadoPor  String?   @map("convidado_por")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  atualizadoEm  DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  revogadoEm    DateTime? @map("revogado_em")
+
+  organizacao OrganizacaoCorporativa @relation(fields: [organizacaoId], references: [id], onDelete: Restrict)
+  autorizacoes AutorizacaoCorporativa[]
+
+  @@unique([organizacaoId, contaId])
+  @@index([contaId, situacao])
+  @@map("vinculos_corporativos")
+}
+
+/// Papel e alçada num escopo organizacional (`unidadeId` nulo) ou de unidade.
+model AutorizacaoCorporativa {
+  id                       String   @id @default(uuid())
+  vinculoId                String   @map("vinculo_id")
+  unidadeId                String?  @map("unidade_id")
+  papel                    String
+  limiteAprovacaoCentavos  Int?     @map("limite_aprovacao_centavos")
+  moeda                    String   @default("BRL")
+  criadoEm                 DateTime @default(now()) @map("criado_em")
+  atualizadoEm             DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  vinculo VinculoCorporativo @relation(fields: [vinculoId], references: [id], onDelete: Cascade)
+  unidade UnidadeCorporativa? @relation(fields: [unidadeId], references: [id], onDelete: Restrict)
+
+  @@index([vinculoId])
+  @@index([unidadeId])
+  @@map("autorizacoes_corporativas")
+}

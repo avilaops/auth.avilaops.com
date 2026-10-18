@@ -20,6 +20,9 @@ export type TipoEvento =
   | "permissao_revogada"
   | "vinculo_criado"
   | "vinculo_removido"
+  | "contexto_corporativo_provisionado"
+  | "vinculo_corporativo_suspenso"
+  | "vinculo_corporativo_revogado"
   | "conector_alterado"
   // O cadastro de aplicações decide quem recebe sessão. Enquanto era código, a
   // revisão era o diff; agora o rastro de quem mexeu é este.
