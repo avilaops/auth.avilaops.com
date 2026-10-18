@@ -29,6 +29,7 @@ describe("escopos do OIDC", () => {
   it("o padrão vai sempre, mesmo sem o cliente pedir", () => {
     assert.equal(escopoConcedido(null, { clienteSsf: false, papel: "CLIENTE" }), "openid profile email");
     assert.equal(escopoConcedido("openid", { clienteSsf: false, papel: "CLIENTE" }), "openid profile email");
+    assert.equal(escopoConcedido("openid corporate_context", { clienteSsf: false, papel: "CLIENTE" }), "openid profile email corporate_context");
   });
 
   it("offline_access entra quando pedido", () => {
@@ -66,6 +67,8 @@ describe("escopos do OIDC", () => {
     const d = documentoDescoberta(true);
     for (const e of ["offline_access", "ssf.manage", "ssf.read"]) assert.ok(d.scopes_supported.includes(e), e);
     for (const c of ["given_name", "family_name"]) assert.ok(d.claims_supported.includes(c), c);
+    assert.equal(d.corporate_context_endpoint, "https://auth.avilaops.com/api/corporativo/contextos");
+    assert.ok(d.scopes_supported.includes("corporate_context"));
   });
 
   it("integração só de API não pode receber sinais", () => {

@@ -22,6 +22,11 @@ export function resolve(especificador, contexto, proximo) {
   if (especificador === "next/headers") {
     return { url: ESQUELETO_HEADERS, shortCircuit: true };
   }
+  // O pacote do Next exporta este módulo com extensão; o resolvedor ESM cru
+  // do Node não aplica o mesmo mapa que o bundler usa em produção.
+  if (especificador === "next/server") {
+    return proximo("next/server.js", contexto);
+  }
   if (especificador.startsWith("@/")) {
     return proximo(RAIZ + especificador.slice(2) + ".ts", contexto);
   }
