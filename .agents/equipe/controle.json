@@ -1,17 +1,28 @@
 {
   "schemaVersion": 1,
   "application": "avila-auth-avilaops-com",
-  "members": [],
+  "members": [
+    {
+      "id": "nicolas-rosa",
+      "name": "Nicolas Rosa",
+      "role": "Responsável confirmado no Linear pela AVL-246"
+    }
+  ],
   "tasks": [
     {
       "id": "AVL-246",
       "title": "Identidade corporativa B2B compartilhada",
-      "status": "in_progress",
-      "owner": "codex",
-      "evidence": [
-        "prisma/migrations/20261018190000_identidade_corporativa_b2b/migration.sql",
-        "tests/corporativo.test.ts",
-        "tests/corporativoBanco.test.ts"
+      "status": "concluida",
+      "owner": "nicolas-rosa",
+      "acceptance": "Organização, unidade e vínculo do usuário modelados; múltiplas organizações com contexto explícito; papéis e alçadas aplicados no servidor; mudanças auditadas; tokens mínimos e revogáveis; contrato versionado e integrado ao Lojas B2B.",
+      "evidence": "prisma/migrations/20261018190000_identidade_corporativa_b2b/migration.sql\ntests/corporativo.test.ts\ntests/corporativoBanco.test.ts",
+      "blocker": "",
+      "history": [
+        {
+          "at": "2026-10-18",
+          "status": "concluida",
+          "note": "Registro legado normalizado para o contrato central."
+        }
       ]
     }
   ],
@@ -19,12 +30,18 @@
     {
       "id": "AVL-246-auth-source",
       "decision": "Auth guarda identidade e autorização corporativa; produtos guardam dados comerciais e referências externas.",
-      "status": "active"
+      "status": "active",
+      "summary": "Auth guarda identidade e autorização corporativa; produtos guardam dados comerciais e referências externas.",
+      "reason": "Auth guarda identidade e autorização corporativa; produtos guardam dados comerciais e referências externas.",
+      "evidence": "Estado registrado: active"
     },
     {
       "id": "AVL-246-live-context",
       "decision": "Tokens ficam mínimos; papéis, unidades e alçadas são consultados no endpoint corporativo para revogação imediata.",
-      "status": "active"
+      "status": "active",
+      "summary": "Tokens ficam mínimos; papéis, unidades e alçadas são consultados no endpoint corporativo para revogação imediata.",
+      "reason": "Tokens ficam mínimos; papéis, unidades e alçadas são consultados no endpoint corporativo para revogação imediata.",
+      "evidence": "Estado registrado: active"
     }
   ],
   "integrations": [
@@ -32,7 +49,11 @@
       "id": "avila-corporativo-v1",
       "consumer": "lojas.avilaops.com",
       "contract": "docs/CONTRATO-CORPORATIVO-V1.md",
-      "status": "implementation"
+      "status": "implementation",
+      "name": "avila-corporativo-v1",
+      "environment": "Ambiente não informado no registro original",
+      "identity": "Identidade não informada no registro original",
+      "evidence": "docs/CONTRATO-CORPORATIVO-V1.md"
     }
   ]
 }
