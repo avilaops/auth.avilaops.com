@@ -30,10 +30,12 @@ falta, em ordem de prioridade.
 
 ## Depois
 
-- **Renovação da conexão da Meta sem depender de uso.** Hoje o token é
-  renovado quando um sistema lê a conexão a menos de 15 dias do vencimento.
-  Conta que ninguém lê por 60 dias vence. Falta uma rotina diária (n8n) e o
-  aviso ao cliente quando a conexão estiver para vencer.
+- **Renovação da conexão da Meta sem depender de uso.** Rotina implementada
+  em `POST /api/interno/meta/renovar`, com workflow n8n diário às 08h de São
+  Paulo. Implantação e ativação acompanhadas em
+  `docs/RENOVACAO-META-N8N.md`; o workflow permanece em rascunho até validação
+  do endpoint implantado. Aviso ao cliente quando precisar reconectar segue
+  pendente; conexões vencidas já geram auditoria no painel.
 - **Sistemas ouvindo o aviso de saída.** O Auth já avisa a integração que
   cadastrar um endereço; nenhum sistema cadastrou ainda. Sem isso, quem entrou
   por OIDC só percebe a saída quando o access token vence ou ao tentar renovar.
