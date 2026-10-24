@@ -301,6 +301,7 @@ model ConexaoMeta {
   ativos AtivoMeta[]
 
   @@index([fbUserId])
+  @@index([expiraEm, id])
   @@map("conexoes_meta")
 }
 

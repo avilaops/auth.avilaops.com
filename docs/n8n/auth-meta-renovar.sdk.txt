@@ -1,37 +1,5 @@
-const diario = trigger({ type: 'n8n-nodes-base.scheduleTrigger', version: 1.3, config: { name: 'Diariamente às 08h', parameters: { rule: { interval: [{ field: 'days', daysInterval: 1, triggerAtHour: 8, triggerAtMinute: 0 }] } } }, output: [{ timestamp: '2026-10-18T08:00:00-03:00' }] });
-const renovar = node({ type: 'n8n-nodes-base.httpRequest', version: 4.4, config: { name: 'Renovar conexões no Auth', retryOnFail: true, maxTries: 3, waitBetweenTries: 5000, credentials: { httpHeaderAuth: { id: 'g9W8YxyxnCyQts06', name: 'Auth Webhook Auth (criar caixa)' } }, parameters: {
-  "method": "POST",
-  "url": "https://auth.avilaops.com/api/interno/meta/renovar",
-  "authentication": "genericCredentialType",
-  "genericAuthType": "httpHeaderAuth",
-  "options": {
-    "timeout": 120000,
-    "response": {
-      "response": {
-        "responseFormat": "json"
-      }
-    },
-    "pagination": {
-      "pagination": {
-        "paginationMode": "updateAParameterInEachRequest",
-        "parameters": {
-          "parameters": [
-            {
-              "type": "qs",
-              "name": "cursor",
-              "value": expr("{{ $response.body.proximoCursor ?? '' }}")
-            }
-          ]
-        },
-        "paginationCompleteWhen": "other",
-        "completeExpression": expr("{{ $response.body.proximoCursor === null }}"),
-        "limitPagesFetched": true,
-        "maxRequests": 100,
-        "requestInterval": 250
-      }
-    }
-  }
-} }, output: [{ ok: true, examinadas: 1, renovadas: 1, vencidas: 0, falhas: 0, ignoradas: 0, proximoCursor: null }] });
-const resumo = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Conferir resultado da renovação', parameters: { mode: 'runOnceForAllItems', jsCode: "const paginas = $input.all().map(i => i.json);\nif (!paginas.length) throw new Error('Auth não devolveu resumo.');\nfor (const p of paginas) {\n  if (typeof p.ok !== 'boolean' || !['examinadas','renovadas','vencidas','falhas','ignoradas'].every(k => Number.isInteger(p[k]) && p[k] >= 0) || !(p.proximoCursor === null || typeof p.proximoCursor === 'string')) throw new Error('Contrato de renovação inválido.');\n}\nconst ultimo = paginas[ paginas.length - 1 ];\nif (ultimo.proximoCursor !== null) throw new Error('Limite de páginas atingido; retomar pelo cursor ' + ultimo.proximoCursor);\nconst falhas = paginas.reduce((n,p) => n + p.falhas, 0);\nif (falhas > 0 || paginas.some(p => p.ok !== true)) throw new Error('Renovação parcial: ' + falhas + ' falhas. Reexecutar para recuperar.');\nreturn [{ json: { ok: true, paginas: paginas.length, examinadas: paginas.reduce((n,p) => n+p.examinadas,0), renovadas: paginas.reduce((n,p) => n+p.renovadas,0), vencidas: paginas.reduce((n,p) => n+p.vencidas,0), ignoradas: paginas.reduce((n,p) => n+p.ignoradas,0) } }];" } }, output: [{ ok: true, paginas: 1, examinadas: 1, renovadas: 1, vencidas: 0, ignoradas: 0 }] });
-const nota = sticky('## Renovação Meta\n08h America/Sao_Paulo. Auth guarda e renova os tokens; n8n recebe somente contadores.\nRascunho: ativar depois de implantar o endpoint e validar a credencial. Falhas parciais acionam o workflow central de erros.');
-export default workflow('auth-meta-renovar', 'Auth - Renovar conexões Meta').add(diario).to(renovar).to(resumo).add(nota).group('Renovação e conferência', [renovar, resumo], { description: 'Renova em lotes sem expor tokens e verifica falhas parciais e paginação incompleta.' });
+const agenda = trigger({ type: 'n8n-nodes-base.scheduleTrigger', version: 1.3, config: { name: 'Continuar a cada minuto', parameters: {"rule":{"interval":[{"field":"minutes","minutesInterval":1}]}} }, output: [{ timestamp: '2026-10-24T12:00:00Z' }] });
+const renovar = node({ type: 'n8n-nodes-base.httpRequest', version: 4.4, config: { name: 'Renovar conexões no Auth', retryOnFail: true, maxTries: 3, waitBetweenTries: 5000, credentials: { httpHeaderAuth: { id: 'g9W8YxyxnCyQts06', name: 'Auth Webhook Auth (criar caixa)' } }, parameters: {"method":"POST","url":"https://auth.avilaops.com/api/interno/meta/renovar?continuar=1","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","options":{"timeout":120000,"response":{"response":{"responseFormat":"json"}}}} }, output: [{ ok: true, examinadas: 10, renovadas: 10, vencidas: 0, falhas: 0, ignoradas: 0, proximoCursor: null, continuacaoPendente: true, ocupada: false, proximaEm: 0 }] });
+const conferir = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Conferir resultado da renovação', parameters: { mode: 'runOnceForAllItems', jsCode: "const itens = $input.all();\nif (itens.length !== 1) throw new Error('Auth deve devolver um resumo por passagem.');\nconst p = itens[0].json;\nif (typeof p.ok !== 'boolean' || typeof p.continuacaoPendente !== 'boolean' || typeof p.ocupada !== 'boolean' || !Number.isFinite(p.proximaEm) || p.proximoCursor !== null || !['examinadas','renovadas','vencidas','falhas','ignoradas'].every(k => Number.isInteger(p[k]) && p[k] >= 0)) throw new Error('Contrato do worker Meta inválido.');\nif (!p.ok || p.falhas > 0) throw new Error('Falha parcial na renovação Meta: ' + p.falhas + '. O progresso está salvo; a próxima passagem continua.');\nreturn [{ json: p }];" } }, output: [{ ok: true, continuacaoPendente: true, ocupada: false, proximaEm: 0 }] });
+const nota = sticky("## Renovação Meta com retomada\nUma passagem por minuto. Auth persiste cursor e reserva entre processos. Ao concluir a varredura, aguarda uma hora.\nSem tokens no n8n. Falhas parciais acionam o workflow central e não prendem as próximas contas.");
+export default workflow('auth-meta-renovar', 'Auth - Renovar conexões Meta').add(agenda).to(renovar).to(conferir).add(nota).group('Renovação e conferência', [renovar, conferir], { description: 'Executa um lote limitado, salva o progresso no Auth e valida o resumo sem receber tokens.' });
