@@ -43,6 +43,15 @@ describe("paginação PostgreSQL com 300 mil contas sintéticas", { skip: !url }
     assert.equal("senha_hash" in r.pagina.itens[0], false);
   });
 
+  it("agrupamentos mantêm o total completo e o limite de renderização", async () => {
+    for (const grupo of ["empresa", "papel", "estado"]) {
+      const r = await consultar({ grupo, pag: "201" });
+      assert.equal(r.pagina.total, 300_000);
+      assert.equal(r.pagina.itens.length, 25);
+      assert.equal(r.pagina.itens[0].id, "005001");
+    }
+  });
+
   it("limita página além do fim, conserva desempate e não duplica páginas adjacentes", async () => {
     const fim = await consultar({ pag: "100000", por: "100" });
     assert.deepEqual([fim.pagina.pag, fim.pagina.paginas, fim.pagina.de, fim.pagina.ate], [3000, 3000, 299901, 300000]);

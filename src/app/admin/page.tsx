@@ -3,7 +3,8 @@ import { exigirAdmin } from "@/lib/admin";
 import { consultarPaginaDeContas, ehDaCasa, listarTodasAsContas } from "@/lib/contas";
 import { podePaginarContasNoBanco } from "@/lib/contasConsultaSql";
 import { agruparContas, consultarContas, defContas, montarContas, ROTULO_PAPEL, type ContaListada } from "@/lib/contasLista";
-import { listarEmpresas } from "@/lib/empresas";
+import { empresasPorIds } from "@/lib/empresas";
+import { idsEmpresasSelecionadas } from "@/lib/empresasConsulta";
 import { ultimosLogins } from "@/lib/eventos";
 import { dataHora, filtrosAtivos, lerConsulta, paginar, paraParams, type Consulta, type DefLista } from "@/lib/listagem";
 import { lerBusca } from "@/lib/buscaSigilosa";
@@ -50,12 +51,12 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   // Autorizar antes de iniciar leituras administrativas.
   const sessao = await exigirAdmin();
-  const [empresas, saude] = await Promise.all([
-    listarEmpresas(),
+  const [selecionadas, saude] = await Promise.all([
+    empresasPorIds(idsEmpresasSelecionadas(params.f_empresa)),
     diagnosticar(),
   ]);
 
-  const def = defContas(empresas);
+  const def = defContas(selecionadas);
   const consulta = lerConsulta(params, def);
   // CPF digitado na busca fica guardado no servidor; a URL só leva o
   // identificador (`qs`), que vale para esta conta e por tempo limitado.
@@ -70,7 +71,10 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
   const legado = resultado ? null : await listarTodasAsContas();
   const brutas = resultado?.pagina.itens ?? legado!.contas;
   const emails = brutas.map((c) => c.email);
-  const [logins, comFator] = await Promise.all([ultimosLogins(emails), ativosPorEmail(emails)]);
+  const [logins, comFator, empresas] = await Promise.all([
+    ultimosLogins(emails), ativosPorEmail(emails),
+    empresasPorIds(brutas.flatMap((c) => c.organizationId ? [c.organizationId] : [])),
+  ]);
   const enriquecidas = montarContas(brutas, empresas, logins, comFator);
   const encontradas = resultado ? enriquecidas : consultarContas(enriquecidas, consulta, busca);
   const pagina = resultado ? { ...resultado.pagina, itens: enriquecidas } : paginar(encontradas, consulta.pag, consulta.por);
@@ -115,8 +119,8 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
 
       {truncado && (
         <p role="alert" className="mb-3 rounded-lg border border-[var(--color-marca-amarelo)]/40 bg-[var(--marca-amarelo-suave)] p-3 text-xs text-[var(--color-marca-amarelo)]">
-          Este filtro, ordenação ou agrupamento ainda depende da consulta antiga, limitada a 5.000 contas.
-          Os resultados e totais são parciais. Remova o agrupamento e os filtros de 2FA/último acesso e ordene por nome, perfil, estado ou criação para consultar toda a base.
+          Este filtro ou ordenação ainda depende da consulta antiga, limitada a 5.000 contas.
+          Os resultados e totais são parciais. Remova os filtros de 2FA/último acesso e ordene por nome, perfil, estado ou criação para consultar toda a base, com ou sem agrupamento.
         </p>
       )}
 

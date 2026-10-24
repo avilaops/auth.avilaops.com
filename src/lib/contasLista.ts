@@ -59,6 +59,7 @@ export function defContas(empresas: Empresa[], contas?: ContaListada[]): DefList
         chave: "empresa",
         rotulo: "Empresa",
         tipo: "multi",
+        remoto: "/api/admin/empresas",
         opcoes: [...empresas.filter((e) => !comConta || comConta.has(e.id)).map((e) => ({ valor: e.id, rotulo: e.nome })), { valor: SEM_EMPRESA, rotulo: ROTULO_SEM_EMPRESA }],
       },
       { chave: "tipo", rotulo: "Tipo de acesso", tipo: "unico", opcoes: [{ valor: "equipe", rotulo: "Equipe Avila Ops" }, { valor: "cliente", rotulo: "Clientes" }] },

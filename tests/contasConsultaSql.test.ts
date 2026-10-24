@@ -9,11 +9,19 @@ const consulta = (params: Record<string, string> = {}) => lerConsulta(params, de
 describe("consulta paginada das contas", () => {
   it("usa SQL para a consulta comum, mas nunca pagina antes dos filtros externos", () => {
     assert.equal(podePaginarContasNoBanco(consulta()), true);
-    const externas: Record<string, string>[] = [{ f_fator: "com" }, { f_acesso: "nunca" }, { ord: "acesso" }, { ord: "empresa" }, { grupo: "papel" }];
+    const externas: Record<string, string>[] = [{ f_fator: "com" }, { f_acesso: "nunca" }, { ord: "acesso" }, { ord: "empresa" }];
     for (const params of externas) {
       assert.equal(podePaginarContasNoBanco(consulta(params)), false);
       assert.throws(() => consultaContasSql(consulta(params), ""));
     }
+  });
+
+  it("agrupa somente os itens da página sem voltar ao caminho de cinco mil", () => {
+    for (const grupo of ["empresa", "papel", "estado"]) {
+      assert.equal(podePaginarContasNoBanco(consulta({ grupo })), true);
+    }
+    assert.equal(podePaginarContasNoBanco({ ...consulta(), grupo: "cpf" }), false);
+    assert.equal(podePaginarContasNoBanco(consulta({ grupo: "estado", f_fator: "com" })), false);
   });
 
   it("parametriza busca e filtros, sem tratar curingas como busca parcial", () => {

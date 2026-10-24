@@ -34,7 +34,7 @@ jobs:
       - run: npm run lint
       - run: npm test
   portal-pagination:
-    name: Paginação PostgreSQL (300 mil contas sintéticas)
+    name: Paginação PostgreSQL (300 mil contas e empresas sintéticas)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -47,7 +47,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U auth_test -d auth_pagination_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -60,7 +60,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/contasPaginadasBanco.test.ts
+      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/contasPaginadasBanco.test.ts tests/empresasPaginadasBanco.test.ts
         env:
           TEST_PORTAL_DATABASE_URL: postgresql://auth_test:isolated_test_only@localhost:5432/auth_pagination_test
   image:

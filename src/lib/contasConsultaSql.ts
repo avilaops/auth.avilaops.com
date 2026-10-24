@@ -10,7 +10,7 @@ const ORDENS: Record<string, string> = {
 const FILTROS = new Set(["empresa", "tipo", "papel", "estado", "senha"]);
 
 export function podePaginarContasNoBanco(c: Consulta): boolean {
-  return !c.grupo && Object.hasOwn(ORDENS, c.ord)
+  return ["", "empresa", "papel", "estado"].includes(c.grupo) && Object.hasOwn(ORDENS, c.ord)
     && Object.entries(c.filtros).every(([k, v]) => !v.length || FILTROS.has(k));
 }
 
