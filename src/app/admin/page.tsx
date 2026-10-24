@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { exigirAdmin } from "@/lib/admin";
-import { ehDaCasa, listarTodasAsContas } from "@/lib/contas";
+import { consultarPaginaDeContas, ehDaCasa, listarTodasAsContas } from "@/lib/contas";
+import { podePaginarContasNoBanco } from "@/lib/contasConsultaSql";
 import { agruparContas, consultarContas, defContas, montarContas, ROTULO_PAPEL, type ContaListada } from "@/lib/contasLista";
 import { listarEmpresas } from "@/lib/empresas";
 import { ultimosLogins } from "@/lib/eventos";
@@ -47,17 +48,14 @@ function atalhos(consulta: Consulta, def: DefLista): Atalho[] {
 
 export default async function ContasPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const [sessao, { contas: brutas, truncado }, empresas, logins, comFator, saude] = await Promise.all([
-    exigirAdmin(),
-    listarTodasAsContas(),
+  // Autorizar antes de iniciar leituras administrativas.
+  const sessao = await exigirAdmin();
+  const [empresas, saude] = await Promise.all([
     listarEmpresas(),
-    ultimosLogins(),
-    ativosPorEmail(),
     diagnosticar(),
   ]);
 
-  const todas = montarContas(brutas, empresas, logins, comFator);
-  const def = defContas(empresas, todas);
+  const def = defContas(empresas);
   const consulta = lerConsulta(params, def);
   // CPF digitado na busca fica guardado no servidor; a URL só leva o
   // identificador (`qs`), que vale para esta conta e por tempo limitado.
@@ -67,10 +65,20 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
   const busca = sigilosa || consulta.q;
   const extra = sigilosa ? `qs=${idDaBusca}` : undefined;
 
-  const encontradas = consultarContas(todas, consulta, busca);
+  const noBanco = podePaginarContasNoBanco(consulta);
+  const resultado = noBanco ? await consultarPaginaDeContas(consulta, busca) : null;
+  const legado = resultado ? null : await listarTodasAsContas();
+  const brutas = resultado?.pagina.itens ?? legado!.contas;
+  const emails = brutas.map((c) => c.email);
+  const [logins, comFator] = await Promise.all([ultimosLogins(emails), ativosPorEmail(emails)]);
+  const enriquecidas = montarContas(brutas, empresas, logins, comFator);
+  const encontradas = resultado ? enriquecidas : consultarContas(enriquecidas, consulta, busca);
+  const pagina = resultado ? { ...resultado.pagina, itens: enriquecidas } : paginar(encontradas, consulta.pag, consulta.por);
+  const truncado = legado?.truncado ?? false;
+  const total = resultado?.total ?? brutas.length;
   const filtrado = Boolean(busca) || filtrosAtivos(consulta) > 0;
-  const equipe = todas.filter((c) => ehDaCasa(c.role)).length;
-  const comEmpresa = todas.filter((c) => c.organizationId).length;
+  const equipe = resultado?.equipe ?? brutas.filter((c) => ehDaCasa(c.role)).length;
+  const comEmpresa = resultado?.comEmpresa ?? brutas.filter((c) => c.organizationId).length;
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -95,11 +103,11 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Contas</h1>
           <Resumo
-            encontrados={encontradas.length}
-            total={todas.length}
+            encontrados={pagina.total}
+            total={total}
             um="conta"
             varios="contas"
-            complemento={`${equipe} da equipe Avila Ops · ${todas.length - equipe} de clientes · ${comEmpresa} com empresa vinculada`}
+            complemento={`${truncado ? "Recorte parcial: " : ""}${equipe} da equipe Avila Ops · ${total - equipe} de clientes · ${comEmpresa} com empresa vinculada`}
           />
         </div>
         <Link href="/admin/contas/nova" className={`${botao} shrink-0 whitespace-nowrap`}>+ Nova conta</Link>
@@ -107,7 +115,8 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
 
       {truncado && (
         <p role="alert" className="mb-3 rounded-lg border border-[var(--color-marca-amarelo)]/40 bg-[var(--marca-amarelo-suave)] p-3 text-xs text-[var(--color-marca-amarelo)]">
-          A base passou do limite desta listagem. Os totais abaixo consideram só as primeiras contas em ordem alfabética.
+          Este filtro, ordenação ou agrupamento ainda depende da consulta antiga, limitada a 5.000 contas.
+          Os resultados e totais são parciais. Remova o agrupamento e os filtros de 2FA/último acesso e ordene por nome, perfil, estado ou criação para consultar toda a base.
         </p>
       )}
 
@@ -139,7 +148,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
       />
 
       <div id="lista-contas">
-        {encontradas.length === 0 ? (
+        {pagina.total === 0 ? (
           <Vazio
             filtrado={filtrado}
             base={BASE}
@@ -149,26 +158,19 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         ) : consulta.grupo ? (
           <>
             <ExpandirGrupos alvo="lista-contas" />
-            {agruparContas(encontradas, consulta.grupo).map((g) => (
+            {agruparContas(pagina.itens, consulta.grupo).map((g) => (
               <SecaoGrupo key={g.chave || "sem"} rotulo={g.rotulo} quantidade={g.itens.length} um="conta" varios="contas">
                 <Contas contas={g.itens} consulta={consulta} def={def} extra={extra} semMoldura grupo={consulta.grupo} />
               </SecaoGrupo>
             ))}
             <p className="mt-2 text-xs text-[var(--color-texto-fraco)]">
-              Cada conta pertence a uma empresa só, então a soma dos grupos é o total de contas encontradas.
+              Os grupos e suas quantidades correspondem somente às contas desta página.
             </p>
           </>
         ) : (
-          (() => {
-            const pagina = paginar(encontradas, consulta.pag, consulta.por);
-            return (
-              <>
-                <Contas contas={pagina.itens} consulta={consulta} def={def} extra={extra} />
-                <Paginacao pagina={pagina} base={BASE} consulta={consulta} def={def} extra={extra} rotulo="contas" />
-              </>
-            );
-          })()
+          <Contas contas={pagina.itens} consulta={consulta} def={def} extra={extra} />
         )}
+        {pagina.total > 0 && <Paginacao pagina={pagina} base={BASE} consulta={consulta} def={def} extra={extra} rotulo="contas" />}
       </div>
     </div>
   );

@@ -5,6 +5,11 @@ falta, em ordem de prioridade.
 
 ## Agora
 
+- **Escala do Auth: listagem e capacidade.** A consulta comum das contas passa
+  a filtrar/paginar no PostgreSQL, com teste isolado de 300 mil registros.
+  Faltam remover o caminho limitado dos filtros entre bancos, paginar o
+  seletor de empresas, medir índices/concorrência e verificar isolamento no
+  fluxo dos consumidores. Limites e critérios em `docs/ESCALA-AUTH.md`.
 - **Sistemas consumindo a conexão da Meta.** O CRM é o primeiro: lê
   `GET /api/meta/ativos` por `POST /api/meta/sincronizar`
   (avilaops/crm.avilaops.com#1), mostra a conta e descobre os números. Falta

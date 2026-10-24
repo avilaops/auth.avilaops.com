@@ -51,15 +51,15 @@ export function montarContas(contas: Conta[], empresas: Empresa[], logins: Map<s
   });
 }
 
-export function defContas(empresas: Empresa[], contas: ContaListada[]): DefLista {
-  const comConta = new Set(contas.map((c) => c.organizationId).filter(Boolean));
+export function defContas(empresas: Empresa[], contas?: ContaListada[]): DefLista {
+  const comConta = contas ? new Set(contas.map((c) => c.organizationId).filter(Boolean)) : null;
   return {
     filtros: [
       {
         chave: "empresa",
         rotulo: "Empresa",
         tipo: "multi",
-        opcoes: [...empresas.filter((e) => comConta.has(e.id)).map((e) => ({ valor: e.id, rotulo: e.nome })), { valor: SEM_EMPRESA, rotulo: ROTULO_SEM_EMPRESA }],
+        opcoes: [...empresas.filter((e) => !comConta || comConta.has(e.id)).map((e) => ({ valor: e.id, rotulo: e.nome })), { valor: SEM_EMPRESA, rotulo: ROTULO_SEM_EMPRESA }],
       },
       { chave: "tipo", rotulo: "Tipo de acesso", tipo: "unico", opcoes: [{ valor: "equipe", rotulo: "Equipe Avila Ops" }, { valor: "cliente", rotulo: "Clientes" }] },
       { chave: "papel", rotulo: "Perfil", tipo: "multi", opcoes: ORDEM_PAPEL.map((p) => ({ valor: p, rotulo: ROTULO_PAPEL[p] })) },

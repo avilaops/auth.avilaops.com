@@ -322,10 +322,10 @@ export async function desativar(email: string): Promise<boolean> {
 }
 
 /** Quem tem fator ativo, para a listagem do painel não fazer N consultas. */
-export async function ativosPorEmail(): Promise<Set<string>> {
-  if (migracaoPendente) return new Set();
+export async function ativosPorEmail(emails?: string[]): Promise<Set<string>> {
+  if (migracaoPendente || emails?.length === 0) return new Set();
   const linhas = await prisma.segundoFator
-    .findMany({ where: { confirmadoEm: { not: null } }, select: { email: true } })
+    .findMany({ where: { confirmadoEm: { not: null }, ...(emails ? { email: { in: emails.map(normalizar) } } : {}) }, select: { email: true } })
     .catch((erro) => {
       if (!migracaoFaltando(erro)) throw erro;
       marcarMigracaoPendente(erro);
