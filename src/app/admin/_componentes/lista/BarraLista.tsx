@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import FiltroRemoto from "./FiltroRemoto";
 import {
   ATALHOS_DE_PERIODO,
   filtrosAtivos,
@@ -191,12 +192,14 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
 
   // ── Painel de filtros: o rascunho só vira consulta em "Aplicar" ─────────
   const painel = useRef<HTMLDialogElement>(null);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [rascunho, setRascunho] = useState(consulta.filtros);
   const [periodo, setPeriodo] = useState({ periodo: consulta.periodo, de: consulta.de, ate: consulta.ate });
   const ativos = filtrosAtivos(consulta);
   const noRascunho = Object.values(rascunho).filter((v) => v.length > 0).length + (periodo.periodo || periodo.de || periodo.ate ? 1 : 0);
 
   function abrirFiltros() {
+    setFiltrosAbertos(true);
     setRascunho(consulta.filtros);
     setPeriodo({ periodo: consulta.periodo, de: consulta.de, ate: consulta.ate });
     painel.current?.showModal();
@@ -403,6 +406,7 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
       {temFiltros && (
         <dialog
           ref={painel}
+          onClose={() => setFiltrosAbertos(false)}
           aria-labelledby={`filtros-titulo-${secao}`}
           className="m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-2xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-0 text-[var(--color-texto)] backdrop:bg-black/50 md:m-auto md:mr-0 md:h-dvh md:max-h-none md:w-[26rem] md:rounded-none md:border-y-0 md:border-r-0"
           onClick={(e) => {
@@ -461,7 +465,7 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
                     {f.rotulo}
                     {(rascunho[f.chave]?.length ?? 0) > 0 && <span className="ml-1 text-xs font-normal text-[var(--color-texto-fraco)]">({rascunho[f.chave].length})</span>}
                   </legend>
-                  <div className={f.opcoes.length > 8 ? "max-h-56 overflow-y-auto rounded-lg border border-[var(--color-borda)] p-1" : ""}>
+                  {f.remoto ? (filtrosAbertos && <FiltroRemoto filtro={f} selecionadas={rascunho[f.chave] ?? []} alternar={(valor) => alternar(f.chave, valor, false)} />) : <div className={f.opcoes.length > 8 ? "max-h-56 overflow-y-auto rounded-lg border border-[var(--color-borda)] p-1" : ""}>
                     {f.opcoes.map((o) => (
                       <label key={o.valor} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-[var(--color-fundo)] md:min-h-9">
                         <input
@@ -477,7 +481,7 @@ export default function BarraLista({ secao, usuario, def, consulta, placeholder,
                         <span className="min-w-0 truncate">{o.rotulo}</span>
                       </label>
                     ))}
-                  </div>
+                  </div>}
                 </fieldset>
               ))}
             </div>

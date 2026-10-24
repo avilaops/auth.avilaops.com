@@ -18,6 +18,8 @@ export type DefFiltro = {
   /** `multi`: várias opções (OU entre elas). `unico`: uma só. */
   tipo: "multi" | "unico";
   opcoes: OpcaoFiltro[];
+  /** Endpoint administrativo de opções paginadas; opcoes contém as selecionadas/fixas. */
+  remoto?: string;
 };
 
 export type DefOrdem = { campo: string; rotulo: string; padrao?: Direcao; rotulos?: [string, string] };

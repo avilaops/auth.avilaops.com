@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { poolPortal } from "@/lib/contas";
 import { prisma } from "@/lib/prisma";
+import { consultaEmpresasSql, EMPRESAS_POR_PAGINA } from "@/lib/empresasConsulta";
 
 /**
  * Empresas, para filtrar e agrupar as listagens do painel.
@@ -22,6 +23,55 @@ export type Empresa = { id: string; nome: string; situacao: string | null };
 
 export const SEM_EMPRESA = "sem";
 export const ROTULO_SEM_EMPRESA = "Sem empresa vinculada";
+
+function cadastroIndisponivel(erro: unknown): boolean {
+  return ["3F000", "42P01", "42501"].includes((erro as { code?: string })?.code ?? "");
+}
+
+async function lerEmpresas(texto: string, valores: unknown[]) {
+  const conexao = await poolPortal().connect();
+  try {
+    await conexao.query("BEGIN READ ONLY");
+    await conexao.query("SET LOCAL statement_timeout = '10s'");
+    const { rows } = await conexao.query<{ id: string; name: string; status: string | null }>(texto, valores);
+    await conexao.query("COMMIT");
+    return rows;
+  } catch (erro) {
+    await conexao.query("ROLLBACK").catch(() => undefined);
+    throw erro;
+  } finally {
+    conexao.release();
+  }
+}
+
+/** Somente as empresas das contas/seleções pedidas; nunca o cadastro inteiro. */
+export async function empresasPorIds(ids: string[]): Promise<Empresa[]> {
+  const unicos = [...new Set(ids)];
+  if (!unicos.length) return [];
+  if (unicos.length > 5000 || unicos.some((id) => !/^[a-zA-Z0-9_-]{1,120}$/.test(id))) throw new Error("IDs de empresas inválidos");
+  try {
+    const rows = await lerEmpresas("SELECT id, name, status FROM operations.organizations WHERE id::text = ANY($1::text[])", [unicos]);
+    return rows.map((r) => ({ id: r.id, nome: r.name, situacao: r.status }));
+  } catch (erro) {
+    if (cadastroIndisponivel(erro)) return [];
+    throw erro;
+  }
+}
+
+/** Uma página de opções, sem COUNT global nem acumular páginas no servidor. */
+export async function consultarEmpresas(busca = "", pag = 1) {
+  const sql = consultaEmpresasSql(busca, pag);
+  try {
+    const rows = await lerEmpresas(sql.texto, sql.valores);
+    return {
+      opcoes: rows.slice(0, EMPRESAS_POR_PAGINA).map((r) => ({ valor: r.id, rotulo: r.name })),
+      pag, temMais: rows.length > EMPRESAS_POR_PAGINA, disponivel: true,
+    };
+  } catch (erro) {
+    if (cadastroIndisponivel(erro)) return { opcoes: [], pag, temMais: false, disponivel: false };
+    throw erro;
+  }
+}
 
 /**
  * Todas as empresas, em ordem alfabética.
