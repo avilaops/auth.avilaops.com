@@ -122,10 +122,11 @@ export async function ultimosLoginsNoApp(appId: string): Promise<Map<string, Dat
 }
 
 /** Último login bem-sucedido por e-mail, para a listagem de contas. */
-export async function ultimosLogins(): Promise<Map<string, Date>> {
+export async function ultimosLogins(emails?: string[]): Promise<Map<string, Date>> {
+  if (emails?.length === 0) return new Map();
   const rows = await prisma.evento.groupBy({
     by: ["email"],
-    where: { tipo: "login_ok", email: { not: null } },
+    where: { tipo: "login_ok", email: emails ? { in: emails.map((e) => e.toLowerCase()) } : { not: null } },
     _max: { criadoEm: true },
   });
   const mapa = new Map<string, Date>();

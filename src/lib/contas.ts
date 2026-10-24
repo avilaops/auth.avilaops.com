@@ -110,7 +110,7 @@ type Linha = {
 const COLUNAS =
   "id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em";
 
-function daLinha(l: Linha): Conta {
+function daLinha(l: Omit<Linha, "senha_hash">): Conta {
   return {
     id: l.id,
     nome: l.nome,
@@ -225,6 +225,41 @@ export async function listarTodasAsContas(limite = 5000): Promise<{ contas: Cont
     [limite + 1],
   );
   return { contas: rows.slice(0, limite).map(daLinha), truncado: rows.length > limite };
+}
+
+/** Snapshot único para totais e página. Não traz hash de senha ao painel. */
+export async function consultarPaginaDeContas(consulta: import("@/lib/listagem").Consulta, busca: string) {
+  const { consultaContasSql } = await import("@/lib/contasConsultaSql");
+  const sql = consultaContasSql(consulta, busca);
+  const conexao = await getPool().connect();
+  try {
+    await conexao.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    await conexao.query("SET LOCAL statement_timeout = '10s'");
+    const { rows: resumo } = await conexao.query<{ total: string; equipe: string; com_empresa: string }>(
+      `SELECT count(*) AS total, count(*) FILTER (WHERE role IN ('OWNER', 'SOCIO')) AS equipe,
+              count(*) FILTER (WHERE organization_id IS NOT NULL) AS com_empresa FROM portal_clients`,
+    );
+    const { rows: contagem } = await conexao.query<{ total: string }>(`SELECT count(*) AS total FROM portal_clients ${sql.onde}`, sql.valores);
+    const total = Number(contagem[0].total);
+    const paginas = Math.max(1, Math.ceil(total / consulta.por));
+    const pag = Math.min(consulta.pag, paginas);
+    const inicio = (pag - 1) * consulta.por;
+    const { rows } = await conexao.query<Omit<Linha, "senha_hash">>(
+      `SELECT id, nome, email, cpf, telefone, role, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em
+       FROM portal_clients ${sql.onde} ORDER BY ${sql.ordem} LIMIT $${sql.valores.length + 1} OFFSET $${sql.valores.length + 2}`,
+      [...sql.valores, consulta.por, inicio],
+    );
+    await conexao.query("COMMIT");
+    return {
+      pagina: { itens: rows.map(daLinha), total, pag, paginas, de: total === 0 ? 0 : inicio + 1, ate: inicio + rows.length },
+      total: Number(resumo[0].total), equipe: Number(resumo[0].equipe), comEmpresa: Number(resumo[0].com_empresa),
+    };
+  } catch (erro) {
+    await conexao.query("ROLLBACK").catch(() => undefined);
+    throw erro;
+  } finally {
+    conexao.release();
+  }
 }
 
 /** Quantas contas por papel, para o painel abrir com o retrato do dia. */
