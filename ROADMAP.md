@@ -1,6 +1,6 @@
 # Roadmap — auth.avilaops.com
 
-Atualizado em 16/10/2026. O que está em produção fica no README; aqui só o que
+Atualizado em 24/10/2026. O que está em produção fica no README; aqui só o que
 falta, em ordem de prioridade.
 
 ## Agora
@@ -31,10 +31,10 @@ falta, em ordem de prioridade.
 ## Depois
 
 - **Renovação da conexão da Meta sem depender de uso.** Rotina implementada
-  em `POST /api/interno/meta/renovar`, com workflow n8n diário às 08h de São
-  Paulo. Implantação e ativação acompanhadas em
-  `docs/RENOVACAO-META-N8N.md`; o workflow permanece em rascunho até validação
-  do endpoint implantado. Aviso ao cliente quando precisar reconectar segue
+  em `POST /api/interno/meta/renovar`. O modo `?continuar=1` persiste o cursor
+  entre passagens limitadas, sem o teto de cem páginas do workflow antigo.
+  Operação e implantação em `docs/RENOVACAO-META-N8N.md`.
+  Aviso ao cliente quando precisar reconectar segue
   pendente; conexões vencidas já geram auditoria no painel.
 - **Sistemas ouvindo o aviso de saída.** O Auth já avisa a integração que
   cadastrar um endereço; nenhum sistema cadastrou ainda. Sem isso, quem entrou

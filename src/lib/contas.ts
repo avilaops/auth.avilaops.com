@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { randomInt, randomUUID } from "crypto";
 import { Pool } from "pg";
 import type { Papel } from "@/lib/apps";
+import { configuracaoPoolPortal } from "@/lib/poolPortalConfig";
 
 /**
  * Contas do portfólio.
@@ -32,7 +33,7 @@ function getPool(): Pool {
   if (pool) return pool;
   const url = process.env.PORTAL_DATABASE_URL;
   if (!url) throw new Error("PORTAL_DATABASE_URL não configurado");
-  pool = new Pool({ connectionString: url, max: 3 });
+  pool = new Pool({ connectionString: url, ...configuracaoPoolPortal() });
   return pool;
 }
 
