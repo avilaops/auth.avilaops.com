@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
   if (!sessao.mfa && (await desafioNecessario({ email: sessao.email, papel: sessao.papel, app })) !== "nenhum") {
     const voltarPara = `${req.nextUrl.pathname}${req.nextUrl.search}`;
     return NextResponse.redirect(
-      urlAbsoluta(`/api/auth/mfa/elevar?returnTo=${encodeURIComponent(voltarPara)}`),
+      urlAbsoluta(`/api/auth/mfa/elevar?app=${encodeURIComponent(app.id)}&returnTo=${encodeURIComponent(voltarPara)}`),
       302,
     );
   }
