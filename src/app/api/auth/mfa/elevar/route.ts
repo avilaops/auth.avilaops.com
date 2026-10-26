@@ -33,11 +33,16 @@ export async function GET(req: NextRequest) {
   }
 
   const app = await buscarApp(appId);
-  const destino = app
-    ? returnToSeguro(returnTo, app)
-    : returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-      ? returnTo
-      : destinoInicial(sessao);
+  // OIDC precisa retomar a autorização no Auth, com state, nonce e PKCE
+  // intactos. O retorno externo do app só acontece depois de /oauth/authorize
+  // conferir novamente o cliente, o callback, a permissão e o segundo fator.
+  const destino = returnTo?.startsWith("/oauth/authorize?")
+    ? returnTo
+    : app
+      ? returnToSeguro(returnTo, app)
+      : returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+        ? returnTo
+        : destinoInicial(sessao);
 
   const motivo = await desafioNecessario({ email: sessao.email, papel: sessao.papel, app });
   if (motivo === "nenhum") {
