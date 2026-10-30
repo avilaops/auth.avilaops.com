@@ -10,6 +10,16 @@
   ],
   "tasks": [
     {
+      "id": "MFA-20261030-01",
+      "title": "Suspensão temporária de MFA por conta para desenvolvimento autorizado",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Exceção de uma única conta ADMIN por até 24 horas, sem apagar o autenticador, sem alterar outros usuários e com expiração automática e auditoria.",
+      "evidence": "docs/SUSPENSAO-TEMPORARIA-MFA.md; typecheck e lint sem erros; 7 testes locais aprovados em suspensaoMfa.test.ts e elevacaoOidc.test.ts. Publicação e ativação ainda pendentes.",
+      "blocker": "",
+      "history": [{ "at": "2026-10-30", "status": "em-andamento", "note": "Escopo limitado à conta do solicitante; validar login, OIDC, expiração e preservação dos fatores." }, { "at": "2026-10-30", "status": "em-revisao", "note": "Política e fluxo OIDC verificados localmente; aguardando a imagem aprovada e a configuração privada da janela operacional." }]
+    },
+    {
       "id": "AVL-246",
       "title": "Identidade corporativa B2B compartilhada",
       "status": "concluida",

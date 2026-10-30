@@ -67,6 +67,7 @@ export type TipoEvento =
   | "mfa_falhou"
   | "mfa_backup_usado"
   | "mfa_codigos_gerados"
+  | "mfa_suspenso_temporariamente"
   | "mfa_indisponivel";
 
 export async function registrar(e: {
