@@ -12,12 +12,12 @@
     {
       "id": "MFA-20261030-01",
       "title": "Suspensão temporária de MFA por conta para desenvolvimento autorizado",
-      "status": "em-revisao",
+      "status": "concluida",
       "owner": "nicolas-rosa",
       "acceptance": "Exceção de uma única conta ADMIN por até 24 horas, sem apagar o autenticador, sem alterar outros usuários e com expiração automática e auditoria.",
-      "evidence": "docs/SUSPENSAO-TEMPORARIA-MFA.md; typecheck e lint sem erros; 7 testes locais aprovados em suspensaoMfa.test.ts e elevacaoOidc.test.ts. Publicação e ativação ainda pendentes.",
+      "evidence": "docs/SUSPENSAO-TEMPORARIA-MFA.md; 7 testes locais aprovados; workflow 40997121918 aprovado; imagem 514423c75380309d20d98ebfcd4644af08d7b2b6 publicada e saudável. Ativação operacional auditada, com janela limitada e comparação antes/depois confirmando preservação dos autenticadores e códigos de recuperação.",
       "blocker": "",
-      "history": [{ "at": "2026-10-30", "status": "em-andamento", "note": "Escopo limitado à conta do solicitante; validar login, OIDC, expiração e preservação dos fatores." }, { "at": "2026-10-30", "status": "em-revisao", "note": "Política e fluxo OIDC verificados localmente; aguardando a imagem aprovada e a configuração privada da janela operacional." }]
+      "history": [{ "at": "2026-10-30", "status": "em-andamento", "note": "Escopo limitado à conta do solicitante; validar login, OIDC, expiração e preservação dos fatores." }, { "at": "2026-10-30", "status": "em-revisao", "note": "Política e fluxo OIDC verificados localmente; aguardando a imagem aprovada e a configuração privada da janela operacional." }, { "at": "2026-10-30", "status": "concluida", "note": "Código publicado pelo CI. Configuração privada conferida em produção, ambiente anterior preservado, fatores intactos e auditoria gravada. Login real continua exigindo a primeira credencial; nenhuma sessão foi forjada." }]
     },
     {
       "id": "AVL-246",
