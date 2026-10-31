@@ -38,7 +38,7 @@ export default function FormCriar({ app, returnTo }: { app: string | null; retur
       <div role="status" className="flex flex-col gap-3 text-sm">
         <p className="font-medium">Confira seu e-mail</p>
         <p className="text-[var(--color-texto-fraco)]">{enviado}</p>
-        <p className="text-[var(--color-texto-fraco)]">O link vale por 24 horas e abre a tela para você escolher a senha.</p>
+        <p className="text-[var(--color-texto-fraco)]">Confira o prazo informado no e-mail. Depois de escolher a senha, você poderá continuar no sistema de origem.</p>
         <button type="button" onClick={() => setEnviado(null)} className="self-start text-xs text-[var(--color-marca)] hover:underline">
           Usar outro e-mail
         </button>
