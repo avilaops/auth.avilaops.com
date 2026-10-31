@@ -10,6 +10,26 @@
   ],
   "tasks": [
     {
+      "id": "AVL-384",
+      "title": "Preservar produto de origem após cadastro e recuperação",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Conta nova e existente retornam ao produto validado; links e destinos inválidos não abrem redirecionamentos externos; OIDC reinicia com estado próprio, preservando permissão e MFA.",
+      "evidence": "docs/RETORNO-CADASTRO-AVL-384.md; 315 testes locais aprovados, typecheck e lint sem erros. Publicação e percurso autenticado pendentes.",
+      "blocker": "Publicação e evidência autenticada do percurso completo pendentes.",
+      "history": [{ "at": "2026-10-31", "status": "em-revisao", "note": "Origem normalizada na emissão e confirmação; recuperação preserva consumo atômico e revalida acesso. Responsável conforme Linear." }]
+    },
+    {
+      "id": "AVL-385",
+      "title": "Início da conta com sistemas autorizados e próximos passos reais",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Mostrar sistemas autorizados, oferecer destinos reais e estados distintos de carregamento, erro e vazio; validar navegação web/mobile sem criar permissões ou convites fictícios.",
+      "evidence": "docs/CONTA-INICIO-AVL-385.md; typecheck aprovado; lint sem erros; 308 testes locais aprovados. Validação visual, CI e produção pendentes.",
+      "blocker": "Validação visual autenticada e publicação ainda não comprovadas.",
+      "history": [{ "at": "2026-10-31", "status": "em-revisao", "note": "Implementação em checkout isolado de origin/main; alterações de segurança no checkout anterior preservadas. Responsável conforme atribuição atual no Linear." }]
+    },
+    {
       "id": "MFA-20261030-01",
       "title": "Suspensão temporária de MFA por conta para desenvolvimento autorizado",
       "status": "concluida",

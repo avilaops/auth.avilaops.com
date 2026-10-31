@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
 import { ehPrimeiraSenha } from "@/lib/convite";
@@ -21,7 +22,7 @@ export default async function RecuperarPage({ params }: { params: Promise<{ toke
         <div className="mb-8 text-center">
           <Marca tamanho={48} className="mx-auto mb-5" />
           <h1 className="text-xl font-semibold tracking-tight">{primeira ? "Crie a sua senha" : "Recuperar acesso"}</h1>
-          <p className="mt-1.5 text-sm text-[var(--color-texto-fraco)]">
+          <p className="mt-1.5 break-all text-sm text-[var(--color-texto-fraco)]">
             {link?.email ?? "Este link não é mais válido."}
           </p>
         </div>
@@ -36,9 +37,10 @@ export default async function RecuperarPage({ params }: { params: Promise<{ toke
               )}
             </>
           ) : (
-            <p className="text-sm text-[var(--color-texto-fraco)]">
-              O link expirou ou já foi usado. Peça um novo a quem enviou o convite ou à equipe Avila Ops.
-            </p>
+            <div className="space-y-3 text-sm text-[var(--color-texto-fraco)]">
+              <p>O link expirou ou já foi usado. Se você já definiu sua senha, entre com ela. Para recuperar o acesso, peça um novo link a quem enviou o convite ou à equipe Avila Ops.</p>
+              <Link href="/login" className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)] hover:underline">Voltar para entrar</Link>
+            </div>
           )}
         </div>
       </div>

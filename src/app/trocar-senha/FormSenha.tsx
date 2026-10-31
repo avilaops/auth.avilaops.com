@@ -15,11 +15,13 @@ export default function FormSenha({ destino, token, rota, rotuloBotao }: { desti
   const [nova, setNova] = useState("");
   const [confirma, setConfirma] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [entrarEm, setEntrarEm] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
+    setEntrarEm(null);
     if (nova !== confirma) return setErro("As senhas não conferem.");
     setEnviando(true);
     try {
@@ -29,7 +31,10 @@ export default function FormSenha({ destino, token, rota, rotuloBotao }: { desti
         body: JSON.stringify(token ? { token, nova } : { atual, nova }),
       });
       const dados = await res.json();
-      if (!res.ok) return setErro(dados.erro || "Não foi possível salvar.");
+      if (!res.ok) {
+        if (res.status === 409 && typeof dados.entrarEm === "string" && (dados.entrarEm === "/login" || dados.entrarEm.startsWith("/login?"))) setEntrarEm(dados.entrarEm);
+        return setErro(dados.erro || "Não foi possível salvar.");
+      }
       window.location.assign(dados.destino || destino);
     } catch {
       setErro("Falha de conexão. Tente de novo.");
@@ -46,6 +51,7 @@ export default function FormSenha({ destino, token, rota, rotuloBotao }: { desti
       <CampoSenha label={rota ? "Senha (mín. 8)" : "Nova senha (mín. 8)"} value={nova} onChange={setNova} autoComplete="new-password" minLength={8} required />
       <CampoSenha label="Confirmar" value={confirma} onChange={setConfirma} autoComplete="new-password" required />
       {erro && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{erro}</p>}
+      {entrarEm && <a href={entrarEm} className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--color-marca)] hover:underline">Entrar com minha conta</a>}
       <button type="submit" disabled={enviando} className="mt-1 rounded-lg bg-[var(--color-marca-solida)] px-4 py-2.5 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90 disabled:opacity-60">
         {enviando ? "Salvando…" : (rotuloBotao ?? "Salvar senha")}
       </button>
