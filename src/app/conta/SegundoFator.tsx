@@ -7,6 +7,7 @@ import CampoCodigo from "@/components/CampoCodigo";
 import CodigosRecuperacao from "@/components/CodigosRecuperacao";
 
 type Estado = {
+  habilitado: boolean;
   ativo: boolean;
   confirmadoEm: string | null;
   codigosRestantes: number;
@@ -70,6 +71,10 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
     } finally {
       setEnviando(false);
     }
+  }
+
+  if (!estado.habilitado) {
+    return <p className="text-sm text-[var(--color-texto-fraco)]">Verificação em duas etapas desativada pela administração. O acesso utiliza senha ou login social, sem solicitar código adicional.</p>;
   }
 
   if (!estado.disponivel) {

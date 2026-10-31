@@ -57,12 +57,12 @@ export async function GET(_req: NextRequest) {
   return NextResponse.json(
     {
       ok: true,
-      degradado: !fator.disponivel,
+      degradado: fator.habilitado && !fator.disponivel,
       ...(detalhado
         ? {
             detalhe: {
               banco: "ok",
-              segundoFator: fator.disponivel ? "ativo" : "suspenso",
+              segundoFator: !fator.habilitado ? "desativado" : fator.disponivel ? "ativo" : "suspenso",
               chaveDeCifra: fator.chave ? "presente" : "ausente",
               migracoes: fator.migracoes,
               msDeResposta: Date.now() - inicio,

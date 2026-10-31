@@ -95,7 +95,9 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         <div role="alert" className="mb-5 rounded-xl border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-4 text-sm">
           <strong className="text-[var(--color-marca-vermelho)]">Verificação em duas etapas suspensa.</strong>{" "}
           <span className="text-[var(--color-texto-fraco)]">
-            {saude.migracoes === "pendentes"
+            {!saude.habilitado
+              ? "Desativada pela configuração da administração. Nenhum código adicional é solicitado no login ou nos aplicativos."
+              : saude.migracoes === "pendentes"
               ? "As tabelas do segundo fator não existem neste banco — rode `npx prisma migrate deploy`."
               : "Falta AUTH_ENCRYPTION_KEY no servidor."}{" "}
             Enquanto isso, todas as contas entram só com a senha.

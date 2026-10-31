@@ -84,7 +84,12 @@ function marcarMigracaoPendente(erro: unknown): void {
  * O rastro fica em `eventos` (`mfa_indisponivel`) e o painel avisa em vermelho.
  */
 export function mfaDisponivel(): boolean {
-  return chaveConfigurada() && !migracaoPendente;
+  return mfaHabilitado() && chaveConfigurada() && !migracaoPendente;
+}
+
+/** Somente a desativação explícita no ambiente desliga a política global. */
+export function mfaHabilitado(): boolean {
+  return process.env.MFA_HABILITADO?.trim().toLowerCase() !== "false";
 }
 
 /**
@@ -107,6 +112,7 @@ export function exigeSegundoFator(p: { papel: Papel; app?: AppRegistrado | null 
  * (`mfa_indisponivel`) em vez de passar despercebida.
  */
 export function politicaExige(p: { papel: Papel; app?: AppRegistrado | null }): boolean {
+  if (!mfaHabilitado()) return false;
   if (p.app?.exigeSegundoFator) return true;
   if (p.papel !== "ADMIN") return false;
   return (process.env.MFA_EQUIPE ?? "obrigatorio").toLowerCase() !== "opcional";
@@ -126,6 +132,7 @@ export async function desafioNecessario(p: {
   papel: Papel;
   app?: AppRegistrado | null;
 }): Promise<"nenhum" | "verificar" | "cadastrar"> {
+  if (!mfaHabilitado()) return "nenhum";
   const suspensao = suspensaoMfaAtiva(p);
   if (suspensao) {
     await registrar({
@@ -151,6 +158,8 @@ const SEM_FATOR: EstadoFator = {
 };
 
 export type Diagnostico = {
+  /** Controle operacional global; não apaga fatores cadastrados. */
+  habilitado: boolean;
   /** O segundo fator está realmente protegendo alguém? */
   disponivel: boolean;
   /** `AUTH_ENCRYPTION_KEY` presente e no formato certo. */
@@ -181,7 +190,8 @@ export async function diagnosticar(): Promise<Diagnostico> {
     }
   }
   return {
-    disponivel: chave && !migracaoPendente,
+    habilitado: mfaHabilitado(),
+    disponivel: mfaHabilitado() && chave && !migracaoPendente,
     chave,
     migracoes: migracaoPendente ? "pendentes" : "aplicadas",
   };

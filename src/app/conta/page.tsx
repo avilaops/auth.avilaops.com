@@ -7,7 +7,7 @@ import { caixasDoDono } from "@/lib/caixaEmail";
 import { conectoresLigados } from "@/lib/conectores";
 import { buscarConta } from "@/lib/contas";
 import { listarPermissoes } from "@/lib/permissoes";
-import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
+import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
 import { enderecoDaSecao, secaoDaConta, SECOES_DA_CONTA } from "@/lib/secoesDaConta";
 import { lerSessao } from "@/lib/sessao";
@@ -243,6 +243,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         >
           <SegundoFator
             estado={{
+              habilitado: mfaHabilitado(),
               ativo: fator.ativo,
               confirmadoEm: fator.confirmadoEm
                 ? fator.confirmadoEm.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
