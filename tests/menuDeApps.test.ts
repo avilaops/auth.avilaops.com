@@ -38,6 +38,12 @@ const cadastro: Cadastro[] = [
 const ids = (m: { apps: { id: string }[] }) => m.apps.map((a) => a.id).join(",");
 
 describe("menu de apps", () => {
+  it("oferece o ERP aberto ao cliente sem conceder vínculo com empresas", () => {
+    assert.deepEqual(menuDeApps([app("erp")], "CLIENTE", []).apps, [
+      { id: "erp", nome: "ERP", url: "https://erp.avilaops.com/" },
+    ]);
+  });
+
   it("equipe vê tudo que recebe sessão e está no ar", () => {
     assert.equal(ids(menuDeApps(cadastro, "ADMIN", [])), "app,crm,tms");
   });

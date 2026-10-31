@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import IconeProvedor from "@/components/IconeProvedor";
 import { ehSuperadmin } from "@/lib/admin";
-import { listarApps } from "@/lib/cadastro";
+import { listarCadastro } from "@/lib/cadastro";
 import { caixasDoDono } from "@/lib/caixaEmail";
 import { conectoresLigados } from "@/lib/conectores";
 import { buscarConta } from "@/lib/contas";
 import { listarPermissoes } from "@/lib/permissoes";
+import { menuDeApps } from "@/lib/menuDeApps";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
 import { enderecoDaSecao, secaoDaConta, SECOES_DA_CONTA } from "@/lib/secoesDaConta";
@@ -15,13 +16,12 @@ import { listarVinculos } from "@/lib/vinculos";
 import BotoesSociais from "@/app/login/BotoesSociais";
 import { acaoDesvincular, acaoMeusDados } from "./actions";
 import SegundoFator from "./SegundoFator";
+import SistemasDaConta from "./SistemasDaConta";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Minha conta" };
 
 const WEBMAIL = "https://mail.avilaops.com";
-/** Fora de "Seus sistemas": o e-mail tem o cartão dele, e a conta é esta página. */
-const FORA_DA_LISTA = new Set(["mail", "conta"]);
 
 function gb(bytes: number): string {
   const g = bytes / 1024 ** 3;
@@ -54,24 +54,21 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
     estadoSegundoFator(sessao.email),
   ]);
 
-  // Equipe vê tudo. Cliente vê só o que foi liberado explicitamente para ele —
-  // apps abertos a qualquer sessão (CRM, ERP…) não são "dele" e virariam ruído;
-  // o e-mail já aparece no cartão de cima. `mail` sai da lista pelo mesmo motivo.
-  const apps = await listarApps();
-  const sistemas =
-    sessao.papel === "ADMIN"
-      ? apps.filter((app) => !FORA_DA_LISTA.has(app.id))
-      : apps.filter((app) => app.restrito && !FORA_DA_LISTA.has(app.id) && permissoes.includes(app.id));
+  // Mesma autorização do menu do ecossistema e do login. O acesso às empresas
+  // continua sendo verificado por cada produto ao abrir o destino.
+  const cadastro = await listarCadastro();
+  const sistemas = menuDeApps(cadastro, sessao.papel, permissoes).apps
+    .filter((app) => app.id !== "mail");
   const vinculados = new Set(vinculos.map((v) => v.provedor));
   const disponiveis = ligados.filter((p) => !vinculados.has(p.id));
   const primeiroNome = sessao.nome.split(" ")[0];
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
-      <header className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Olá, {primeiroNome}</h1>
-          <p className="mt-1 text-sm text-[var(--color-texto-fraco)]">
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 basis-48">
+          <h1 className="break-words text-2xl font-semibold tracking-tight">Olá, {primeiroNome}</h1>
+          <p className="mt-1 break-words text-sm text-[var(--color-texto-fraco)]">
             {sessao.email} ·{" "}
             <span className={sessao.papel === "ADMIN" ? "text-[var(--color-marca)]" : ""}>
               {sessao.papel === "ADMIN" ? "equipe Avila Ops" : "cliente"}
@@ -80,10 +77,10 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         </div>
         <div className="flex shrink-0 items-center gap-3 text-xs">
           {ehSuperadmin(sessao) && (
-            <Link href="/admin" className="rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Painel</Link>
+            <Link href="/admin" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Painel</Link>
           )}
           <form action="/api/auth/logout" method="post">
-            <button className="rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Sair</button>
+            <button className="min-h-11 rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Sair</button>
           </form>
         </div>
       </header>
@@ -104,15 +101,11 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
       )}
 
       <div className="flex flex-col gap-6">
-        {secao === "inicio" && caixas.length === 0 && sistemas.length === 0 && (
-          <Cartao titulo="Nada por aqui ainda" subtitulo="Esta conta não tem caixa de e-mail nem sistema liberado. Quando a equipe Avila Ops liberar um, ele aparece nesta tela." />
-        )}
-
         {secao === "inicio" && caixas.length > 0 && (
           <Cartao titulo="Seus e-mails" subtitulo="Abra o webmail sem digitar senha de novo — a sua sessão já vale lá.">
             <ul className="flex flex-col divide-y divide-[var(--color-borda)]">
               {caixas.map((c) => (
-                <li key={c.address} className="flex items-center justify-between gap-3 py-3">
+                <li key={c.address} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] text-[var(--color-texto-fraco)]">
                       <IconeProvedor id="mail" tamanho={18} />
@@ -135,7 +128,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                   </div>
                   <a
                     href={WEBMAIL}
-                    className="shrink-0 rounded-lg bg-[var(--color-marca-solida)] px-3 py-1.5 text-xs font-semibold text-[var(--color-marca-contraste)] hover:opacity-90"
+                    className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-[var(--color-marca-solida)] px-3 py-1.5 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90"
                   >
                     Abrir webmail
                   </a>
@@ -145,25 +138,8 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
           </Cartao>
         )}
 
-        {secao === "inicio" && sistemas.length > 0 && (
-          <Cartao titulo="Seus sistemas" subtitulo="Você entra em cada um com esta mesma conta.">
-            {/* Duas colunas também no celular: a equipe tem mais de dez sistemas e a lista em uma coluna passava de uma tela. */}
-            <div className="grid grid-cols-2 gap-2">
-              {sistemas.map((app) => (
-                <a
-                  key={app.id}
-                  href={`/login?app=${app.id}&returnTo=https://${app.host}/`}
-                  className="group flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 py-2 hover:border-[var(--color-texto-fraco)] sm:px-4 sm:py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{app.nome}</div>
-                    <div className="truncate text-xs text-[var(--color-texto-fraco)]">{app.host}</div>
-                  </div>
-                  <span className="hidden shrink-0 text-[var(--color-texto-fraco)] transition group-hover:translate-x-0.5 group-hover:text-[var(--color-texto)] sm:inline">→</span>
-                </a>
-              ))}
-            </div>
-          </Cartao>
+        {secao === "inicio" && (
+          <SistemasDaConta sistemas={sistemas} />
         )}
 
         {secao === "dados" && (

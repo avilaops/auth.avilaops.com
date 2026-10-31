@@ -9,6 +9,9 @@
  *    o que está sob teste é a assinatura dos tokens, não o cookie. Um esqueleto
  *    inofensivo no lugar mantém o teste hermético e sem subir um servidor.
  */
+import { existsSync, readFileSync } from "node:fs";
+import ts from "typescript";
+
 const RAIZ = new URL("../src/", import.meta.url).href;
 
 const ESQUELETO_HEADERS =
@@ -28,7 +31,19 @@ export function resolve(especificador, contexto, proximo) {
     return proximo("next/server.js", contexto);
   }
   if (especificador.startsWith("@/")) {
-    return proximo(RAIZ + especificador.slice(2) + ".ts", contexto);
+    const base = RAIZ + especificador.slice(2);
+    return proximo(base + (existsSync(new URL(base + ".ts")) ? ".ts" : ".tsx"), contexto);
   }
   return proximo(especificador, contexto);
+}
+
+/** Renderiza componentes reais nos testes de interface, sem servidor ou banco. */
+export function load(url, contexto, proximo) {
+  if (url.endsWith(".tsx")) {
+    const { outputText } = ts.transpileModule(readFileSync(new URL(url), "utf8"), {
+      compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+    });
+    return { format: "module", source: outputText, shortCircuit: true };
+  }
+  return proximo(url, contexto);
 }
