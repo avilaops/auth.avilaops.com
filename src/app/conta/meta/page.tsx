@@ -94,6 +94,8 @@ export default async function ContaMetaPage({ searchParams }: { searchParams: Pr
         </div>
       </header>
 
+      <p className="mb-6 text-sm"><Link href="/conta/threads" className="underline">Consultar a conexão Threads da empresa</Link></p>
+
       {mensagem && (
         <p
           role={mensagem.erro ? "alert" : "status"}
