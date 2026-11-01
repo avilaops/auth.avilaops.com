@@ -10,6 +10,18 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-META-HOST-20261101",
+      "title": "Manter inicio e callback OAuth da Meta no host Auth",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Conectar pelo portal Conta passa pelo Auth antes da Meta; callback valida o estado no mesmo host; demais APIs permanecem no host original; CI e fluxo real verificados.",
+      "evidence": "docs/META-OAUTH-HOST-20261101.md; tests/hostDaConta.test.ts.",
+      "history": [
+        { "at": "2026-11-01", "status": "em-andamento", "note": "Erro fluxo_expirado reproduzido em producao durante configuracao do app Meta; correcao em worktree isolado de origin/main." },
+        { "at": "2026-11-01", "status": "em-revisao", "note": "316 testes, typecheck e lint passaram localmente; publicacao pelo CI e retorno autenticado pendentes." }
+      ]
+    },
+    {
       "id": "AUTH-EMAIL-STATE-20261029",
       "title": "Persistência dos estados de e-mail em portal_clients",
       "status": "em-revisao",
