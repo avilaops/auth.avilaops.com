@@ -125,7 +125,7 @@ describe("ordenação, paginação e agrupamento", () => {
 });
 
 describe("contas", () => {
-  const base: Omit<Conta, "id" | "nome" | "email" | "role"> = { cpf: null, telefone: null, senhaProvisoria: false, criadoEm: new Date("2026-01-01"), ativa: true, organizationId: null, ultimoAcessoEm: null };
+  const base: Omit<Conta, "id" | "nome" | "email" | "role"> = { cpf: null, telefone: null, senhaProvisoria: false, criadoEm: new Date("2026-01-01"), ativa: true, organizationId: null, ultimoAcessoEm: null, emailVerificado: false, mfaEmailAtivo: false, mfaEmailBloqueadoAte: null };
   const contas: Conta[] = [
     { ...base, id: "1", nome: "Nicolas", email: "nicolas@avilaops.com", role: "OWNER", ultimoAcessoEm: new Date("2026-10-08T12:00:00Z") },
     { ...base, id: "2", nome: "Érica", email: "erica@loja.test", role: "ADMIN", organizationId: "org-b", cpf: "123.456.789-09" },

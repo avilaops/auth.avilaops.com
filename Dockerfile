@@ -33,7 +33,11 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/migrations/portal ./migrations/portal
+COPY --from=build /app/scripts/migrate-portal.mjs /app/scripts/docker-entrypoint.sh ./scripts/
+# Verifica que a dependência usada antes do servidor está no standalone.
+RUN node -e "require.resolve('pg')"
 
 USER nextjs
 EXPOSE 3010
-CMD ["node", "server.js"]
+CMD ["sh", "scripts/docker-entrypoint.sh"]

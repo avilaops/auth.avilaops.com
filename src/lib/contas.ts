@@ -90,6 +90,11 @@ export type Conta = {
   /** Empresa que a conta representa (so CLIENT). */
   organizationId: string | null;
   ultimoAcessoEm: Date | null;
+  /** Estado persistido da confirmação do endereço atual; não ativa MFA. */
+  emailVerificado: boolean;
+  /** Preferência persistida; o desafio por e-mail ainda não está implementado. */
+  mfaEmailAtivo: boolean;
+  mfaEmailBloqueadoAte: Date | null;
 };
 
 type Linha = {
@@ -105,10 +110,13 @@ type Linha = {
   ativo: boolean;
   organization_id: string | null;
   ultimo_acesso_em: Date | null;
+  email_verificado: boolean;
+  mfa_email_ativo: boolean;
+  mfa_email_bloqueado_ate: Date | null;
 };
 
 const COLUNAS =
-  "id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em";
+  "id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em, email_verificado, mfa_email_ativo, mfa_email_bloqueado_ate";
 
 function daLinha(l: Omit<Linha, "senha_hash">): Conta {
   return {
@@ -123,6 +131,9 @@ function daLinha(l: Omit<Linha, "senha_hash">): Conta {
     ativa: l.ativo,
     organizationId: l.organization_id,
     ultimoAcessoEm: l.ultimo_acesso_em,
+    emailVerificado: l.email_verificado,
+    mfaEmailAtivo: l.mfa_email_ativo,
+    mfaEmailBloqueadoAte: l.mfa_email_bloqueado_ate,
   };
 }
 
@@ -245,7 +256,8 @@ export async function consultarPaginaDeContas(consulta: import("@/lib/listagem")
     const pag = Math.min(consulta.pag, paginas);
     const inicio = (pag - 1) * consulta.por;
     const { rows } = await conexao.query<Omit<Linha, "senha_hash">>(
-      `SELECT id, nome, email, cpf, telefone, role, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em
+      `SELECT id, nome, email, cpf, telefone, role, senha_provisoria, criado_em, ativo, organization_id, ultimo_acesso_em,
+              email_verificado, mfa_email_ativo, mfa_email_bloqueado_ate
        FROM portal_clients ${sql.onde} ORDER BY ${sql.ordem} LIMIT $${sql.valores.length + 1} OFFSET $${sql.valores.length + 2}`,
       [...sql.valores, consulta.por, inicio],
     );
@@ -345,8 +357,8 @@ export async function criarConta(dados: NovaConta): Promise<{ conta: Conta; senh
   const id = randomUUID();
   const cpf = dados.cpf?.replace(/\D/g, "") || null;
   const { rows } = await getPool().query<Linha>(
-    `insert into portal_clients (id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria)
-     values ($1, $2, $3, $4, $5, $6, $7, true)
+    `insert into portal_clients (id, nome, email, cpf, telefone, role, senha_hash, senha_provisoria, email_verificado, mfa_email_ativo)
+     values ($1, $2, $3, $4, $5, $6, $7, true, false, false)
      returning ${COLUNAS}`,
     [id, dados.nome.trim(), dados.email.trim().toLowerCase(), cpf, dados.telefone || null, dados.role, await hashSenha(senha)],
   );
@@ -364,7 +376,16 @@ export async function atualizarConta(
     sets.push(`${coluna} = $${valores.length}`);
   };
   if (dados.nome !== undefined) add("nome", dados.nome.trim());
-  if (dados.email !== undefined) add("email", dados.email.trim().toLowerCase());
+  if (dados.email !== undefined) {
+    add("email", dados.email.trim().toLowerCase());
+    const parametro = `$${valores.length}`;
+    // As expressões do mesmo UPDATE leem o endereço anterior. Trocar apenas
+    // caixa/espaços preserva o estado; outro endereço exige nova confirmação.
+    const mesmoEmail = `lower(btrim(email)) = ${parametro}`;
+    sets.push(`email_verificado = CASE WHEN ${mesmoEmail} THEN email_verificado ELSE false END`);
+    sets.push(`mfa_email_ativo = CASE WHEN ${mesmoEmail} THEN mfa_email_ativo ELSE false END`);
+    sets.push(`mfa_email_bloqueado_ate = CASE WHEN ${mesmoEmail} THEN mfa_email_bloqueado_ate ELSE NULL END`);
+  }
   if (dados.cpf !== undefined) add("cpf", dados.cpf?.replace(/\D/g, "") || null);
   if (dados.telefone !== undefined) add("telefone", dados.telefone || null);
   if (dados.role !== undefined) add("role", papelValido(dados.role));

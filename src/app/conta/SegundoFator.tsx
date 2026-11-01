@@ -115,6 +115,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
   if (!estado.ativo) {
     return (
       <div className="flex flex-col gap-3">
+        <span className="self-start rounded-full bg-[var(--verde-suave)] px-2 py-0.5 text-xs text-[var(--color-verde)]">Disponível</span>
         <p className="text-xs leading-relaxed text-[var(--color-texto-fraco)]">
           {estado.obrigatorio
             ? "Sua conta é da equipe Avila Ops: o segundo fator é obrigatório e será pedido no próximo login."
@@ -130,7 +131,7 @@ export default function SegundoFator({ estado }: { estado: Estado }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded-full bg-[var(--verde-suave)] px-2 py-0.5 text-xs text-[var(--color-verde)]">ativa</span>
+        <span className="rounded-full bg-[var(--verde-suave)] px-2 py-0.5 text-xs text-[var(--color-verde)]">Ativo</span>
         <span className="text-xs text-[var(--color-texto-fraco)]">
           {estado.confirmadoEm && `desde ${estado.confirmadoEm} · `}
           {estado.codigosRestantes} {estado.codigosRestantes === 1 ? "código de recuperação" : "códigos de recuperação"}

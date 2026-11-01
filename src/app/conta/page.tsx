@@ -214,8 +214,8 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         </Cartao>
 
         <Cartao
-          titulo="Verificação em duas etapas"
-          subtitulo="A senha prova quem você diz ser; o código no celular prova que é você mesmo."
+          titulo="Aplicativo autenticador"
+          subtitulo="Verificação em duas etapas com os códigos gerados no seu aplicativo."
         >
           <SegundoFator
             estado={{
@@ -229,6 +229,42 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
               disponivel: mfaDisponivel(),
             }}
           />
+        </Cartao>
+
+        <Cartao titulo="Confirmação por e-mail" subtitulo="Confirme que você tem acesso ao endereço da sua conta.">
+          <p className="break-all text-sm">{conta?.email ?? sessao.email}</p>
+          <p className={`mt-2 text-xs font-medium ${conta?.emailVerificado ? "text-[var(--color-verde)]" : "text-[var(--color-texto-fraco)]"}`}>
+            {conta ? (conta.emailVerificado ? "Confirmado" : "Não confirmado") : "Confirmação não informada"}
+          </p>
+          <p id="confirmacao-email-indisponivel" className="mt-3 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
+            O envio de um novo link de confirmação ainda não está disponível nesta tela.
+            A confirmação no cadastro de uma nova conta é uma etapa separada.
+          </p>
+          <button type="button" disabled aria-describedby="confirmacao-email-indisponivel"
+            className="mt-4 min-h-11 cursor-not-allowed rounded-lg border border-[var(--color-borda)] px-4 py-2 text-sm opacity-60">
+            Enviar link de confirmação
+          </button>
+          <label className="mt-4 flex min-h-11 cursor-not-allowed items-center gap-3 text-sm text-[var(--color-texto-fraco)]">
+            <input type="checkbox" disabled checked={false} readOnly aria-describedby="mfa-email-indisponivel" className="h-4 w-4 shrink-0" />
+            Usar e-mail como segundo fator
+          </label>
+          <p id="mfa-email-indisponivel" className="mt-1 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
+            Indisponível. A verificação em duas etapas por e-mail ainda não está disponível para sua conta.
+          </p>
+        </Cartao>
+
+        <Cartao titulo="Confirmação por SMS" subtitulo="Confirme que você tem acesso ao telefone da sua conta.">
+          <p className="break-all text-sm">{conta?.telefone || "Nenhum telefone cadastrado"}</p>
+          <p id="confirmacao-sms-indisponivel" className="mt-2 text-xs font-medium text-[var(--color-texto-fraco)]">
+            Indisponível — integração pendente
+          </p>
+          <p className="mt-3 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
+            Ter um telefone no cadastro não confirma a posse do número. O envio de códigos por SMS ainda não está disponível.
+          </p>
+          <label className="mt-4 flex min-h-11 cursor-not-allowed items-center gap-3 text-sm text-[var(--color-texto-fraco)]">
+            <input type="checkbox" disabled checked={false} readOnly aria-describedby="confirmacao-sms-indisponivel" className="h-4 w-4 shrink-0" />
+            Usar SMS para verificar a conta
+          </label>
         </Cartao>
         </>
         )}

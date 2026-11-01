@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { readFile } from "node:fs/promises";
 import { defContas } from "@/lib/contasLista";
 import { lerConsulta } from "@/lib/listagem";
 
@@ -27,6 +28,7 @@ describe("paginação PostgreSQL com 300 mil contas sintéticas", { skip: !url }
              i % 2 = 0, timestamp '2026-01-01' + i * interval '1 second',
              i % 3 <> 0, CASE WHEN i % 2 = 0 THEN 'empresa-a' END, NULL
       FROM generate_series(1, 300000) AS i`);
+    await pool.query(await readFile(new URL("../migrations/portal/202610290001_email_verification.sql", import.meta.url), "utf8"));
     await pool.query("ANALYZE portal_clients");
   });
   after(async () => { await pool.end(); });
@@ -41,6 +43,9 @@ describe("paginação PostgreSQL com 300 mil contas sintéticas", { skip: !url }
     assert.equal(r.pagina.itens[0].id, "005001");
     assert.deepEqual([r.pagina.de, r.pagina.ate], [5001, 5025]);
     assert.equal("senha_hash" in r.pagina.itens[0], false);
+    assert.equal(r.pagina.itens[0].emailVerificado, false);
+    assert.equal(r.pagina.itens[0].mfaEmailAtivo, false);
+    assert.equal(r.pagina.itens[0].mfaEmailBloqueadoAte, null);
   });
 
   it("agrupamentos mantêm o total completo e o limite de renderização", async () => {
