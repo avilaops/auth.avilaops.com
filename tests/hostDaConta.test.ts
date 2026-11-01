@@ -32,6 +32,20 @@ describe("conta.avilaops.com", () => {
     assert.equal(url.searchParams.get("returnTo"), "https://conta.avilaops.com/");
   });
 
+  it("inicia a conexão Meta no host do callback, preservando o cookie de validação", () => {
+    assert.deepEqual(decidirNoHostDaConta("/api/meta/conectar", "", AUTH), {
+      tipo: "redirecionar", url: `${AUTH}/api/meta/conectar`,
+    });
+    assert.deepEqual(decidirNoHostDaConta("/api/meta/conectar", "?origem=conta", AUTH), {
+      tipo: "redirecionar", url: `${AUTH}/api/meta/conectar?origem=conta`,
+    });
+    assert.equal(destinoDaContaNoAuth("GET", "/api/meta/conectar", ""), null);
+    assert.equal(destinoDaContaNoAuth("GET", "/api/meta/callback", "?code=teste&state=teste"), null);
+    for (const caminho of ["/api/meta/whatsapp", "/api/meta/ativos", "/api/meta/exclusao", "/api/meta/desautorizar", "/api/meta/conectar-outro"]) {
+      assert.deepEqual(decidirNoHostDaConta(caminho, "", AUTH), { tipo: "seguir" }, caminho);
+    }
+  });
+
   it("painel, OIDC e senha são do Auth: vão para lá, no mesmo caminho", () => {
     assert.deepEqual(decidirNoHostDaConta("/admin/apps", "?f_tipo=site", AUTH), { tipo: "redirecionar", url: "https://auth.avilaops.com/admin/apps?f_tipo=site" });
     assert.deepEqual(decidirNoHostDaConta("/trocar-senha", "?returnTo=%2Fconta", AUTH), { tipo: "redirecionar", url: "https://auth.avilaops.com/trocar-senha?returnTo=%2Fconta" });

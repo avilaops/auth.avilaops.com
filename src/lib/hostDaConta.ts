@@ -9,6 +9,8 @@
  * - `/conta…`, as rotas de API e os arquivos estáticos passam como estão (a
  *   página chama `/api/auth/…` por caminho relativo, e mandar isso para outro
  *   host quebraria a chamada);
+ * - a conexão OAuth da Meta começa no Auth, onde está o callback, para que
+ *   o cookie temporário de validação fique no mesmo host do retorno;
  * - `/login` vai para o login do Auth pedindo a volta para cá;
  * - o resto (painel, OIDC, recuperação de senha) é do Auth e vai para lá, no
  *   mesmo caminho. Assim nenhuma tela de login ou de painel existe em dois
@@ -34,6 +36,9 @@ const PASSAM = ["/conta", "/api", "/_next"];
 
 export function decidirNoHostDaConta(caminho: string, busca: string, baseDoAuth: string): Decisao {
   if (caminho === "/") return { tipo: "reescrever", caminho: "/conta" };
+  if (caminho === "/api/meta/conectar") {
+    return { tipo: "redirecionar", url: `${baseDoAuth}${caminho}${busca}` };
+  }
   if (PASSAM.some((p) => caminho === p || caminho.startsWith(`${p}/`))) return { tipo: "seguir" };
   // Arquivo de `public/` (ícones, marca): tem extensão no último trecho.
   if (/\.[a-z0-9]+$/i.test(caminho)) return { tipo: "seguir" };
