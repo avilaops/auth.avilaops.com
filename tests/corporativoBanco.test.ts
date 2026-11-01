@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { after, before, describe, it } from "node:test";
 
 const URL_TESTE = process.env.TEST_DATABASE_URL;
@@ -44,6 +45,7 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
       organization_id TEXT,
       ultimo_acesso_em TIMESTAMP
     )`);
+    await portal.query(await readFile(new URL("../migrations/portal/202610290001_email_verification.sql", import.meta.url), "utf8"));
     await portal.query(
       `INSERT INTO portal_clients (id, nome, email, role, senha_hash, senha_provisoria, criado_em, ativo)
        VALUES ($1, 'Comprador', $2, 'CLIENT', 'teste', false, now(), true),

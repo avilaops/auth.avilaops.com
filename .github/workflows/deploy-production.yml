@@ -60,7 +60,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/contasPaginadasBanco.test.ts tests/empresasPaginadasBanco.test.ts
+      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/contasPaginadasBanco.test.ts tests/empresasPaginadasBanco.test.ts tests/contasEmailBanco.test.ts
         env:
           TEST_PORTAL_DATABASE_URL: postgresql://auth_test:isolated_test_only@localhost:5432/auth_pagination_test
   image:

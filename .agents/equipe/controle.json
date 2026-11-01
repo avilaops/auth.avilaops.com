@@ -10,6 +10,19 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-EMAIL-STATE-20261029",
+      "title": "Persistência dos estados de e-mail em portal_clients",
+      "status": "concluida",
+      "owner": "nicolas-rosa",
+      "acceptance": "DDL separado do Prisma; projeções completas de Conta; defaults false/false/null; troca de endereço invalida estados; testes PostgreSQL isolados e UI lendo estado persistido.",
+      "evidence": "docs/EVIDENCIA-ESTADOS-EMAIL-20261029.md; migrations/portal/202610290001_email_verification.sql; tests/contasEmailBanco.test.ts. Base 7293c42 com alterações locais; sem publicação.",
+      "blocker": "",
+      "history": [
+        { "at": "2026-10-29", "status": "em-andamento", "note": "Implementação e validação locais; sem migração ou publicação em produção." },
+        { "at": "2026-10-29", "status": "concluida", "note": "Persistência e mapeamento validados: 297 testes padrão, 19 PostgreSQL, 9 corporativos e 14 cenários locais de login/interface. Envio e MFA por e-mail permanecem fora desta entrega." }
+      ]
+    },
+    {
       "id": "AVL-246",
       "title": "Identidade corporativa B2B compartilhada",
       "status": "concluida",
