@@ -15,6 +15,8 @@ const app = {
 const fixture = {
   store,
   confirmado: false,
+  codigosEmitidos: 0,
+  eventos: [] as { tipo: string; email: string; detalhe: string }[],
   prisma: {
     clienteOidc: { findUnique: async ({ where }: { where: { id: string } }) => where.id === "airtable-avila" ? {
       id: "airtable-avila", appId: "airtable", nome: "Airtable", ativo: true,
@@ -23,7 +25,8 @@ const fixture = {
     } : null },
     aplicacao: { findUnique: async ({ where }: { where: { id: string } }) => where.id === "airtable" ? app : null },
     segundoFator: { findUnique: async () => fixture.confirmado ? { confirmadoEm: new Date() } : null },
-    evento: { create: async () => ({ id: "evento-teste" }) },
+    codigoOAuth: { create: async () => { fixture.codigosEmitidos++; return { id: "codigo-teste" }; } },
+    evento: { create: async ({ data }: { data: { tipo: string; email: string; detalhe: string } }) => { fixture.eventos.push(data); return { id: "evento-teste" }; } },
   },
 };
 Object.assign(globalThis, { __elevacaoOidcFixture: fixture });
@@ -45,13 +48,53 @@ process.env.MFA_EQUIPE = "opcional";
 process.env.SSO_BASE_URL = "https://auth.avilaops.com";
 
 const { NextRequest } = await import("next/server.js");
-const { assinarSessao } = await import("@/lib/sessao");
+const { assinarSessao, verificarSessao } = await import("@/lib/sessao");
 const { verificarDesafio } = await import("@/lib/desafio");
 const { GET: autorizar } = await import("@/app/oauth/authorize/route");
 const { GET: elevar } = await import("@/app/api/auth/mfa/elevar/route");
 const retorno = "/oauth/authorize?client_id=airtable-avila&response_type=code&redirect_uri=https%3A%2F%2Fairtable.avilaops.com%2Favila%2Fapi%2Fsso%2Fcallback&state=estado-original&nonce=nonce-original&code_challenge=desafio-original&code_challenge_method=S256";
 
 describe("elevação de segundo fator em OIDC", () => {
+  it("suspende somente a conta autorizada e volta a exigir MFA quando a janela expira", async () => {
+    const anterior = process.env.MFA_SUSPENSAO_TEMPORARIA;
+    const agora = Date.now();
+    const configuracao = { email: "qa@example.com", inicio: new Date(agora - 1000).toISOString(), fim: new Date(agora + 60_000).toISOString(), motivo: "Exceção operacional de teste" };
+    try {
+      fixture.confirmado = true;
+      fixture.codigosEmitidos = 0;
+      fixture.eventos = [];
+      process.env.MFA_SUSPENSAO_TEMPORARIA = JSON.stringify(configuracao);
+      const preparar = (email: string) => {
+        store.clear();
+        store.set("avila_sso", assinarSessao({ sub: "qa", email, nome: "QA", foto: null, papel: "ADMIN", mfa: false }));
+      };
+      preparar(configuracao.email);
+      const liberada = await autorizar(new NextRequest("https://auth.avilaops.com" + retorno));
+      const local = new URL(liberada.headers.get("location")!);
+      assert.equal(local.hostname, "airtable.avilaops.com");
+      assert.ok(local.searchParams.get("code"));
+      assert.equal(local.searchParams.get("state"), "estado-original");
+      assert.equal(fixture.codigosEmitidos, 1);
+      assert.equal(verificarSessao(store.get("avila_sso")!)?.mfa, false);
+      assert.equal(fixture.confirmado, true, "a suspensão não remove o autenticador");
+      assert.ok(fixture.eventos.some(evento => evento.tipo === "mfa_suspenso_temporariamente" && evento.email === configuracao.email));
+
+      preparar("outra@example.com");
+      const outra = await autorizar(new NextRequest("https://auth.avilaops.com" + retorno));
+      assert.equal(new URL(outra.headers.get("location")!).pathname, "/api/auth/mfa/elevar");
+      assert.equal(fixture.codigosEmitidos, 1);
+
+      process.env.MFA_SUSPENSAO_TEMPORARIA = JSON.stringify({ ...configuracao, inicio: new Date(agora - 60_000).toISOString(), fim: new Date(agora - 1000).toISOString() });
+      preparar(configuracao.email);
+      const expirada = await autorizar(new NextRequest("https://auth.avilaops.com" + retorno));
+      assert.equal(new URL(expirada.headers.get("location")!).pathname, "/api/auth/mfa/elevar");
+      assert.equal(fixture.codigosEmitidos, 1);
+    } finally {
+      if (anterior === undefined) delete process.env.MFA_SUSPENSAO_TEMPORARIA;
+      else process.env.MFA_SUSPENSAO_TEMPORARIA = anterior;
+    }
+  });
+
   for (const confirmado of [false, true]) {
     it(`interrompe o ciclo e preserva a autorização ao ${confirmado ? "verificar" : "cadastrar"} o fator`, async () => {
       fixture.confirmado = confirmado;

@@ -3,6 +3,7 @@ import type { AppRegistrado, Papel } from "@/lib/apps";
 import { chaveConfigurada, cifrar, decifrar } from "@/lib/cripto";
 import { registrar } from "@/lib/eventos";
 import { prisma } from "@/lib/prisma";
+import { suspensaoMfaAtiva } from "@/lib/suspensaoMfa";
 import { gerarSegredo, segredoLegivel, uriOtpauth, verificarCodigo } from "@/lib/totp";
 
 /**
@@ -83,7 +84,12 @@ function marcarMigracaoPendente(erro: unknown): void {
  * O rastro fica em `eventos` (`mfa_indisponivel`) e o painel avisa em vermelho.
  */
 export function mfaDisponivel(): boolean {
-  return chaveConfigurada() && !migracaoPendente;
+  return mfaHabilitado() && chaveConfigurada() && !migracaoPendente;
+}
+
+/** Somente a desativação explícita no ambiente desliga a política global. */
+export function mfaHabilitado(): boolean {
+  return process.env.MFA_HABILITADO?.trim().toLowerCase() !== "false";
 }
 
 /**
@@ -91,7 +97,8 @@ export function mfaDisponivel(): boolean {
  *
  * `MFA_EQUIPE=opcional` afrouxa para a equipe durante uma janela de migração —
  * quem já ativou continua sendo desafiado de qualquer jeito (ver
- * `desafioNecessario`), porque fator ativo nunca deixa de valer.
+ * `desafioNecessario`). A única exceção operacional é uma suspensão explícita
+ * por conta e prazo, sem remover o fator cadastrado.
  */
 export function exigeSegundoFator(p: { papel: Papel; app?: AppRegistrado | null }): boolean {
   return mfaDisponivel() && politicaExige(p);
@@ -105,6 +112,7 @@ export function exigeSegundoFator(p: { papel: Papel; app?: AppRegistrado | null 
  * (`mfa_indisponivel`) em vez de passar despercebida.
  */
 export function politicaExige(p: { papel: Papel; app?: AppRegistrado | null }): boolean {
+  if (!mfaHabilitado()) return false;
   if (p.app?.exigeSegundoFator) return true;
   if (p.papel !== "ADMIN") return false;
   return (process.env.MFA_EQUIPE ?? "obrigatorio").toLowerCase() !== "opcional";
@@ -124,6 +132,17 @@ export async function desafioNecessario(p: {
   papel: Papel;
   app?: AppRegistrado | null;
 }): Promise<"nenhum" | "verificar" | "cadastrar"> {
+  if (!mfaHabilitado()) return "nenhum";
+  const suspensao = suspensaoMfaAtiva(p);
+  if (suspensao) {
+    await registrar({
+      tipo: "mfa_suspenso_temporariamente",
+      email: p.email,
+      appId: p.app?.id ?? null,
+      detalhe: `${suspensao.motivo} · até ${suspensao.fim}`,
+    });
+    return "nenhum";
+  }
   if (!mfaDisponivel()) return "nenhum";
   const fator = await buscar(p.email);
   if (fator?.confirmadoEm) return "verificar";
@@ -139,6 +158,8 @@ const SEM_FATOR: EstadoFator = {
 };
 
 export type Diagnostico = {
+  /** Controle operacional global; não apaga fatores cadastrados. */
+  habilitado: boolean;
   /** O segundo fator está realmente protegendo alguém? */
   disponivel: boolean;
   /** `AUTH_ENCRYPTION_KEY` presente e no formato certo. */
@@ -169,7 +190,8 @@ export async function diagnosticar(): Promise<Diagnostico> {
     }
   }
   return {
-    disponivel: chave && !migracaoPendente,
+    habilitado: mfaHabilitado(),
+    disponivel: mfaHabilitado() && chave && !migracaoPendente,
     chave,
     migracoes: migracaoPendente ? "pendentes" : "aplicadas",
   };

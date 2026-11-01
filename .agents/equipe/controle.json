@@ -12,15 +12,45 @@
     {
       "id": "AUTH-EMAIL-STATE-20261029",
       "title": "Persistência dos estados de e-mail em portal_clients",
-      "status": "concluida",
+      "status": "em-revisao",
       "owner": "nicolas-rosa",
       "acceptance": "DDL separado do Prisma; projeções completas de Conta; defaults false/false/null; troca de endereço invalida estados; testes PostgreSQL isolados e UI lendo estado persistido.",
       "evidence": "docs/EVIDENCIA-ESTADOS-EMAIL-20261029.md; migrations/portal/202610290001_email_verification.sql; tests/contasEmailBanco.test.ts. Base 7293c42 com alterações locais; sem publicação.",
-      "blocker": "",
+      "blocker": "O deploy deve aplicar a migration de portal_clients antes da imagem; o workflow atual só trata o schema Prisma.",
       "history": [
         { "at": "2026-10-29", "status": "em-andamento", "note": "Implementação e validação locais; sem migração ou publicação em produção." },
         { "at": "2026-10-29", "status": "concluida", "note": "Persistência e mapeamento validados: 297 testes padrão, 19 PostgreSQL, 9 corporativos e 14 cenários locais de login/interface. Envio e MFA por e-mail permanecem fora desta entrega." }
       ]
+    },
+    {
+      "id": "AVL-384",
+      "title": "Preservar produto de origem após cadastro e recuperação",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Conta nova e existente retornam ao produto validado; links e destinos inválidos não abrem redirecionamentos externos; OIDC reinicia com estado próprio, preservando permissão e MFA.",
+      "evidence": "docs/RETORNO-CADASTRO-AVL-384.md; 315 testes locais aprovados, typecheck e lint sem erros. Publicação e percurso autenticado pendentes.",
+      "blocker": "Publicação e evidência autenticada do percurso completo pendentes.",
+      "history": [{ "at": "2026-10-31", "status": "em-revisao", "note": "Origem normalizada na emissão e confirmação; recuperação preserva consumo atômico e revalida acesso. Responsável conforme Linear." }]
+    },
+    {
+      "id": "AVL-385",
+      "title": "Início da conta com sistemas autorizados e próximos passos reais",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Mostrar sistemas autorizados, oferecer destinos reais e estados distintos de carregamento, erro e vazio; validar navegação web/mobile sem criar permissões ou convites fictícios.",
+      "evidence": "docs/CONTA-INICIO-AVL-385.md; typecheck aprovado; lint sem erros; 308 testes locais aprovados. Validação visual, CI e produção pendentes.",
+      "blocker": "Validação visual autenticada e publicação ainda não comprovadas.",
+      "history": [{ "at": "2026-10-31", "status": "em-revisao", "note": "Implementação em checkout isolado de origin/main; alterações de segurança no checkout anterior preservadas. Responsável conforme atribuição atual no Linear." }]
+    },
+    {
+      "id": "MFA-20261030-01",
+      "title": "Suspensão temporária de MFA por conta para desenvolvimento autorizado",
+      "status": "concluida",
+      "owner": "nicolas-rosa",
+      "acceptance": "Exceção de uma única conta ADMIN por até 24 horas, sem apagar o autenticador, sem alterar outros usuários e com expiração automática e auditoria.",
+      "evidence": "docs/SUSPENSAO-TEMPORARIA-MFA.md; 7 testes locais aprovados; workflow 40997121918 aprovado; imagem 514423c75380309d20d98ebfcd4644af08d7b2b6 publicada e saudável. Ativação operacional auditada, com janela limitada e comparação antes/depois confirmando preservação dos autenticadores e códigos de recuperação.",
+      "blocker": "",
+      "history": [{ "at": "2026-10-30", "status": "em-andamento", "note": "Escopo limitado à conta do solicitante; validar login, OIDC, expiração e preservação dos fatores." }, { "at": "2026-10-30", "status": "em-revisao", "note": "Política e fluxo OIDC verificados localmente; aguardando a imagem aprovada e a configuração privada da janela operacional." }, { "at": "2026-10-30", "status": "concluida", "note": "Código publicado pelo CI. Configuração privada conferida em produção, ambiente anterior preservado, fatores intactos e auditoria gravada. Login real continua exigindo a primeira credencial; nenhuma sessão foi forjada." }]
     },
     {
       "id": "AVL-246",

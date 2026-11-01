@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { lerDesafio } from "@/lib/desafio";
+import { mfaHabilitado } from "@/lib/segundoFator";
 import Moldura from "../Moldura";
 import Cadastro from "./Cadastro";
 
@@ -12,6 +13,7 @@ export const metadata = { title: "Ativar verificação em duas etapas" };
  * depois seria o mesmo que não exigir, porque bastaria nunca voltar à tela.
  */
 export default async function CadastrarMfaPage() {
+  if (!mfaHabilitado()) redirect("/login");
   const desafio = await lerDesafio();
   if (!desafio) redirect("/login");
   if (desafio.motivo !== "cadastrar") redirect("/mfa");

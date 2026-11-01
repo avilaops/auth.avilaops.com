@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { lerTokenDeCadastro } from "@/lib/cadastroProprio";
+import { destinoDepoisDoCadastro, lerTokenDeCadastro } from "@/lib/cadastroProprio";
+import { origemDoCadastro } from "@/lib/origemDoCadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
 import Marca from "@/components/Marca";
 import FormSenha from "@/app/trocar-senha/FormSenha";
@@ -12,6 +13,8 @@ export default async function ConfirmarCadastroPage({ params }: { params: Promis
   const { token } = await params;
   const pedido = lerTokenDeCadastro(token);
   const jaExiste = pedido ? Boolean(await buscarContaPorEmail(pedido.email)) : false;
+  const origem = pedido ? await origemDoCadastro(pedido.app, pedido.returnTo) : null;
+  const entrarEm = origem?.app ? destinoDepoisDoCadastro(origem) : "/login";
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
@@ -28,7 +31,7 @@ export default async function ConfirmarCadastroPage({ params }: { params: Promis
             </p>
           ) : jaExiste ? (
             <p className="text-sm text-[var(--color-texto-fraco)]">
-              Este e-mail já tem conta. <Link href="/login" className="text-[var(--color-marca)] hover:underline">Entre com a sua senha</Link>.
+              Este e-mail já tem conta. <Link href={entrarEm} className="inline-flex min-h-11 items-center text-[var(--color-marca)] hover:underline">Entre com a sua senha</Link>.
             </p>
           ) : (
             <FormSenha destino="/conta" token={token} rota="/api/auth/criar/confirmar" rotuloBotao="Criar conta" />

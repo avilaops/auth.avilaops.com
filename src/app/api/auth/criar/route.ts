@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emailAceito, emailDeConfirmacao, emailDeContaExistente, linkDeConfirmacao, nomeAceito, normalizarEmail, tokenDeCadastro } from "@/lib/cadastroProprio";
-import { buscarApp } from "@/lib/cadastro";
+import { origemDoCadastro } from "@/lib/origemDoCadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
 import { emailConfigurado, enviarEmail } from "@/lib/email";
 import { limitar } from "@/lib/rateLimit";
@@ -44,16 +44,13 @@ export async function POST(req: NextRequest) {
   // Um endereço não recebe mais de três e-mails por hora, peça quem pedir.
   if (!(await limitar(`criar-email:${email}`, 3, 60 * 60 * 1000))) return NextResponse.json(RESPOSTA);
 
-  // O destino viaja no link só como texto: quem o valida é a tela de login,
-  // depois, com a sessão aberta. Aplicação desconhecida é descartada já aqui.
-  const app = typeof corpo.app === "string" ? await buscarApp(corpo.app) : null;
-  const returnTo = typeof corpo.returnTo === "string" && corpo.returnTo.length <= 2000 ? corpo.returnTo : null;
-
   try {
+    const origem = await origemDoCadastro(corpo.app, corpo.returnTo);
     if (await buscarContaPorEmail(email)) {
-      await enviarEmail({ para: email, ...emailDeContaExistente(await emitirLinkRecuperacao(email)) });
+      const link = await emitirLinkRecuperacao(email, undefined, origem.app, origem.returnTo);
+      await enviarEmail({ para: email, ...emailDeContaExistente(link) });
     } else {
-      const token = tokenDeCadastro({ email, nome, app: app?.id ?? null, returnTo });
+      const token = tokenDeCadastro({ email, nome, ...origem });
       await enviarEmail({ para: email, ...emailDeConfirmacao(nome, linkDeConfirmacao(token)) });
     }
   } catch (erro) {

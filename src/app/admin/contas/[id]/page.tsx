@@ -9,7 +9,7 @@ import { efeitoDoVinculo } from "@/lib/vinculoEmpresa";
 import { listarEventos } from "@/lib/eventos";
 import { descreverEvento } from "@/lib/eventosCatalogo";
 import { listarPermissoes } from "@/lib/permissoes";
-import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel } from "@/lib/segundoFator";
+import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { nomeProvedor } from "@/lib/provedores";
 import { listarVinculos } from "@/lib/vinculos";
 import {
@@ -170,7 +170,9 @@ export default async function ContaPage({ params }: { params: Promise<{ id: stri
               Código de 6 dígitos, trocado a cada 30 segundos, no celular da pessoa. O segredo é dela: o painel
               vê o estado e pode remover, nunca ler.
             </p>
-            {!mfaDisponivel() ? (
+            {!mfaHabilitado() ? (
+              <p className="text-xs text-[var(--color-texto-fraco)]">Verificação em duas etapas desativada pela administração para todas as contas e aplicativos.</p>
+            ) : !mfaDisponivel() ? (
               <p className="text-xs leading-relaxed text-[var(--color-marca-vermelho)]">
                 Indisponível: falta <code>AUTH_ENCRYPTION_KEY</code> no servidor. Enquanto isso, a
                 exigência fica suspensa e todo mundo entra só com a senha.

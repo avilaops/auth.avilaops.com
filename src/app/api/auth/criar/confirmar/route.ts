@@ -5,6 +5,7 @@ import { buscarContaPorEmail, criarConta, definirSenha, papelDaRole } from "@/li
 import { entrar } from "@/lib/entrada";
 import { registrar } from "@/lib/eventos";
 import { limitar } from "@/lib/rateLimit";
+import { origemDoCadastro } from "@/lib/origemDoCadastro";
 
 export const runtime = "nodejs";
 
@@ -36,8 +37,12 @@ export async function POST(req: NextRequest) {
   const nova = typeof corpo.nova === "string" ? corpo.nova : "";
   if (nova.length < 8) return NextResponse.json({ erro: "A senha precisa ter ao menos 8 caracteres." }, { status: 400 });
 
+  const origem = await origemDoCadastro(pedido.app, pedido.returnTo);
+  const destino = destinoDepoisDoCadastro(origem);
+  const contaExistente = { erro: "Este e-mail já tem conta. Entre com a sua senha.", entrarEm: origem.app ? destino : "/login" };
+
   if (await buscarContaPorEmail(pedido.email)) {
-    return NextResponse.json({ erro: "Este e-mail já tem conta. Entre com a sua senha." }, { status: 409 });
+    return NextResponse.json(contaExistente, { status: 409 });
   }
 
   let conta;
@@ -47,7 +52,7 @@ export async function POST(req: NextRequest) {
     const mensagem = erro instanceof Error ? erro.message : "";
     // Dois cliques ao mesmo tempo: o segundo bate na chave única.
     if (mensagem.includes("unique") || mensagem.includes("duplicate")) {
-      return NextResponse.json({ erro: "Este e-mail já tem conta. Entre com a sua senha." }, { status: 409 });
+      return NextResponse.json(contaExistente, { status: 409 });
     }
     throw erro;
   }
@@ -66,7 +71,7 @@ export async function POST(req: NextRequest) {
       nome: conta.nome,
       foto: null,
       papel: papelDaRole(conta.role),
-      destino: destinoDepoisDoCadastro(pedido),
+      destino,
       app: null,
       senhaProvisoria: false,
       via: "cadastro próprio",

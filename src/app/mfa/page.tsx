@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { lerDesafio } from "@/lib/desafio";
+import { mfaHabilitado } from "@/lib/segundoFator";
 import FormDesafio from "./FormDesafio";
 import Moldura from "./Moldura";
 
@@ -11,6 +12,7 @@ export const metadata = { title: "Verificação em duas etapas" };
  * ele não há o que verificar, e a pessoa volta à senha.
  */
 export default async function MfaPage() {
+  if (!mfaHabilitado()) redirect("/login");
   const desafio = await lerDesafio();
   if (!desafio) redirect("/login");
   if (desafio.motivo === "cadastrar") redirect("/mfa/cadastrar");
