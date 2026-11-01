@@ -92,6 +92,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
           </Link>
         ))}
         <Link href="/conta/meta" className={aba(false)}>Meta</Link>
+        <Link href="/conta/threads" className={aba(false)}>Threads</Link>
       </nav>
 
       {erro === "ja_usado" && (
