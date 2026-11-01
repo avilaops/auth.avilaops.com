@@ -16,7 +16,7 @@
       "owner": "nicolas-rosa",
       "acceptance": "DDL separado do Prisma; projeções completas de Conta; defaults false/false/null; troca de endereço invalida estados; testes PostgreSQL isolados e UI lendo estado persistido.",
       "evidence": "docs/EVIDENCIA-ESTADOS-EMAIL-20261029.md; migrations/portal/202610290001_email_verification.sql; tests/contasEmailBanco.test.ts. Base 7293c42 com alterações locais; sem publicação.",
-      "blocker": "O deploy deve aplicar a migration de portal_clients antes da imagem; o workflow atual só trata o schema Prisma.",
+      "blocker": "Aguardando CI do entrypoint que migra portal_clients antes de iniciar o servidor; scripts/migrate-portal.mjs e tests/portalMigration.test.mjs. Integração autorizada pelo proprietário em 2026-11-01.",
       "history": [
         { "at": "2026-10-29", "status": "em-andamento", "note": "Implementação e validação locais; sem migração ou publicação em produção." },
         { "at": "2026-10-29", "status": "concluida", "note": "Persistência e mapeamento validados: 297 testes padrão, 19 PostgreSQL, 9 corporativos e 14 cenários locais de login/interface. Envio e MFA por e-mail permanecem fora desta entrega." }

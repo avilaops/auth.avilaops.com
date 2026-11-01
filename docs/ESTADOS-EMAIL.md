@@ -41,11 +41,12 @@ o endereço; esta etapa não adiciona um gatilho ao banco compartilhado.
 
 ## Ordem de publicação
 
-Esta etapa foi preparada para validação local. O DDL **deve ser aplicado antes
-da imagem** que lê as colunas, no banco de contas. `prisma migrate deploy`
-não aplica esse arquivo. O pipeline atual não executa migrações do portal;
-essa etapa precisa ser incorporada ao processo aprovado de implantação antes
-de integrar/publicar esta branch. Nenhuma migração de produção foi executada.
+O entrypoint da imagem aplica o DDL pela conexão `PORTAL_DATABASE_URL` antes
+de iniciar `server.js`. `prisma migrate deploy` não aplica esse arquivo.
+A conexão deve permitir ALTER em `portal_clients`. O runner usa uma trava de
+sessão para serializar inicializações, espera limitada e a transação do DDL.
+Uma falha interrompe a inicialização sem imprimir credenciais. A imagem é
+construída pelo GitHub Actions; nenhum build é executado no servidor.
 
 Um rollback do aplicativo pode manter as colunas aditivas. Não remover colunas
 como parte do rollback, para preservar estados já gravados.
@@ -60,6 +61,10 @@ reaplicação, invalidação ao trocar endereço e rejeição de booleanos nulos
 Os testes de paginação continuam cobrindo 300 mil contas e 300 mil empresas
 sintéticas. A suíte de estados foi adicionada ao job PostgreSQL do CI.
 Ela exige `TEST_PORTAL_DATABASE_URL`; sem a variável, é explicitamente pulada.
+
+`tests/portalMigration.test.mjs` executa o CLI real em um schema isolado do
+PostgreSQL do CI. Verifica conexão obrigatória, recusa de tabela ausente,
+defaults, reaplicação concorrente e preservação de estados existentes.
 
 As capturas do navegador com registros sintéticos marcados no banco comprovam
 somente a leitura do estado pela interface. Não comprovam envio, recebimento
