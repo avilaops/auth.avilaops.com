@@ -1,5 +1,6 @@
 import { motivoDoAcesso, type AppRegistrado, type Papel } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
+import * as contas from "@/lib/contas";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -10,6 +11,7 @@ import { prisma } from "@/lib/prisma";
  *   precisar de nada, e em app `restrito` só com permissão explícita.
  */
 export async function podeEntrar(email: string, papel: Papel, app: AppRegistrado): Promise<boolean> {
+  if (app.politica?.empresaObrigatoria && (typeof contas.contaPossuiEmpresa !== "function" || !(await contas.contaPossuiEmpresa(email)))) return false;
   // Entra sem depender de permissão (equipe, ou app aberto)?
   if (motivoDoAcesso(app, papel, false)) return true;
   // Nem com permissão entraria (app só da equipe)? Então nem consulta o banco.

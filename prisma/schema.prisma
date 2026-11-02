@@ -257,13 +257,16 @@ model Aplicacao {
   /// `estatico` | `container` | `systemd` | `externo`
   publicacao    String?
   /// `no_ar` | `fora_do_ar` | `planejado` | `desativado`
-  situacao      String       @default("planejado")
+  situacao      String              @default("planejado")
   /// Empresa responsável (`operations.organizations.id`, no banco das contas).
   /// Sem chave estrangeira: são bancos diferentes. Só organiza o painel; não
   /// entra em nenhuma decisão de login.
-  organizacaoId String?      @map("organizacao_id")
+  organizacaoId String?             @map("organizacao_id")
   observacao    String?
   conferencia   Conferencia?
+  ambientes     AmbienteAplicacao[]
+  clientesOidc  ClienteOidc[]
+  politica      PoliticaAplicacao?
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -271,6 +274,46 @@ model Aplicacao {
 
   @@index([organizacaoId])
   @@map("aplicacoes")
+}
+
+/// Ambiente lógico de uma aplicação. Produção, homologação e desenvolvimento
+/// têm clientes e destinos próprios; nunca devem compartilhar configuração de
+/// protocolo por acidente.
+model AmbienteAplicacao {
+  id           String   @id @default(uuid())
+  aplicacaoId  String   @map("aplicacao_id")
+  nome         String
+  tipo         String   @default("producao")
+  dominio      String?
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  aplicacao    Aplicacao     @relation(fields: [aplicacaoId], references: [id], onDelete: Cascade)
+  clientesOidc ClienteOidc[]
+
+  @@unique([aplicacaoId, nome])
+  @@index([aplicacaoId, ativo])
+  @@map("ambientes_aplicacao")
+}
+
+/// Política central de entrada em uma aplicação. O catálogo descreve o
+/// produto; esta linha descreve a decisão de autenticação e acesso.
+model PoliticaAplicacao {
+  id                 String   @id @default(uuid())
+  aplicacaoId        String   @unique @map("aplicacao_id")
+  modoAcesso         String   @default("restrito") @map("modo_acesso")
+  exigeMfa           Boolean  @default(false) @map("exige_mfa")
+  permiteCadastro    Boolean  @default(true) @map("permite_cadastro")
+  permiteRecuperacao Boolean  @default(true) @map("permite_recuperacao")
+  conviteObrigatorio Boolean  @default(false) @map("convite_obrigatorio")
+  empresaObrigatoria Boolean  @default(false) @map("empresa_obrigatoria")
+  atualizadoEm       DateTime @default(now()) @updatedAt @map("atualizado_em")
+  atualizadoPor      String?  @map("atualizado_por")
+
+  aplicacao Aplicacao @relation(fields: [aplicacaoId], references: [id], onDelete: Cascade)
+
+  @@map("politicas_aplicacao")
 }
 
 /// Conexão de uma conta com a Meta (Facebook, Instagram, WhatsApp, anúncios).
@@ -351,27 +394,53 @@ model ExclusaoMeta {
 /// por gente.
 model ClienteOidc {
   /// `client_id` mandado pelo sistema.
-  id           String  @id
+  id                     String  @id
   /// Linha de `aplicacoes` que decide quem pode entrar por este cliente.
-  appId        String  @map("app_id")
-  nome         String
+  appId                  String  @map("app_id")
+  ambienteId             String? @map("ambiente_id")
+  nome                   String
   /// Endereços de retorno, um por linha. Igualdade exata.
-  redirectUris String  @map("redirect_uris")
-  segredoHash  String  @map("segredo_hash")
+  redirectUris           String  @map("redirect_uris")
+  postLogoutRedirectUris String  @default("") @map("post_logout_redirect_uris")
+  segredoHash            String  @map("segredo_hash")
   /// Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`).
-  acessoMeta   Boolean @default(false) @map("acesso_meta")
-  ativo        Boolean @default(true)
+  acessoMeta             Boolean @default(false) @map("acesso_meta")
+  ativo                  Boolean @default(true)
   /// Endereço avisado quando a pessoa sai no Auth (`lib/avisoDeLogout.ts`).
-  logoutUri    String? @map("logout_uri")
+  logoutUri              String? @map("logout_uri")
   /// Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`).
-  ssf          Boolean @default(false)
+  ssf                    Boolean @default(false)
+
+  aplicacao Aplicacao          @relation(fields: [appId], references: [id], onDelete: Restrict)
+  ambiente  AmbienteAplicacao? @relation(fields: [ambienteId], references: [id], onDelete: Restrict)
+  redirects RedirectUri[]
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
   atualizadoPor String?  @map("atualizado_por")
 
   @@index([appId])
+  @@index([ambienteId])
   @@map("clientes_oidc")
+}
+
+/// Destino OIDC autorizado. A tabela normalizada substitui gradualmente o
+/// texto legado `clientes_oidc.redirect_uris`, preservando compatibilidade
+/// durante a migração dos consumidores.
+model RedirectUri {
+  id           String   @id @default(uuid())
+  clienteId    String   @map("cliente_id")
+  tipo         String   @default("authorization")
+  uri          String
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  cliente ClienteOidc @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@unique([clienteId, tipo, uri])
+  @@index([clienteId, tipo, ativo])
+  @@map("redirect_uris")
 }
 
 /// Contador do limite de tentativas (login, 2FA, recuperação, token OIDC).
@@ -505,16 +574,16 @@ model RotinaEstado {
 /// Organização cujo acesso é compartilhado entre produtos. Dados comerciais
 /// continuam no sistema proprietário; o Auth guarda somente identidade e autorização.
 model OrganizacaoCorporativa {
-  id                String   @id @default(uuid())
-  clienteId         String   @map("cliente_id")
-  referenciaExterna String   @map("referencia_externa")
-  nome              String
-  situacao          String   @default("ATIVO")
-  versao            Int      @default(1)
-  ultimaIntencaoVersao Int   @default(0) @map("ultima_intencao_versao")
-  provisionamentoV2 Boolean  @default(false) @map("provisionamento_v2")
-  criadoEm          DateTime @default(now()) @map("criado_em")
-  atualizadoEm      DateTime @default(now()) @updatedAt @map("atualizado_em")
+  id                   String   @id @default(uuid())
+  clienteId            String   @map("cliente_id")
+  referenciaExterna    String   @map("referencia_externa")
+  nome                 String
+  situacao             String   @default("ATIVO")
+  versao               Int      @default(1)
+  ultimaIntencaoVersao Int      @default(0) @map("ultima_intencao_versao")
+  provisionamentoV2    Boolean  @default(false) @map("provisionamento_v2")
+  criadoEm             DateTime @default(now()) @map("criado_em")
+  atualizadoEm         DateTime @default(now()) @updatedAt @map("atualizado_em")
 
   unidades UnidadeCorporativa[]
   vinculos VinculoCorporativo[]

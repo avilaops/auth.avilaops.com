@@ -109,6 +109,10 @@ export default async function IntegracoesPage({ searchParams }: { searchParams: 
               <textarea name="redirectUris" rows={2} placeholder="https://crm.avilaops.com/api/auth/callback" className={`${campo} font-mono text-xs`} autoCapitalize="none" spellCheck={false} />
               <span className="text-[11px]">Em branco para sistema que só usa a API.</span>
             </label>
+            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereços pós-logout (um por linha, opcional)
+              <textarea name="postLogoutRedirectUris" rows={2} placeholder="https://crm.avilaops.com/ate-logo" className={`${campo} font-mono text-xs`} autoCapitalize="none" spellCheck={false} />
+              <span className="text-[11px]">Só serão aceitos no encerramento OIDC se estiverem cadastrados exatamente aqui.</span>
+            </label>
             <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">Endereço de aviso de saída (opcional)
               <input name="logoutUri" placeholder="https://crm.avilaops.com/api/auth/sair-aviso" className={`${campo} font-mono text-xs`} autoComplete="off" autoCapitalize="none" spellCheck={false} />
               <span className="text-[11px]">Quando a pessoa sai no Auth, este endereço recebe um aviso assinado para o sistema encerrar a sessão dela.</span>

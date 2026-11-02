@@ -17,6 +17,9 @@ export type Sessao = {
   nome: string;
   foto: string | null;
   papel: Papel;
+  /** Claims temporais expostos no contrato para consumidores que renovam ou revogam sessões. */
+  iat?: number;
+  exp?: number;
   /**
    * Segundo fator conferido nesta sessão.
    *

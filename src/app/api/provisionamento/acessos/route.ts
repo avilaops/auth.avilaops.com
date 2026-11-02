@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { returnToSeguro } from "@/lib/apps";
-import { buscarApp } from "@/lib/cadastro";
+import { buscarApp, politicaDaAplicacao } from "@/lib/cadastro";
 import { buscarContaPorEmail, criarConta } from "@/lib/contas";
 import { podeReemitirConvite } from "@/lib/convite";
 import { emailDeConvite, textoDeFora, type DadosDoConvite, type Envio } from "@/lib/conviteEmail";
@@ -85,7 +85,8 @@ async function preparar(req: NextRequest) {
   const app = await buscarApp(cliente.appId);
   if (!app) return { erro: erro(409, `${cliente.nome} não está habilitado no login único.`) } as const;
 
-  return { cliente, app, autor: `app:${cliente.id}`, ip } as const;
+  const politica = await politicaDaAplicacao(app.id);
+  return { cliente, app, politica, autor: `app:${cliente.id}`, ip } as const;
 }
 
 export async function POST(req: NextRequest) {
@@ -96,6 +97,8 @@ export async function POST(req: NextRequest) {
   const email = emailValido(corpo?.email);
   const nome = texto(corpo?.nome, 120);
   if (!email || !nome) return erro(400, "Informe nome e e-mail válido.");
+  if (p.politica?.conviteObrigatorio && corpo?.enviarConvite !== true) return erro(403, "Esta aplicação exige convite por e-mail.");
+  if (p.politica?.empresaObrigatoria && !texto(corpo?.empresa, 200)) return erro(400, "Informe a empresa para esta aplicação.");
 
   const cpf = typeof corpo?.cpf === "string" ? corpo.cpf.replace(/\D/g, "") : "";
   if (cpf && cpf.length !== 11) return erro(400, "CPF precisa ter 11 dígitos.");

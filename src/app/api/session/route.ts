@@ -10,8 +10,8 @@ export const runtime = "nodejs";
  * Sessão corrente, para quem não consegue validar o JWT localmente
  * (front estático, serviço em outra linguagem).
  *
- * Quem roda Node e tem o `SSO_JWT_SECRET` deve verificar o cookie direto, sem
- * pagar um round-trip por request.
+ * Consumidores não devem verificar o cookie nem copiar o segredo do emissor;
+ * este endpoint é a fronteira de consulta da identidade e da autorização.
  *
  * Com `?app=<id>` a resposta traz também `permitido`: se esta conta pode
  * entrar naquele app, pela mesma regra do login (`podeEntrar`). O cookie vale

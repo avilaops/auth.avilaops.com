@@ -1,5 +1,6 @@
 import type { Cadastro } from "@/lib/apps";
 import { campo } from "../_componentes/estilos";
+import { MODOS_ACESSO } from "@/lib/politicaAplicacao";
 
 const rotulo = "flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]";
 const caixa = "flex items-start gap-2 text-sm";
@@ -18,6 +19,13 @@ const PUBLICACOES = [
   { valor: "systemd", texto: "Serviço do sistema (systemd)" },
   { valor: "externo", texto: "Fora dos nossos servidores" },
 ];
+
+const MODOS = [
+  { valor: "desativado", texto: "Não recebe login" },
+  { valor: "equipe", texto: "Somente equipe Ávila Ops" },
+  { valor: "clientes_liberados", texto: "Equipe e clientes liberados" },
+  { valor: "qualquer_conta", texto: "Qualquer conta autenticada" },
+] as const;
 
 /**
  * Campos do cadastro, iguais na criação e na edição. `c` nulo é cadastro novo:
@@ -59,6 +67,12 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
 
       <fieldset className="flex flex-col gap-3 rounded-lg border border-[var(--color-borda)] p-4">
         <legend className="px-1 text-xs font-semibold">Login único</legend>
+        <label className={rotulo}>Política central de acesso
+          <select name="modoAcesso" defaultValue={c?.politica?.modoAcesso ?? (c?.login ? (c.papelExigido === "ADMIN" ? "equipe" : c.restrito ? "clientes_liberados" : "qualquer_conta") : "desativado")} className={campo}>
+            {MODOS.filter((m) => (MODOS_ACESSO as readonly string[]).includes(m.valor)).map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+          </select>
+          <span className="text-[11px]">É esta política que o Auth aplica a todos os clientes OIDC desta aplicação.</span>
+        </label>
         <label className={caixa}>
           <input type="checkbox" name="login" defaultChecked={c ? c.login : true} className="mt-1" />
           <span>Recebe sessão do login único
@@ -76,6 +90,12 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
             <span className="block text-xs text-[var(--color-texto-fraco)]">Desmarcado, qualquer conta de cliente entra.</span>
           </span>
         </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={caixa}><input type="checkbox" name="permiteCadastro" defaultChecked={c?.politica?.permiteCadastro ?? true} className="mt-1" /><span>Permitir cadastro pelo Auth</span></label>
+          <label className={caixa}><input type="checkbox" name="permiteRecuperacao" defaultChecked={c?.politica?.permiteRecuperacao ?? true} className="mt-1" /><span>Permitir recuperação de conta</span></label>
+          <label className={caixa}><input type="checkbox" name="conviteObrigatorio" defaultChecked={c?.politica?.conviteObrigatorio ?? false} className="mt-1" /><span>Exigir convite</span></label>
+          <label className={caixa}><input type="checkbox" name="empresaObrigatoria" defaultChecked={c?.politica?.empresaObrigatoria ?? false} className="mt-1" /><span>Exigir empresa autorizada</span></label>
+        </div>
         <label className={caixa}>
           <input type="checkbox" name="exigeSegundoFator" defaultChecked={c?.exigeSegundoFator ?? false} className="mt-1" />
           <span>Exigir verificação em duas etapas de todo mundo, cliente inclusive</span>

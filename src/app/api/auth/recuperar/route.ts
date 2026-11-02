@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { destinoInicial } from "@/lib/admin";
 import { returnToSeguro } from "@/lib/apps";
-import { buscarApp } from "@/lib/cadastro";
+import { buscarApp, politicaDaAplicacao } from "@/lib/cadastro";
 import { buscarContaPorEmail, definirSenha, papelDaRole } from "@/lib/contas";
 import { entrar } from "@/lib/entrada";
 import { registrar } from "@/lib/eventos";
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
 
   const conta = await buscarContaPorEmail(link.email);
   if (!conta) return NextResponse.json({ erro: "Conta não encontrada." }, { status: 404 });
+  if (link.appId && !(await politicaDaAplicacao(link.appId))?.permiteRecuperacao) {
+    return NextResponse.json({ erro: "A recuperação de conta não está habilitada para este sistema." }, { status: 403 });
+  }
 
   await definirSenha(conta.id, nova, false);
   await registrar({ tipo: "recuperacao_usada", email: conta.email, ip, autor: conta.email });

@@ -1,5 +1,6 @@
-import { gerarSegredoCliente, lerRedirectUris } from "@/lib/oidc";
+import { gerarSegredoCliente } from "@/lib/oidc";
 import { prisma } from "@/lib/prisma";
+import { lerRedirectUris, postLogoutRedirectUrisDoCliente, redirectUrisDoCliente, sincronizarDestinosDoCliente } from "@/lib/redirectsOidc";
 
 /**
  * Cadastro de integrações (clientes OIDC e de API) feito pelo painel.
@@ -13,6 +14,7 @@ export type Integracao = {
   appId: string;
   nome: string;
   redirectUris: string[];
+  postLogoutRedirectUris: string[];
   acessoMeta: boolean;
   ativo: boolean;
   /** Endereço avisado quando a pessoa sai no Auth; nulo = não é avisada. */
@@ -28,6 +30,7 @@ export type EntradaIntegracao = {
   appId: string;
   nome: string;
   redirectUris: string;
+  postLogoutRedirectUris?: string;
   acessoMeta: boolean;
   ativo: boolean;
   /** Em branco ou ausente: a integração não é avisada da saída. */
@@ -49,18 +52,19 @@ export async function listarIntegracoes(): Promise<Integracao[]> {
   } catch (e) {
     if (!semTabela(e)) throw e;
   }
-  const doPainel: Integracao[] = linhas.map((l) => ({
+  const doPainel: Integracao[] = await Promise.all(linhas.map(async (l) => ({
     id: l.id,
     appId: l.appId,
     nome: l.nome,
-    redirectUris: lerRedirectUris(l.redirectUris),
+    redirectUris: await redirectUrisDoCliente(l.id, l.redirectUris),
+    postLogoutRedirectUris: await postLogoutRedirectUrisDoCliente(l.id, l.postLogoutRedirectUris ?? ""),
     acessoMeta: l.acessoMeta,
     ativo: l.ativo,
     logoutUri: l.logoutUri,
     ssf: l.ssf,
     atualizadoEm: l.atualizadoEm,
     atualizadoPor: l.atualizadoPor,
-  }));
+  })));
   return doPainel;
 }
 
@@ -103,6 +107,7 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
   if (!appId) return { ok: false, erro: "Escolha a aplicação a que esta integração pertence." };
 
   const uris = lerRedirectUris(e.redirectUris);
+  const postLogoutUris = lerRedirectUris(e.postLogoutRedirectUris ?? "");
   if (opts.exigeRetorno && uris.length === 0) {
     return { ok: false, erro: "Informe ao menos um endereço de retorno. Só fica sem retorno a integração que usa apenas a API." };
   }
@@ -118,6 +123,20 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
       return { ok: false, erro: `Endereço de retorno precisa ser https: ${u}` };
     }
     if (url.hash || u.includes("*")) return { ok: false, erro: `Endereço de retorno não pode ter # nem curinga: ${u}` };
+  }
+
+  for (const u of postLogoutUris) {
+    let url: URL;
+    try {
+      url = new URL(u);
+    } catch {
+      return { ok: false, erro: `Endereço pós-logout inválido: ${u}` };
+    }
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !(local && url.protocol === "http:")) {
+      return { ok: false, erro: `Endereço pós-logout precisa ser https: ${u}` };
+    }
+    if (url.hash || u.includes("*")) return { ok: false, erro: `Endereço pós-logout não pode ter # nem curinga: ${u}` };
   }
 
   // O aviso de saída leva um token assinado para este endereço: mesmas regras
@@ -142,18 +161,20 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
   const ssf = e.ssf === true;
   if (ssf && uris.length === 0) return { ok: false, erro: "Sinais de segurança só valem para integração com endereço de retorno." };
 
-  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo, logoutUri, ssf } };
+  return { ok: true, dados: { id, nome, appId, redirectUris: uris.join("\n"), postLogoutRedirectUris: postLogoutUris.join("\n"), acessoMeta: e.acessoMeta, ativo: e.ativo, logoutUri, ssf } };
 }
 
 /** Cria e devolve o segredo — é a única vez que ele existe em claro. */
 export async function criarIntegracao(dados: EntradaIntegracao, autor: string): Promise<string> {
   const { segredo, hash } = gerarSegredoCliente();
   await prisma.clienteOidc.create({ data: { ...dados, segredoHash: hash, atualizadoPor: autor } });
+  await sincronizarDestinosDoCliente(dados.id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
   return segredo;
 }
 
 export async function atualizarIntegracao(id: string, dados: Omit<EntradaIntegracao, "id">, autor: string): Promise<void> {
   await prisma.clienteOidc.update({ where: { id }, data: { ...dados, atualizadoPor: autor } });
+  await sincronizarDestinosDoCliente(id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
 }
 
 /** Troca o segredo. O anterior deixa de valer na hora. */

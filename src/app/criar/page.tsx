@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { returnToSeguro } from "@/lib/apps";
-import { buscarApp } from "@/lib/cadastro";
+import { buscarApp, politicaDaAplicacao } from "@/lib/cadastro";
 import { conectoresLigados } from "@/lib/conectores";
 import { emailConfigurado } from "@/lib/email";
 import { lerSessao } from "@/lib/sessao";
@@ -30,6 +30,8 @@ export default async function CriarContaPage({ searchParams }: Props) {
   if (await lerSessao()) redirect(login);
 
   const [app, sociais] = await Promise.all([buscarApp(appId), conectoresLigados()]);
+  const politica = app ? await politicaDaAplicacao(app.id) : null;
+  if (app && !politica?.permiteCadastro) redirect(login);
   const porEmail = emailConfigurado();
   // Mesma validação da tela de login: host da aplicação, ou caminho interno.
   const destinoSeguro = app

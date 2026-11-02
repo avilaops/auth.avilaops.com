@@ -651,3 +651,8 @@ auth.avilaops.com {
 ```
 
 Em desenvolvimento local `npm run dev` sobe direto na 3010, sem container.
+
+Antes de aplicar as migrações do catálogo de aplicações e dos clientes OIDC,
+execute `DATABASE_URL=postgresql://... npm run db:preflight-aplicacoes`. O
+preflight recusa tabelas ausentes e clientes OIDC sem aplicação vinculada;
+essas referências precisam ser corrigidas antes da criação das FKs.

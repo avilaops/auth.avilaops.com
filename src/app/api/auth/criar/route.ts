@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { emailAceito, emailDeConfirmacao, emailDeContaExistente, linkDeConfirmacao, nomeAceito, normalizarEmail, tokenDeCadastro } from "@/lib/cadastroProprio";
 import { origemDoCadastro } from "@/lib/origemDoCadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
+import { politicaDaAplicacao } from "@/lib/cadastro";
 import { emailConfigurado, enviarEmail } from "@/lib/email";
 import { limitar } from "@/lib/rateLimit";
 import { emitirLinkRecuperacao } from "@/lib/recuperacao";
@@ -46,6 +47,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const origem = await origemDoCadastro(corpo.app, corpo.returnTo);
+    if (origem.app) {
+      const politica = await politicaDaAplicacao(origem.app);
+      if (!politica?.permiteCadastro) return NextResponse.json(RESPOSTA);
+    }
     if (await buscarContaPorEmail(email)) {
       const link = await emitirLinkRecuperacao(email, undefined, origem.app, origem.returnTo);
       await enviarEmail({ para: email, ...emailDeContaExistente(link) });

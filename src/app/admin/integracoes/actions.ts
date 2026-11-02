@@ -38,6 +38,7 @@ function ler(fd: FormData, id: string): EntradaIntegracao {
     appId: texto(fd, "appId"),
     nome: texto(fd, "nome"),
     redirectUris: texto(fd, "redirectUris"),
+    postLogoutRedirectUris: texto(fd, "postLogoutRedirectUris"),
     acessoMeta: fd.get("acessoMeta") === "on",
     ativo: fd.get("ativo") === "on",
     logoutUri: texto(fd, "logoutUri"),
@@ -47,7 +48,8 @@ function ler(fd: FormData, id: string): EntradaIntegracao {
 
 function resumo(e: EntradaIntegracao): string {
   const retornos = e.redirectUris ? e.redirectUris.split("\n").length : 0;
-  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${e.acessoMeta ? " · acesso à Meta" : ""}${e.logoutUri ? " · avisada da saída" : ""}${e.ssf ? " · recebe sinais de segurança" : ""}${e.ativo ? "" : " · desativada"}`;
+  const posLogout = e.postLogoutRedirectUris ? e.postLogoutRedirectUris.split("\n").length : 0;
+  return `app ${e.appId} · ${retornos} retorno${retornos === 1 ? "" : "s"}${posLogout ? ` · ${posLogout} pós-logout` : ""}${e.acessoMeta ? " · acesso à Meta" : ""}${e.logoutUri ? " · avisada da saída" : ""}${e.ssf ? " · recebe sinais de segurança" : ""}${e.ativo ? "" : " · desativada"}`;
 }
 
 export async function acaoCriarIntegracao(_: Resultado | null, fd: FormData): Promise<Resultado> {
