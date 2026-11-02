@@ -54,6 +54,16 @@ describe("identidade corporativa no banco (precisa de TEST_DATABASE_URL)", { ski
       [conta, contaEmail, contaB, contaEmailB],
     );
     await prisma.evento.deleteMany({ where: { autor: { in: [`app:${clienteA}`, `app:${clienteB}`] } } });
+    await prisma.aplicacao.createMany({
+      data: [clienteA, clienteB].map((id) => ({
+        id,
+        host: `${id}.example.test`,
+        nome: id,
+        login: true,
+        situacao: "no_ar",
+      })),
+      skipDuplicates: true,
+    });
     await prisma.clienteOidc.createMany({
       data: [clienteA, clienteB].map((id) => ({ id, appId: id, nome: id, redirectUris: "", segredoHash: "00".repeat(32) })),
       skipDuplicates: true,

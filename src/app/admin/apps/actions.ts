@@ -8,6 +8,7 @@ import { atualizarCadastro, buscarCadastro, criarCadastro, jaExiste, removerCada
 import { empresasDasAplicacoes, listarEmpresas, vincularEmpresaDaAplicacao } from "@/lib/empresas";
 import { registrar } from "@/lib/eventos";
 import { integracoesDoApp } from "@/lib/clientesOidc";
+import { normalizarPolitica, type PoliticaAcesso } from "@/lib/politicaAplicacao";
 import type { Resultado } from "../actions";
 
 /**
@@ -42,7 +43,23 @@ function lerFormulario(fd: FormData, id: string): EntradaCadastro {
     publicacao: texto(fd, "publicacao"),
     situacao: texto(fd, "situacao"),
     observacao: texto(fd, "observacao"),
+    modoAcesso: texto(fd, "modoAcesso"),
+    permiteCadastro: marcado(fd, "permiteCadastro"),
+    permiteRecuperacao: marcado(fd, "permiteRecuperacao"),
+    conviteObrigatorio: marcado(fd, "conviteObrigatorio"),
+    empresaObrigatoria: marcado(fd, "empresaObrigatoria"),
   };
+}
+
+function politicaDoFormulario(fd: FormData): PoliticaAcesso {
+  return normalizarPolitica({
+    modoAcesso: texto(fd, "modoAcesso") as PoliticaAcesso["modoAcesso"] || undefined,
+    exigeMfa: marcado(fd, "exigeSegundoFator"),
+    permiteCadastro: marcado(fd, "permiteCadastro"),
+    permiteRecuperacao: marcado(fd, "permiteRecuperacao"),
+    conviteObrigatorio: marcado(fd, "conviteObrigatorio"),
+    empresaObrigatoria: marcado(fd, "empresaObrigatoria"),
+  });
 }
 
 /** O que importa para quem lê a trilha: para onde vai sessão, e para quem. */
@@ -53,11 +70,12 @@ function resumo(c: Cadastro): string {
 
 export async function acaoCriarAplicacao(_: Resultado | null, fd: FormData): Promise<Resultado> {
   const admin = await exigirAdminAction();
-  const v = validarCadastro(lerFormulario(fd, texto(fd, "id")));
+  const entrada = lerFormulario(fd, texto(fd, "id"));
+  const v = validarCadastro(entrada);
   if (!v.ok) return { ok: false, erro: v.erro };
 
   try {
-    await criarCadastro(v.dados, admin.email);
+    await criarCadastro({ ...v.dados, politica: politicaDoFormulario(fd) }, admin.email);
   } catch (e) {
     if (jaExiste(e)) return { ok: false, erro: "Já existe cadastro com este identificador ou este endereço." };
     throw e;
@@ -73,11 +91,12 @@ export async function acaoSalvarAplicacao(_: Resultado | null, fd: FormData): Pr
   if (!atual) return { ok: false, erro: "Cadastro não encontrado." };
 
   // O id vem da linha, não do formulário: ele não é editável.
-  const v = validarCadastro(lerFormulario(fd, atual.id));
+  const entrada = lerFormulario(fd, atual.id);
+  const v = validarCadastro(entrada);
   if (!v.ok) return { ok: false, erro: v.erro };
 
   try {
-    await atualizarCadastro(atual.id, v.dados, admin.email);
+    await atualizarCadastro(atual.id, { ...v.dados, politica: politicaDoFormulario(fd) }, admin.email);
   } catch (e) {
     if (jaExiste(e)) return { ok: false, erro: "Outro cadastro já usa este endereço." };
     throw e;

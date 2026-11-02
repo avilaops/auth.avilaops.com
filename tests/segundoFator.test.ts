@@ -19,7 +19,7 @@ const pular = !URL_TESTE;
 
 const EMAIL = "teste-segundo-fator@avilaops.com";
 
-describe("segundo fator (precisa de TEST_DATABASE_URL)", { skip: pular ? "TEST_DATABASE_URL não definida" : false }, async () => {
+describe("segundo fator (precisa de TEST_DATABASE_URL)", { skip: pular ? "TEST_DATABASE_URL não definida" : false, concurrency: false }, async () => {
   process.env.DATABASE_URL = URL_TESTE;
   process.env.AUTH_ENCRYPTION_KEY ??= randomBytes(32).toString("hex");
 
@@ -36,7 +36,13 @@ describe("segundo fator (precisa de TEST_DATABASE_URL)", { skip: pular ? "TEST_D
   });
 
   after(async () => {
-    await prisma.segundoFator.deleteMany({ where: { email: EMAIL } });
+    try {
+      await prisma.segundoFator.deleteMany({ where: { email: EMAIL } });
+    } catch (error) {
+      // O último caso remove as tabelas para provar o fail-closed da migração.
+      // Nesse ponto, a ausência de `segundos_fatores` é o estado esperado.
+      if (!(error && typeof error === "object" && "code" in error && error.code === "P2021")) throw error;
+    }
     await prisma.$disconnect();
   });
 

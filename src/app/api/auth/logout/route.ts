@@ -3,6 +3,7 @@ import { returnToSeguro } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { avisarLogout } from "@/lib/avisoDeLogout";
 import { registrar } from "@/lib/eventos";
+import { buscarCliente, postLogoutRedirectUriValido } from "@/lib/oidc";
 import { revogarRefreshDaConta } from "@/lib/refreshOAuth";
 import { lerSessao, limparCookieSessao } from "@/lib/sessao";
 import { urlAbsoluta } from "@/lib/urls";
@@ -16,7 +17,7 @@ export const runtime = "nodejs";
  * POST porque logout é efeito colateral — em GET, um `<img src="/api/auth/logout">`
  * em qualquer página desloga o usuário sem que ele peça.
  */
-export async function POST(req: NextRequest) {
+async function encerrar(req: NextRequest) {
   const sessao = await lerSessao();
   await limparCookieSessao();
   if (sessao) {
@@ -29,10 +30,24 @@ export async function POST(req: NextRequest) {
     await registrar({ tipo: "logout", email: sessao.email });
   }
 
+  const cliente = await buscarCliente(req.nextUrl.searchParams.get("client_id"));
+  const postLogout = req.nextUrl.searchParams.get("post_logout_redirect_uri");
+  const destinoOidc = cliente && postLogoutRedirectUriValido(cliente, postLogout) ? postLogout : null;
   const app = await buscarApp(req.nextUrl.searchParams.get("app"));
-  const destino = app
+  const destino = destinoOidc
+    ? destinoOidc
+    : app
     ? returnToSeguro(req.nextUrl.searchParams.get("returnTo"), app)
     : urlAbsoluta("/login");
 
   return NextResponse.redirect(destino, { status: 303 });
+}
+
+/** OIDC RP-initiated logout usa GET; a aplicação ainda pode usar POST local. */
+export async function GET(req: NextRequest) {
+  return encerrar(req);
+}
+
+export async function POST(req: NextRequest) {
+  return encerrar(req);
 }

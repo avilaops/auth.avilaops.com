@@ -1,3 +1,5 @@
+import { normalizarPolitica, type PoliticaAcesso } from "@/lib/politicaAplicacao";
+
 /**
  * Regras dos aplicativos que usam o SSO.
  *
@@ -55,6 +57,7 @@ export type AppRegistrado = {
    * um código de uso único trocado em `POST /api/auth/exchange`.
    */
   deepLink?: string;
+  politica?: PoliticaAcesso;
 };
 
 /**
@@ -222,6 +225,8 @@ export type Cadastro = {
   publicacao: Publicacao | null;
   situacao: Situacao;
   observacao: string | null;
+  /** Política central persistida; ausente apenas durante compatibilidade de migração. */
+  politica?: PoliticaAcesso;
 };
 
 /**
@@ -242,6 +247,7 @@ export function paraApp(c: Cadastro): AppRegistrado {
     exigeSegundoFator: c.exigeSegundoFator,
     dicaDominioGoogle: c.dicaDominioGoogle ?? undefined,
     deepLink: c.deepLink ?? undefined,
+    politica: c.politica,
   };
 }
 
@@ -262,6 +268,11 @@ export type EntradaCadastro = {
   publicacao: string;
   situacao: string;
   observacao: string;
+  modoAcesso?: string;
+  permiteCadastro?: boolean;
+  permiteRecuperacao?: boolean;
+  conviteObrigatorio?: boolean;
+  empresaObrigatoria?: boolean;
 };
 
 const ID_VALIDO = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -369,16 +380,29 @@ export function lerCadastro(l: {
   publicacao: string | null;
   situacao: string;
   observacao: string | null;
+  politica?: {
+    modoAcesso?: string;
+    exigeMfa?: boolean;
+    permiteCadastro?: boolean;
+    permiteRecuperacao?: boolean;
+    conviteObrigatorio?: boolean;
+    empresaObrigatoria?: boolean;
+  } | null;
 }): Cadastro {
+  const politica = normalizarPolitica((l.politica ?? {
+    modoAcesso: l.login ? (l.papelExigido !== null ? "equipe" : l.restrito ? "clientes_liberados" : "qualquer_conta") : "desativado",
+    exigeMfa: l.exigeSegundoFator,
+  }) as Partial<PoliticaAcesso>);
+  const login = politica.modoAcesso !== "desativado" && l.login;
   return {
     id: l.id,
     host: l.host,
     nome: l.nome,
     tipo: incluiEm(TIPOS, l.tipo) ? l.tipo : "site",
-    login: l.login,
-    papelExigido: l.papelExigido === null ? null : "ADMIN",
-    restrito: l.restrito,
-    exigeSegundoFator: l.exigeSegundoFator,
+    login,
+    papelExigido: politica.modoAcesso === "equipe" ? "ADMIN" : null,
+    restrito: politica.modoAcesso === "clientes_liberados",
+    exigeSegundoFator: politica.exigeMfa,
     dicaDominioGoogle: l.dicaDominioGoogle,
     deepLink: l.deepLink,
     repositorio: l.repositorio,
@@ -386,5 +410,6 @@ export function lerCadastro(l: {
     publicacao: l.publicacao && incluiEm(PUBLICACOES, l.publicacao) ? l.publicacao : null,
     situacao: incluiEm(SITUACOES, l.situacao) ? l.situacao : "fora_do_ar",
     observacao: l.observacao,
+    politica,
   };
 }

@@ -10,6 +10,7 @@
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test \"tests/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
+    "db:preflight-aplicacoes": "node scripts/preflight-aplicacoes.mjs",
     "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {

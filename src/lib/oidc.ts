@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import type { Papel } from "@/lib/apps";
 import { chaveDeAssinatura, type ChaveDeAssinatura } from "@/lib/chaveOidc";
 import { prisma } from "@/lib/prisma";
+import { lerRedirectUris, postLogoutRedirectUrisDoCliente, redirectUrisDoCliente } from "@/lib/redirectsOidc";
+export { lerRedirectUris } from "@/lib/redirectsOidc";
 import { baseUrl } from "@/lib/urls";
 
 /**
@@ -43,6 +45,8 @@ export type ClienteOIDC = {
    * `https://notas.avilaops.com/auth/oidc.callback.evil.io` passar.
    */
   redirectUris: readonly string[];
+  /** Destinos exatos permitidos após end_session/logout. */
+  postLogoutRedirectUris?: readonly string[];
   /** SHA-256 do segredo, que só foi mostrado uma vez, na tela do painel. */
   segredoHash: string;
   /** Pode ler as conexões da Meta dos clientes (`/api/meta/ativos`). */
@@ -52,10 +56,6 @@ export type ClienteOIDC = {
 };
 
 /** Um endereço por linha, como o painel grava. */
-export function lerRedirectUris(texto: string): string[] {
-  return texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-}
-
 /**
  * Procura o cliente no cadastro do painel (`/admin/integracoes`).
  *
@@ -73,7 +73,8 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
         id: linha.id,
         appId: linha.appId,
         nome: linha.nome,
-        redirectUris: lerRedirectUris(linha.redirectUris),
+        redirectUris: await redirectUrisDoCliente(linha.id, linha.redirectUris),
+        postLogoutRedirectUris: await postLogoutRedirectUrisDoCliente(linha.id, linha.postLogoutRedirectUris ?? ""),
         segredoHash: linha.segredoHash,
         acessoMeta: linha.acessoMeta,
         ssf: linha.ssf,
@@ -88,6 +89,10 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
 
 export function redirectUriValido(cliente: ClienteOIDC, uri: string | null | undefined): boolean {
   return !!uri && cliente.redirectUris.includes(uri);
+}
+
+export function postLogoutRedirectUriValido(cliente: ClienteOIDC, uri: string | null | undefined): boolean {
+  return !!uri && (cliente.postLogoutRedirectUris ?? []).includes(uri);
 }
 
 function iguais(a: Buffer, b: Buffer): boolean {

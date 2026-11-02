@@ -97,6 +97,11 @@ export type Conta = {
   mfaEmailBloqueadoAte: Date | null;
 };
 
+export async function contaPossuiEmpresa(email: string): Promise<boolean> {
+  const conta = await buscarContaPorEmail(email);
+  return Boolean(conta?.organizationId);
+}
+
 type Linha = {
   id: string;
   nome: string;

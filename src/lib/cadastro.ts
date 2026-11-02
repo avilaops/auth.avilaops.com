@@ -8,6 +8,7 @@ import {
   type Cadastro,
 } from "@/lib/apps";
 import { prisma } from "@/lib/prisma";
+import { normalizarPolitica, politicaLegada, type PoliticaAcesso } from "@/lib/politicaAplicacao";
 
 /**
  * Cadastro de aplicações e sites, na tabela `aplicacoes`.
@@ -18,7 +19,11 @@ import { prisma } from "@/lib/prisma";
 
 /** Código do Prisma para "a tabela não existe no banco". */
 function tabelaAusente(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021";
+  return e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2021" || e.code === "P2022");
+}
+
+async function buscarLinhasLegadas() {
+  return prisma.aplicacao.findMany({ orderBy: [{ tipo: "asc" }, { nome: "asc" }] });
 }
 
 function inicialParaCadastro(a: AppRegistrado): Cadastro {
@@ -51,7 +56,13 @@ function inicialParaCadastro(a: AppRegistrado): Cadastro {
  */
 export async function listarCadastro(): Promise<Cadastro[]> {
   try {
-    const linhas = await prisma.aplicacao.findMany({ orderBy: [{ tipo: "asc" }, { nome: "asc" }] });
+    let linhas;
+    try {
+      linhas = await prisma.aplicacao.findMany({ orderBy: [{ tipo: "asc" }, { nome: "asc" }], include: { politica: true } });
+    } catch (e) {
+      if (!tabelaAusente(e) || (e as { code?: string }).code !== "P2022") throw e;
+      linhas = await buscarLinhasLegadas();
+    }
     return linhas.map(lerCadastro);
   } catch (e) {
     if (tabelaAusente(e)) return APPS_INICIAIS.map(inicialParaCadastro);
@@ -62,13 +73,24 @@ export async function listarCadastro(): Promise<Cadastro[]> {
 export async function buscarCadastro(id: string | null | undefined): Promise<Cadastro | null> {
   if (!id) return null;
   try {
-    const linha = await prisma.aplicacao.findUnique({ where: { id } });
+    let linha;
+    try {
+      linha = await prisma.aplicacao.findUnique({ where: { id }, include: { politica: true } });
+    } catch (e) {
+      if (!tabelaAusente(e) || (e as { code?: string }).code !== "P2022") throw e;
+      linha = await prisma.aplicacao.findUnique({ where: { id } });
+    }
     return linha ? lerCadastro(linha) : null;
   } catch (e) {
     if (!tabelaAusente(e)) throw e;
     const inicial = APPS_INICIAIS.find((a) => a.id === id);
     return inicial ? inicialParaCadastro(inicial) : null;
   }
+}
+
+export async function politicaDaAplicacao(id: string): Promise<PoliticaAcesso | null> {
+  const cadastro = await buscarCadastro(id);
+  return cadastro?.politica ?? (cadastro ? politicaLegada(cadastro) : null);
 }
 
 /** Os que recebem sessão do login único. */
@@ -83,12 +105,29 @@ export async function buscarApp(id: string | null | undefined): Promise<AppRegis
 }
 
 export async function criarCadastro(dados: Cadastro, autor: string): Promise<void> {
-  await prisma.aplicacao.create({ data: { ...dados, atualizadoPor: autor.toLowerCase() } });
+  const { politica: _, ...linha } = dados;
+  await prisma.aplicacao.create({ data: { ...linha, atualizadoPor: autor.toLowerCase() } });
+  await salvarPoliticaAplicacao(dados.id, dados.politica ?? politicaLegada(dados), autor);
 }
 
 /** O `id` não muda: é a chave das permissões já concedidas. */
 export async function atualizarCadastro(id: string, dados: Cadastro, autor: string): Promise<void> {
-  await prisma.aplicacao.update({ where: { id }, data: { ...dados, id, atualizadoPor: autor.toLowerCase() } });
+  const { politica: _, ...linha } = dados;
+  await prisma.aplicacao.update({ where: { id }, data: { ...linha, id, atualizadoPor: autor.toLowerCase() } });
+  await salvarPoliticaAplicacao(id, dados.politica ?? politicaLegada(dados), autor);
+}
+
+export async function salvarPoliticaAplicacao(id: string, politica: PoliticaAcesso, autor: string): Promise<void> {
+  const p = normalizarPolitica(politica);
+  try {
+    await prisma.politicaAplicacao.upsert({
+      where: { aplicacaoId: id },
+      create: { aplicacaoId: id, ...p, atualizadoPor: autor.toLowerCase() },
+      update: { ...p, atualizadoPor: autor.toLowerCase() },
+    });
+  } catch (e) {
+    if (!tabelaAusente(e)) throw e;
+  }
 }
 
 /**
