@@ -63,6 +63,15 @@ As entidades têm responsabilidades distintas:
 14. Criar ou editar um cliente e substituir seus destinos é uma única transação.
     Falha na gravação dos destinos desfaz a alteração do cliente. Escritas exigem
     o esquema migrado; a compatibilidade legada é somente de leitura.
+15. Criar ou editar uma aplicação e persistir sua política central é uma única
+    transação. Falha na política desfaz a gravação do catálogo, inclusive quando
+    faltam tabela ou coluna. Não é permitido informar sucesso descartando
+    regras de MFA, cadastro, recuperação, convite ou empresa. A compatibilidade
+    de leitura durante a migração não autoriza escrita parcial.
+
+A auditoria administrativa ocorre depois da gravação conjunta nas ações do
+painel. A transação de catálogo/política não inclui essa auditoria nem vínculos
+mantidos em outro banco; sua atomicidade não deve ser presumida.
 
 ## Fluxo OIDC obrigatório
 
