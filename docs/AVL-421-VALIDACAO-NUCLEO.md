@@ -140,6 +140,11 @@ Em 03/11/2026, ambiente local Node 24.21.0 / PostgreSQL 18 / UTF-8:
 - Revisão independente somente leitura: corrigidos o vínculo do CI ao fluxo
   de merge, o tratamento da URL Prisma e a remoção de schema herdado na fixture;
   revisão final sem achados pendentes.
+- A primeira execução do contrato no CI detectou diferença de SQLSTATE na
+  restrição de movimentação de ambiente: PostgreSQL 16 retorna `23503`,
+  PostgreSQL 18 retorna `23001`. A escrita era recusada nos dois. O teste aceita
+  os dois códigos observados, exige a constraint composta correta e verifica
+  os dados preservados. A falha bloqueou imagem/deploy conforme projetado.
 
 `prisma migrate diff --from-url … --to-schema-datamodel prisma/schema.prisma
 --exit-code` retornou 2: divergência preexistente entre UUID nas migrations e

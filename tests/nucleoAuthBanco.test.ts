@@ -85,7 +85,16 @@ describe("contrato central no PostgreSQL", { skip: !conexao && "TEST_AUTH_DATABA
       VALUES ('cruzado', 'teste-a', $1, 'Inválido', '', 'hash')`, [ambienteB]), { code: "23503" });
     await assert.rejects(cliente.query("UPDATE clientes_oidc SET ambiente_id=$1 WHERE id='cliente-a'", [ambienteB]), { code: "23503" });
     await assert.rejects(cliente.query("UPDATE clientes_oidc SET app_id='teste-b' WHERE id='cliente-a'"), { code: "23503" });
-    await assert.rejects(cliente.query("UPDATE ambientes_aplicacao SET aplicacao_id='teste-b', nome='ambiente-cruzado' WHERE aplicacao_id='teste-a'"), { code: "23001" });
+    await assert.rejects(cliente.query("UPDATE ambientes_aplicacao SET aplicacao_id='teste-b', nome='ambiente-cruzado' WHERE aplicacao_id='teste-a'"), (erro: unknown) => {
+      const restricao = erro as { code: string; constraint: string };
+      // PostgreSQL 16 reporta foreign_key_violation; 18 usa restrict_violation.
+      assert.ok(["23503", "23001"].includes(restricao.code));
+      assert.equal(restricao.constraint, "clientes_oidc_ambiente_aplicacao_fkey");
+      return true;
+    });
+    const { rows } = await cliente.query(`SELECT c.app_id, a.aplicacao_id FROM clientes_oidc c
+      JOIN ambientes_aplicacao a ON a.id=c.ambiente_id WHERE c.id='cliente-a'`);
+    assert.deepEqual(rows, [{ app_id: "teste-a", aplicacao_id: "teste-a" }]);
   });
 
   it("aceita cliente sem ambiente na transição e vinculação ao ambiente da própria aplicação", async () => {
