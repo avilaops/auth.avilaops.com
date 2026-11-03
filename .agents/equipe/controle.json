@@ -10,6 +10,21 @@
   ],
   "tasks": [
     {
+      "id": "AVL-431",
+      "title": "Centralizar autenticação e autorização MCP no Auth",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Duas empresas isoladas, consentimento central, escrita explícita, revogação de token emitido e migração preservando conexões.",
+      "evidence": "PR #52; docs/AVL-431-MCP-CENTRAL.md; tests/mcpBanco.test.ts",
+      "history": [
+        {
+          "at": "2026-11-03",
+          "status": "em-revisao",
+          "note": "PR draft; sem produção. Corte depende de revisão, evidência do upstream e aprovação explícita."
+        }
+      ]
+    },
+    {
       "id": "AUTH-META-HOST-20261101",
       "title": "Manter inicio e callback OAuth da Meta no host Auth",
       "status": "em-revisao",
@@ -112,3 +127,4 @@
     }
   ]
 }
+

@@ -694,6 +694,7 @@ model McpPoliticaFerramenta {
   clienteId        String @map("cliente_id")
   ferramenta       String
   operacao         String
+  recurso          String @default("https://mcp.avilaops.com/mcp")
   papeis           String[]
   argumentoEmpresa String @map("argumento_empresa")
   argumentoUnidade String? @map("argumento_unidade")

@@ -90,6 +90,34 @@ describe('MCP central em PostgreSQL descartável', { skip: !banco && 'TEST_MCP_D
     assert.equal(await autorizarOperacaoMcp(token, 'gateway-test', pedido('a')), null);
     assert.equal((await autorizarOperacaoMcp(tokens.get('b')!, 'gateway-test', pedido('b')))?.permitido, true);
   });
+  it('importa conexão válida sem trocar credenciais ou prazo; renovação e revogação não ressuscitam ao reimportar', async () => {
+    const { importarMcpLegado } = await import('@/lib/importarMcpLegado');
+    const access = 'synthetic-legacy-access';
+    const refresh = 'synthetic-legacy-refresh';
+    const segundos = Math.floor(Date.now() / 1000);
+    const snapshot = { clientes: [{ id: 'legacy-client', nome: 'Legado sintético', redirect_uris: '["https://legacy.example/callback"]' }], tokens: [
+      { hash: createHash('sha256').update(access).digest('hex'), tipo: 'acesso', familia: 'legacy-family', cliente_id: 'legacy-client', recurso: 'https://mcp.avilaops.com/mcp', sub: 'b', expira_em: segundos + 300, usado: 0, criado_em: segundos - 30 },
+      { hash: createHash('sha256').update(refresh).digest('hex'), tipo: 'renovacao', familia: 'legacy-family', cliente_id: 'legacy-client', recurso: 'https://mcp.avilaops.com/mcp', sub: 'b', expira_em: segundos + 600, usado: 0, criado_em: segundos - 30 },
+    ] };
+    const mapa = [{ familia: 'legacy-family', organizacaoId: orgs.get('b')!, operacoes: ['read'], recurso: 'https://mcp.avilaops.com/mcp' }];
+    assert.equal(await autorizarOperacaoMcp(access, 'gateway-test', pedido('b')), null);
+    assert.deepEqual(await importarMcpLegado(snapshot, mapa, 'gateway-test', false), { aplicado: false, familias: 1, tokens: 2 });
+    assert.equal(await prisma.mcpAcessoLegado.count(), 0);
+    await importarMcpLegado(snapshot, mapa, 'gateway-test', true);
+    assert.equal((await autorizarOperacaoMcp(access, 'gateway-test', pedido('b')))?.permitido, true);
+    const salvo = await prisma.mcpAcessoLegado.findUniqueOrThrow({ where: { tokenHash: snapshot.tokens[0].hash } });
+    assert.equal(salvo.expiraEm.getTime(), snapshot.tokens[0].expira_em * 1000);
+    const trocarRefresh = () => trocar(new NextRequest('https://auth.example/oauth/token', { method: 'POST', body: new URLSearchParams({ client_id: 'legacy-client', grant_type: 'refresh_token', refresh_token: refresh }) }));
+    const renovado = await trocarRefresh();
+    assert.equal(renovado.status, 200);
+    const t = await renovado.json();
+    assert.equal((await autorizarOperacaoMcp(t.access_token, 'gateway-test', pedido('b')))?.permitido, true);
+    assert.equal((await trocarRefresh()).status, 400);
+    assert.equal(await autorizarOperacaoMcp(access, 'gateway-test', pedido('b')), null);
+    await importarMcpLegado(snapshot, mapa, 'gateway-test', true);
+    assert.equal(await autorizarOperacaoMcp(access, 'gateway-test', pedido('b')), null);
+    assert.equal(await autorizarOperacaoMcp(t.access_token, 'gateway-test', pedido('b')), null);
+  });
   it('revogação do consentimento e suspensão do vínculo têm efeito imediato', async () => {
     await prisma.mcpConexao.update({ where: { id: conexoes.get('b')! }, data: { revogadoEm: new Date() } });
     assert.equal(await autorizarOperacaoMcp(tokens.get('b')!, 'gateway-test', pedido('b')), null);

@@ -33,6 +33,6 @@ export async function autorizarOperacaoMcp(token: string, clienteId: string, ped
   const app = await buscarApp(cliente.appId);
   if (!conta?.ativa || !app || !(await podeEntrar(conta.email, papelDaRole(conta.role), app))) return null;
   const contextos = await listarContextosCorporativos(conta.id, clienteId);
-  const politicas = await prisma.mcpPoliticaFerramenta.findMany({ where: { clienteId, ativo: true, operacao: { in: conexao.operacoes } } });
+  const politicas = await prisma.mcpPoliticaFerramenta.findMany({ where: { clienteId, recurso: conexao.recurso, ativo: true, operacao: { in: conexao.operacoes } } });
   return decidirMcp(contextos, politicas, { ...pedido, organizacaoId: conexao.organizacaoId, unidadeId: conexao.unidadeId ?? undefined });
 }

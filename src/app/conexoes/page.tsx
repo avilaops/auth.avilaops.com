@@ -12,11 +12,11 @@ async function revogar(form: FormData) {
     const resultado = await tx.mcpConexao.updateMany({ where: { id, sub: sessao.sub, revogadoEm: null }, data: { revogadoEm: new Date() } });
     if (resultado.count) await tx.refreshOAuth.updateMany({ where: { mcpConexaoId: id, sub: sessao.sub }, data: { revogadoEm: new Date() } });
   });
-  redirect('/conta/conexoes');
+  redirect('/conexoes');
 }
 export default async function Conexoes() {
   const sessao = await lerSessao();
-  if (!sessao) redirect('/login?returnTo=/conta/conexoes');
+  if (!sessao) redirect('/login?returnTo=/conexoes');
   const conexoes = await prisma.mcpConexao.findMany({ where: { sub: sessao.sub, revogadoEm: null, usadoEm: { not: null } }, orderBy: { criadoEm: 'desc' } });
   return <main className="mx-auto max-w-3xl p-8"><h1 className="text-2xl font-semibold">Conexões autorizadas</h1>
     {conexoes.map(c => <section className="my-4 rounded border p-4" key={c.id}><p>{c.clienteId}</p><p>Empresa: {c.organizacaoId} · {c.operacoes.join(', ')}</p>
@@ -24,3 +24,4 @@ export default async function Conexoes() {
     {!conexoes.length && <p>Nenhuma conexão ativa.</p>}
   </main>;
 }
+

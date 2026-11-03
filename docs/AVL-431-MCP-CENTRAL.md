@@ -16,7 +16,7 @@ migração. O plugin continua somente conector, sem aplicações, políticas ou 
 - `/api/mcp/decisoes` valida token, audiência/delegação, família ativa, conta,
   aplicação, consentimento, empresa, unidade, recurso e argumentos da ferramenta.
   Revogar conexão, access token ou refresh invalida a família na próxima chamada.
-- `GET /admin/mcp` administra políticas. `GET /conta/conexoes` lista/revoga as
+- `GET /admin/mcp` administra políticas. `GET /conexoes` lista/revoga as
   próprias conexões. Cadastro/rotação de credenciais técnicas segue no painel
   existente de integrações. DCR público fica em `/oauth/register` no Auth.
 

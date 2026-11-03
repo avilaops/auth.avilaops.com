@@ -30,6 +30,7 @@ CREATE TABLE "mcp_politicas_ferramenta" (
   "id" TEXT PRIMARY KEY,
   "cliente_id" TEXT NOT NULL REFERENCES "clientes_oidc"("id") ON DELETE RESTRICT,
   "ferramenta" TEXT NOT NULL,
+  "recurso" TEXT NOT NULL DEFAULT 'https://mcp.avilaops.com/mcp',
   "operacao" TEXT NOT NULL CHECK ("operacao" IN ('read', 'write', 'delete')),
   "papeis" TEXT[] NOT NULL,
   "argumento_empresa" TEXT NOT NULL CHECK (length("argumento_empresa") > 0),
