@@ -1,6 +1,7 @@
 import type { Cadastro } from "@/lib/apps";
-import { campo } from "../_componentes/estilos";
-import { MODOS_ACESSO } from "@/lib/politicaAplicacao";
+import Link from "next/link";
+import { campo } from "@/app/admin/_componentes/estilos";
+import { politicaLegada } from "@/lib/politicaAplicacao";
 
 const rotulo = "flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]";
 const caixa = "flex items-start gap-2 text-sm";
@@ -49,7 +50,7 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
           <input name="nome" required maxLength={80} defaultValue={c?.nome ?? ""} className={campo} autoComplete="off" /></label>
         <label className={rotulo}>Endereço
           <input name="host" required defaultValue={c?.host ?? ""} className={campo} autoComplete="off" placeholder="loja.exemplo.com.br" />
-          <span className="text-[11px]">Só o domínio. É o único destino para onde a sessão pode ser mandada.</span>
+          <span className="text-[11px]">Domínio principal, sem https:// ou caminho. Os callbacks são cadastrados nas integrações.</span>
         </label>
       </div>
 
@@ -68,28 +69,12 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
       <fieldset className="flex flex-col gap-3 rounded-lg border border-[var(--color-borda)] p-4">
         <legend className="px-1 text-xs font-semibold">Login único</legend>
         <label className={rotulo}>Política central de acesso
-          <select name="modoAcesso" defaultValue={c?.politica?.modoAcesso ?? (c?.login ? (c.papelExigido === "ADMIN" ? "equipe" : c.restrito ? "clientes_liberados" : "qualquer_conta") : "desativado")} className={campo}>
-            {MODOS.filter((m) => (MODOS_ACESSO as readonly string[]).includes(m.valor)).map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+          <select name="modoAcesso" defaultValue={c ? (c.politica ?? politicaLegada(c)).modoAcesso : "clientes_liberados"} className={campo}>
+            {MODOS.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
           </select>
           <span className="text-[11px]">É esta política que o Auth aplica a todos os clientes OIDC desta aplicação.</span>
         </label>
-        <label className={caixa}>
-          <input type="checkbox" name="login" defaultChecked={c ? c.login : true} className="mt-1" />
-          <span>Recebe sessão do login único
-            <span className="block text-xs text-[var(--color-texto-fraco)]">Desmarcado, as opções abaixo não valem: ninguém entra por aqui.</span>
-          </span>
-        </label>
-        <label className={rotulo}>Quem pode entrar
-          <select name="papelExigido" defaultValue={c?.papelExigido ?? ""} className={campo}>
-            <option value="">Equipe e clientes</option>
-            <option value="ADMIN">Só a equipe da Avila Ops</option>
-          </select></label>
-        <label className={caixa}>
-          <input type="checkbox" name="restrito" defaultChecked={c ? c.restrito : true} className="mt-1" />
-          <span>Cliente só entra se for liberado na ficha da conta
-            <span className="block text-xs text-[var(--color-texto-fraco)]">Desmarcado, qualquer conta de cliente entra.</span>
-          </span>
-        </label>
+        <p className="text-xs text-[var(--color-texto-fraco)]">Para sites, escolha “Não recebe login”. Para clientes restritos, libere o acesso na ficha da conta.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={caixa}><input type="checkbox" name="permiteCadastro" defaultChecked={c?.politica?.permiteCadastro ?? true} className="mt-1" /><span>Permitir cadastro pelo Auth</span></label>
           <label className={caixa}><input type="checkbox" name="permiteRecuperacao" defaultChecked={c?.politica?.permiteRecuperacao ?? true} className="mt-1" /><span>Permitir recuperação de conta</span></label>
@@ -97,7 +82,7 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
           <label className={caixa}><input type="checkbox" name="empresaObrigatoria" defaultChecked={c?.politica?.empresaObrigatoria ?? false} className="mt-1" /><span>Exigir empresa autorizada</span></label>
         </div>
         <label className={caixa}>
-          <input type="checkbox" name="exigeSegundoFator" defaultChecked={c?.exigeSegundoFator ?? false} className="mt-1" />
+          <input type="checkbox" name="exigeSegundoFator" defaultChecked={c?.politica?.exigeMfa ?? c?.exigeSegundoFator ?? false} className="mt-1" />
           <span>Exigir verificação em duas etapas de todo mundo, cliente inclusive</span>
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -108,6 +93,9 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
             <span className="text-[11px]">Só se o domínio for Workspace; senão o seletor do Google fica vazio.</span>
           </label>
         </div>
+        <p className="text-xs text-[var(--color-texto-fraco)]">
+          Callback, retorno após logout e aviso de saída pertencem a cada cliente OIDC. Após salvar a aplicação, configure esses destinos em <Link href="/admin/integracoes" className="underline">Integrações</Link>.
+        </p>
       </fieldset>
 
       <fieldset className="flex flex-col gap-3 rounded-lg border border-[var(--color-borda)] p-4">

@@ -119,6 +119,12 @@ O consumidor deve:
 
 ## Compatibilidade e migração
 
+O formulário de aplicações usa uma única política de acesso. O servidor deriva
+dela os campos legados de login, papel exigido e restrição, para que não sejam
+gravadas decisões contraditórias. Aplicações novas começam em
+`clientes_liberados`; sites precisam selecionar `desativado`. Valores de
+política desconhecidos são recusados antes da gravação.
+
 Compatibilidades legadas podem permanecer somente durante uma migração
 explicitamente registrada. Não serão criados novos consumidores usando:
 

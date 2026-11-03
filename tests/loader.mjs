@@ -27,8 +27,8 @@ export function resolve(especificador, contexto, proximo) {
   }
   // O pacote do Next exporta este módulo com extensão; o resolvedor ESM cru
   // do Node não aplica o mesmo mapa que o bundler usa em produção.
-  if (especificador === "next/server") {
-    return proximo("next/server.js", contexto);
+  if (especificador === "next/server" || especificador === "next/link") {
+    return proximo(especificador + ".js", contexto);
   }
   if (especificador.startsWith("@/")) {
     const base = RAIZ + especificador.slice(2);
