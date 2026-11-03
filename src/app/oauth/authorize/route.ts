@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarConta, papelDaRole } from "@/lib/contas";
 import { registrar } from "@/lib/eventos";
+import { prisma } from '@/lib/prisma';
+import { hashPedidoMcp } from '@/lib/consentimentoMcp';
 import {
   buscarCliente,
   emitirCodigoOAuth,
@@ -37,6 +39,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(urlErro("Endereço de retorno não autorizado."), 302);
   }
   const destino = new URL(redirectUri as string);
+  const centralMcp = cliente.appId === 'mcp' && Boolean(process.env.MCP_GATEWAY_CLIENT_ID);
+  if (centralMcp && (!/^[A-Za-z0-9_-]{43}$/.test(q.get('code_challenge') ?? '') || q.get('code_challenge_method') !== 'S256')) {
+    return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
+  }
 
   const state = q.get("state");
   const devolver = (params: Record<string, string>) => {
@@ -103,13 +109,25 @@ export async function GET(req: NextRequest) {
   const contaDeAgora = cliente.ssf ? await buscarConta(sessao.sub) : null;
   const papelParaEscopo = cliente.ssf ? (contaDeAgora?.ativa ? papelDaRole(contaDeAgora.role) : "CLIENTE") : sessao.papel;
 
+  let mcpConexaoId: string | undefined;
+  if (centralMcp) {
+    const id = q.get('mcp_consent');
+    if (!id) return NextResponse.redirect(urlAbsoluta(`/oauth/consentimento?q=${encodeURIComponent(q.toString())}`), 302);
+    const consumida = await prisma.mcpConexao.updateMany({ where: {
+      id, sub: sessao.sub, clienteId: cliente.id, usadoEm: null, revogadoEm: null,
+      criadoEm: { gt: new Date(Date.now() - 600_000) }, pedidoHash: hashPedidoMcp(q.toString()),
+    }, data: { usadoEm: new Date() } });
+    if (consumida.count !== 1) return devolver({ error: 'access_denied' });
+    mcpConexaoId = id;
+  }
   const codigo = await emitirCodigoOAuth({
+    ...(mcpConexaoId ? { mcpConexaoId } : {}),
     clienteId: cliente.id,
     redirectUri: redirectUri as string,
     nonce: q.get("nonce"),
     codeChallenge: q.get("code_challenge"),
     codeChallengeMethod: q.get("code_challenge_method") ?? (q.get("code_challenge") ? "S256" : null),
-    escopo: escopoConcedido(q.get("scope"), { clienteSsf: cliente.ssf, papel: papelParaEscopo }),
+    escopo: escopoConcedido(centralMcp ? 'openid profile email corporate_context' : q.get("scope"), { clienteSsf: cliente.ssf, papel: papelParaEscopo }),
     sub: sessao.sub,
     email: sessao.email,
     nome: sessao.nome,
@@ -127,3 +145,4 @@ export async function GET(req: NextRequest) {
 
   return devolver({ code: codigo });
 }
+
