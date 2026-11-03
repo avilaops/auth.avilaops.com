@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export function lerRedirectUris(texto: string): string[] {
@@ -25,7 +26,9 @@ export async function destinosDoCliente(clienteId: string, tipo: string, legado:
       orderBy: { criadoEm: "asc" },
       select: { uri: true },
     });
-    if (linhas.length > 0) return linhas.map((linha) => linha.uri);
+    // Uma consulta vazia também é uma decisão: nenhum destino está autorizado.
+    // Reativar o texto legado aqui desfaria a revogação do último redirect.
+    return linhas.map((linha) => linha.uri);
   } catch (error) {
     if (!tabelaAusente(error)) throw error;
   }
@@ -41,22 +44,15 @@ export async function postLogoutRedirectUrisDoCliente(clienteId: string, legado:
 }
 
 export async function sincronizarDestinosDoCliente(
+  tx: Prisma.TransactionClient,
   clienteId: string,
   destinos: { authorization: string[]; postLogout: string[] },
 ): Promise<void> {
-  const delegate = (prisma as typeof prisma & { redirectUri?: typeof prisma.redirectUri }).redirectUri;
-  if (!delegate) return;
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.redirectUri.deleteMany({ where: { clienteId } });
-      const rows = [
-        ...destinos.authorization.map((uri) => ({ clienteId, tipo: "authorization", uri })),
-        ...destinos.postLogout.map((uri) => ({ clienteId, tipo: "post_logout", uri })),
-      ];
-      if (rows.length > 0) await tx.redirectUri.createMany({ data: rows, skipDuplicates: true });
-    });
-  } catch (error) {
-    if (!tabelaAusente(error)) throw error;
-  }
+  await tx.redirectUri.deleteMany({ where: { clienteId } });
+  const rows = [
+    ...destinos.authorization.map((uri) => ({ clienteId, tipo: "authorization", uri })),
+    ...destinos.postLogout.map((uri) => ({ clienteId, tipo: "post_logout", uri })),
+  ];
+  if (rows.length > 0) await tx.redirectUri.createMany({ data: rows, skipDuplicates: true });
 }
 
