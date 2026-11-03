@@ -6,6 +6,7 @@ import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import pg from "pg";
+import { PrismaClient } from "@prisma/client";
 
 const executar = promisify(execFile);
 const conexao = process.env.TEST_AUTH_DATABASE_URL;
@@ -76,6 +77,48 @@ describe("contrato central no PostgreSQL", { skip: !conexao && "TEST_AUTH_DATABA
       { aplicacao_id: "teste-a", modo_acesso: "clientes_liberados", exige_mfa: true },
       { aplicacao_id: "teste-b", modo_acesso: "qualquer_conta", exige_mfa: false },
     ]);
+  });
+
+  it("persiste e consulta relações corporativas UUID pelo Prisma no esquema migrado", async () => {
+    const urlPrisma = new URL(url.href);
+    urlPrisma.searchParams.delete("options");
+    urlPrisma.searchParams.set("schema", schema);
+    const prisma = new PrismaClient({ datasources: { db: { url: urlPrisma.href } } });
+    try {
+      const resultado = await prisma.$transaction(async (tx) => {
+        const organizacao = await tx.organizacaoCorporativa.create({
+          data: { clienteId: "cliente-a", referenciaExterna: "org-sintetica", nome: "Organização sintética" },
+        });
+        const unidade = await tx.unidadeCorporativa.create({
+          data: { organizacaoId: organizacao.id, referenciaExterna: "matriz", nome: "Matriz" },
+        });
+        const vinculo = await tx.vinculoCorporativo.create({
+          data: { organizacaoId: organizacao.id, contaId: "conta-sintetica" },
+        });
+        const autorizacao = await tx.autorizacaoCorporativa.create({
+          data: { vinculoId: vinculo.id, unidadeId: unidade.id, papel: "COMPRADOR" },
+        });
+        const lido = await tx.autorizacaoCorporativa.findUniqueOrThrow({
+          where: { id: autorizacao.id }, include: { unidade: true, vinculo: { include: { organizacao: true } } },
+        });
+        assert.equal(lido.unidade?.organizacaoId, organizacao.id);
+        assert.equal(lido.vinculo.organizacao.id, organizacao.id);
+        assert.equal(lido.vinculo.contaId, "conta-sintetica");
+        assert.equal(lido.vinculo.organizacao.clienteId, "cliente-a");
+        await tx.autorizacaoCorporativa.update({ where: { id: autorizacao.id }, data: { papel: "APROVADOR" } });
+        const semUnidade = await tx.autorizacaoCorporativa.create({ data: { vinculoId: vinculo.id, papel: "FINANCEIRO" } });
+        assert.equal(semUnidade.unidadeId, null);
+        const lista = await tx.autorizacaoCorporativa.findMany({ where: { vinculoId: vinculo.id }, orderBy: { papel: "asc" } });
+        await tx.autorizacaoCorporativa.deleteMany({ where: { vinculoId: vinculo.id } });
+        await tx.vinculoCorporativo.delete({ where: { id: vinculo.id } });
+        await tx.unidadeCorporativa.delete({ where: { id: unidade.id } });
+        await tx.organizacaoCorporativa.delete({ where: { id: organizacao.id } });
+        return lista.map(linha => linha.papel);
+      });
+      assert.deepEqual(resultado, ["APROVADOR", "FINANCEIRO"]);
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it("recusa INSERT e UPDATE que cruzem aplicação e ambiente", async () => {

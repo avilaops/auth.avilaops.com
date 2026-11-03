@@ -6,6 +6,8 @@ Continuação do [contrato central v1](CONTRATO-AUTH-CENTRAL-V1.md), já integra
 no PR #44. Base inspecionada: `2a4989d`. A descrição inicial da issue ainda
 mencionava migração pendente; comentários posteriores registram validação local.
 Esta rodada acrescenta uma garantia de persistência e sua reprodução automatizada.
+Na retomada, o mesmo PR também alinha os tipos nativos UUID corporativos às
+migrações existentes e passa a exigir ausência de diferenças no `migrate diff`.
 
 Registro: [AVL-421](https://linear.app/avilaops/issue/AVL-421), subordinada à
 [AVL-420](https://linear.app/avilaops/issue/AVL-420). As ferramentas de notas
@@ -121,6 +123,8 @@ Cobertura adicionada:
 - compatibilidade de cliente sem ambiente e vínculo válido posterior;
 - preflight antes e depois do núcleo, respeitando schema isolado;
 - migração e preflight recusando divergência legada sem modificar seus dados.
+- operações reais pelo Prisma com relações corporativas UUID, autorização com
+  unidade opcional e identificadores externos textuais.
 
 ## Limites da evidência
 
@@ -150,9 +154,54 @@ Em 03/11/2026, ambiente local Node 24.21.0 / PostgreSQL 18 / UTF-8:
 --exit-code` retornou 2: divergência preexistente entre UUID nas migrations e
 `String` sem `@db.Uuid` no Prisma das tabelas `organizacoes_corporativas`,
 `unidades_corporativas`, `vinculos_corporativos` e `autorizacoes_corporativas`.
-Os arquivos da base `2a4989d` contêm a mesma divergência; estas entidades não
-foram modificadas. Não interpretar a aplicação bem-sucedida das migrações como
-ausência de drift global. Não executar o SQL de conversão sugerido pelo diff.
+Os arquivos da base `2a4989d` contêm a mesma divergência. Na primeira entrega,
+estas entidades foram preservadas e o achado ficou documentado.
+
+## Retomada — mapeamento UUID corporativo
+
+O incremento corrige oito campos com `@db.Uuid`: as quatro chaves primárias,
+`organizacaoId` de unidade e vínculo, `vinculoId` e `unidadeId` de autorização.
+`clienteId`, `contaId` e referências externas continuam textuais. O schema passa
+a declarar os tipos que as migrações já criam; não foi criada nova migração,
+executada conversão de dados nem alterado default ou política de provisionamento.
+
+Na mesma base descartável, o comando abaixo retornou 2 antes do ajuste e 0
+com `No difference detected` depois dele, sem alterar o banco entre as leituras:
+
+```sh
+npx prisma migrate diff \
+  --from-schema-datasource prisma/schema.prisma \
+  --to-schema-datamodel prisma/schema.prisma --exit-code
+```
+
+`DATABASE_URL` deve apontar para a base exclusiva de validação. O workflow de
+contrato executa esse comando após as 28 migrações e gera explicitamente o
+Prisma Client antes do teste de operações corporativas. Também executa a suíte
+existente `corporativoBanco.test.ts`, habilitada no mesmo serviço descartável,
+em comando separado após a suíte do núcleo. Uma nova divergência
+faz o job falhar. O diff verifica o modelo suportado pelo Prisma; não substitui
+os testes das constraints SQL nem comprova o estado de produção.
+
+O novo teste cria organização, unidade, vínculo e autorizações, consulta relações
+por UUID, atualiza papel, consulta por FK, aceita `unidadeId = null` e remove os
+dados via Prisma. O mesmo fluxo também passou antes da correção: é uma prova
+de compatibilidade, não uma falha funcional atribuída ao mapeamento anterior.
+Os dados são sintéticos e permanecem no schema aleatório descartado pelo teste.
+Nenhuma regra comercial, titularidade ou tenant é inferida de `clienteId`.
+
+Verificações locais após o ajuste (Node 24 / PostgreSQL 18 / Prisma 6.19.3):
+
+- `prisma validate` e `prisma generate`: aprovados.
+- `prisma migrate deploy`: as mesmas 28 migrações em base nova, sem migração extra.
+- Preflight: aprovado; `prisma migrate diff ... --exit-code`: zero diferenças.
+- `npm test` com `TEST_AUTH_DATABASE_URL` no formato Prisma: 348/348 aprovados,
+  incluindo oito testes do núcleo. Os demais bancos condicionais não são
+  habilitados por essa variável.
+- `corporativoBanco.test.ts` com `TEST_DATABASE_URL` local: 9/9 aprovados,
+  incluindo concorrência, isolamento por cliente/unidade, alçada e revogação.
+- Typecheck: aprovado; lint: zero erros e um aviso preexistente em `Marca.tsx`.
+- YAML e `git diff --check`: aprovados; revisão independente somente leitura
+  sem achados de código pendentes.
 
 Validação local e CI são evidências distintas. Não houve execução em homologação
 ou produção, login real de consumidor, migração de consumidor ou comprovação
