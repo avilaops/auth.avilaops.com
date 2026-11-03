@@ -1,0 +1,44 @@
+name: Contrato central Auth
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contrato:
+    name: Contrato central PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: auth_test
+          POSTGRES_PASSWORD: isolated_test_only
+          POSTGRES_DB: auth_contract_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth_test -d auth_contract_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://auth_test:isolated_test_only@localhost:5432/auth_contract_test
+      TEST_AUTH_DATABASE_URL: postgresql://auth_test:isolated_test_only@localhost:5432/auth_contract_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx prisma migrate deploy
+      - run: npm run db:preflight-aplicacoes
+      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/nucleoAuthBanco.test.ts

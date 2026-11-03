@@ -293,6 +293,7 @@ model AmbienteAplicacao {
   clientesOidc ClienteOidc[]
 
   @@unique([aplicacaoId, nome])
+  @@unique([id, aplicacaoId])
   @@index([aplicacaoId, ativo])
   @@map("ambientes_aplicacao")
 }
@@ -412,7 +413,9 @@ model ClienteOidc {
   ssf                    Boolean @default(false)
 
   aplicacao Aplicacao          @relation(fields: [appId], references: [id], onDelete: Restrict)
-  ambiente  AmbienteAplicacao? @relation(fields: [ambienteId], references: [id], onDelete: Restrict)
+  /// Um ambiente informado pertence obrigatoriamente à aplicação do cliente.
+  /// Restrict impede mover o ambiente e alterar a aplicação do cliente por cascata.
+  ambiente  AmbienteAplicacao? @relation(fields: [ambienteId, appId], references: [id, aplicacaoId], onDelete: Restrict, onUpdate: Restrict, map: "clientes_oidc_ambiente_aplicacao_fkey")
   redirects RedirectUri[]
 
   criadoEm      DateTime @default(now()) @map("criado_em")
