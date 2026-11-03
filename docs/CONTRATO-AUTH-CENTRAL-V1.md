@@ -85,6 +85,12 @@ O `id_token` representa identidade e autenticação. Autorização corporativa,
 papéis, unidades e alçadas devem continuar consultáveis e revogáveis pelo
 contrato próprio, sem transformar o token em banco de dados congelado.
 
+O endpoint de token revalida a conta ativa, a aplicação habilitada e a permissão
+atual tanto na troca de código quanto na renovação. Remover a aplicação ou
+desativá-la impede novas emissões; uma família de refresh recusada por esse
+controle é revogada. Identidade e escopos emitidos refletem a conta atual,
+inclusive quando o papel muda depois da autorização inicial.
+
 ## Logout
 
 O logout central deve:

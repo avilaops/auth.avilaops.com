@@ -66,7 +66,7 @@ async function renovar(cliente: ClienteOIDC, corpo: URLSearchParams) {
 
   const identidade = identidadeParaRenovar(await buscarConta(troca.sub));
   const app = await buscarApp(cliente.appId);
-  if (!identidade || (app && !(await podeEntrar(identidade.email, identidade.papel, app)))) {
+  if (!identidade || !app || !(await podeEntrar(identidade.email, identidade.papel, app))) {
     await revogarFamilia(troca.familia);
     return erro("invalid_grant", "Refresh token inválido ou expirado.");
   }
@@ -121,13 +121,14 @@ export async function POST(req: NextRequest) {
   // oráculo para quem estiver sondando.
   if (!resgate) return erro("invalid_grant", "Código inválido ou expirado.");
 
-  const identidade = {
-    sub: resgate.sub,
-    email: resgate.email,
-    nome: resgate.nome,
-    foto: resgate.foto,
-    papel: resgate.papel,
-  };
+  // A conta e a permissão podem ter mudado entre autorização e troca do código.
+  const identidade = identidadeParaRenovar(await buscarConta(resgate.sub));
+  const app = await buscarApp(cliente.appId);
+  if (!identidade || !app || !(await podeEntrar(identidade.email, identidade.papel, app))) {
+    return erro("invalid_grant", "Código inválido ou expirado.");
+  }
+  const escopo = escopoConcedido(resgate.escopo, { clienteSsf: cliente.ssf, papel: identidade.papel });
 
-  return tokens(identidade, cliente, resgate.nonce, resgate.escopo);
+  // A foto vem do provedor social e não é armazenada na conta central.
+  return tokens({ ...identidade, foto: resgate.foto }, cliente, resgate.nonce, escopo);
 }
