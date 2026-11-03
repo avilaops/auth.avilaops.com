@@ -57,6 +57,12 @@ As entidades têm responsabilidades distintas:
     mais atual e revogável por endpoint autorizado.
 12. Nenhuma aplicação escolhe tenant, empresa, papel ou escopo fora das
     decisões emitidas ou consultáveis pelo Auth.
+13. Em banco migrado, uma lista vazia de destinos significa nenhum destino
+    autorizado. Excluir ou desativar o último redirect nunca reativa o campo
+    textual legado, tanto no login quanto no retorno após logout.
+14. Criar ou editar um cliente e substituir seus destinos é uma única transação.
+    Falha na gravação dos destinos desfaz a alteração do cliente. Escritas exigem
+    o esquema migrado; a compatibilidade legada é somente de leitura.
 
 ## Fluxo OIDC obrigatório
 

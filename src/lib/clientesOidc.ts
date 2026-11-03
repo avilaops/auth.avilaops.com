@@ -167,14 +167,19 @@ export function validarIntegracao(e: EntradaIntegracao, opts: { exigeRetorno: bo
 /** Cria e devolve o segredo — é a única vez que ele existe em claro. */
 export async function criarIntegracao(dados: EntradaIntegracao, autor: string): Promise<string> {
   const { segredo, hash } = gerarSegredoCliente();
-  await prisma.clienteOidc.create({ data: { ...dados, segredoHash: hash, atualizadoPor: autor } });
-  await sincronizarDestinosDoCliente(dados.id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
+  await prisma.$transaction(async (tx) => {
+    await tx.clienteOidc.create({ data: { ...dados, segredoHash: hash, atualizadoPor: autor } });
+    await sincronizarDestinosDoCliente(tx, dados.id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
+  });
   return segredo;
 }
 
 export async function atualizarIntegracao(id: string, dados: Omit<EntradaIntegracao, "id">, autor: string): Promise<void> {
-  await prisma.clienteOidc.update({ where: { id }, data: { ...dados, atualizadoPor: autor } });
-  await sincronizarDestinosDoCliente(id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
+  await prisma.$transaction(async (tx) => {
+    // Serializa alterações concorrentes no mesmo cliente antes de substituir os destinos.
+    await tx.clienteOidc.update({ where: { id }, data: { ...dados, atualizadoPor: autor } });
+    await sincronizarDestinosDoCliente(tx, id, { authorization: lerRedirectUris(dados.redirectUris), postLogout: lerRedirectUris(dados.postLogoutRedirectUris ?? "") });
+  });
 }
 
 /** Troca o segredo. O anterior deixa de valer na hora. */
