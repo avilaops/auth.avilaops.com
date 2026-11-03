@@ -103,6 +103,34 @@ O logout central deve:
 - tratar falha do consumidor como resultado auditado, não como motivo para
   restaurar ou manter a sessão central.
 
+### Confirmação de logout e validação prévia
+
+`GET /api/auth/logout` nunca invalida sessão nem revoga tokens. Ele abre
+`/sair`, onde a pessoa pode confirmar a saída ou manter sua sessão. POST vindo
+de consumidor, origem ausente ou origem opaca também passa pela confirmação.
+O POST que executa a saída exige `Origin` exatamente igual à origem pública
+configurada em `SSO_BASE_URL`; em produção o portal `https://conta.avilaops.com`
+também é parte do próprio serviço. Outros subdomínios não recebem essa confiança.
+
+Parâmetros aceitos: `client_id`, `post_logout_redirect_uri`, `state` e, durante
+a migração, `app`/`returnTo`. POST também aceita formulário URL-encoded, com
+limite de 8 KiB. Valores conhecidos têm limite de 2048 caracteres; repetições,
+inclusive entre URL e corpo, são recusadas. `id_token_hint` ainda não é aceito:
+se presente, retorna `400 invalid_request`, sem usar ou propagar o token.
+
+Antes de qualquer efeito, o servidor revalida cliente ativo e retorno OIDC
+exato, mesmo depois de a confirmação ter sido exibida. `state` só é devolvido
+nesse destino validado. Destino/cliente inválido retorna `400 invalid_request`
+sem apagar cookie, revogar refresh ou agendar avisos. Falha operacional não é
+convertida em um logout bem-sucedido. A repetição sem sessão não repete
+revogação, auditoria nem agendamento de aviso; não há garantia nova de
+deduplicação entre requisições concorrentes.
+
+A confirmação usa `Referrer-Policy: same-origin`: `no-referrer` pode tornar
+`Origin` opaco no POST de navegador. A proteção global contra iframe permanece
+ativa. Não há logout automático por hint nesta versão. Consulte as evidências
+e limites em [AVL-420-LOGOUT-CONFIRMACAO.md](AVL-420-LOGOUT-CONFIRMACAO.md).
+
 ## Provisionamento
 
 Provisionamento não cria uma identidade paralela. Ele sincroniza no consumidor

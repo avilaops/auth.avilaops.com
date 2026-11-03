@@ -537,7 +537,9 @@ Cloudflare), que é lento e falha. O n8n roda em outro VPS e já tem a credencia
 | `GET /login?app=&returnTo=` | A tela. Se já houver sessão válida, pula direto para o `returnTo`. |
 | `GET /api/auth/google?app=&returnTo=` | Inicia o fluxo (grava `state` + `nonce`). |
 | `GET /api/auth/google/callback` | Retorno do Google. **É a única URI registrada no Console.** |
-| `POST /api/auth/logout?app=&returnTo=` | Logout global. POST de propósito, em GET, uma `<img>` desloga o usuário. |
+| `GET /api/auth/logout` | Abre confirmação em `/sair`, sem encerrar sessão. Aceita cliente OIDC/destino pós-logout ou `app`/`returnTo` legado. |
+| `POST /api/auth/logout` | Logout global após validação de origem e destino. POST externo passa pela confirmação; formulário do Auth/Conta pode concluir. |
+| `GET /sair` | Explica a saída global, mostra a conta atual e oferece confirmar por POST ou manter a sessão. |
 | `GET /api/session` | Sessão corrente em JSON. CORS restrito a `*.avilaops.com`. |
 | `GET /api/apps` | Menu de apps da sessão: `{ conta, apps: [{ id, nome, url }] }`, só com o que a conta pode abrir e está no ar. Mesma regra do login. CORS restrito a `*.avilaops.com`. |
 | `POST /api/auth/exchange` | Troca código de uso único por token. App nativo. |
