@@ -129,5 +129,6 @@ export async function POST(req: NextRequest) {
   }
   const escopo = escopoConcedido(resgate.escopo, { clienteSsf: cliente.ssf, papel: identidade.papel });
 
-  return tokens(identidade, cliente, resgate.nonce, escopo);
+  // A foto vem do provedor social e não é armazenada na conta central.
+  return tokens({ ...identidade, foto: resgate.foto }, cliente, resgate.nonce, escopo);
 }

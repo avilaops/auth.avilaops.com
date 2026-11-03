@@ -32,7 +32,7 @@ const fontes = {
     export const TTL_TOKEN_SEGUNDOS = 3600;
     export const autenticarCliente = async () => ({id:'cliente', appId:'produto', ssf:true});
     export const redirectUriValido = () => true;
-    export const resgatarCodigoOAuth = async () => ({sub:'conta', email:'antigo@example.com', nome:'Antigo', papel:'ADMIN', foto:null, nonce:'nonce-original', escopo:'openid ssf.manage'});
+    export const resgatarCodigoOAuth = async () => ({sub:'conta', email:'antigo@example.com', nome:'Antigo', papel:'ADMIN', foto:'https://perfil.example/foto.png', nonce:'nonce-original', escopo:'openid ssf.manage'});
     export const escopoConcedido = (escopo, {papel}) => papel === 'ADMIN' ? escopo : 'openid';
     export const assinarAccessToken = identidade => { f.identidadeEmitida = identidade; return 'access'; };
     export const assinarIdToken = async () => 'id-token';
@@ -83,7 +83,9 @@ for (const grant of ["authorization_code", "refresh_token"]) {
       const resposta = await pedir(grant);
       assert.equal(resposta.status, 200);
       assert.deepEqual(fixture.identidadeAutorizada, { email: atual.email, papel: atual.papel });
-      assert.deepEqual(fixture.identidadeEmitida, atual);
+      assert.deepEqual(fixture.identidadeEmitida, {
+        ...atual, foto: grant === "authorization_code" ? "https://perfil.example/foto.png" : null,
+      });
       assert.equal((await resposta.json()).scope, "openid");
       assert.equal(fixture.emitidos, 1);
     });
