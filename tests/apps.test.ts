@@ -143,6 +143,41 @@ describe("validação do cadastro", () => {
     assert.equal(site.deepLink, null);
     assert.equal(recebeLogin(site), false);
   });
+
+  it("deriva os campos legados somente da política central, mesmo com entradas contraditórias", () => {
+    for (const [modoAcesso, login, papel, restrito] of [
+      ["desativado", false, null, true],
+      ["equipe", true, "ADMIN", false],
+      ["clientes_liberados", true, null, true],
+      ["qualquer_conta", true, null, false],
+    ] as const) {
+      const d = dados({ modoAcesso, login: !login, papelExigido: "ADMIN", restrito: !restrito });
+      assert.equal(d.login, login, modoAcesso);
+      assert.equal(d.papelExigido, papel, modoAcesso);
+      assert.equal(d.restrito, restrito, modoAcesso);
+      assert.equal(d.politica?.modoAcesso, modoAcesso);
+    }
+  });
+
+  it("recusa política desconhecida ou vazia em vez de usar os controles legados", () => {
+    for (const modoAcesso of ["", "aberto", "ADMIN"]) {
+      assert.equal(validarCadastro(entrada({ modoAcesso })).ok, false);
+    }
+  });
+
+  it("preserva as opções da política e neutraliza MFA quando não recebe login", () => {
+    const d = dados({ modoAcesso: "clientes_liberados", permiteCadastro: false, permiteRecuperacao: false, conviteObrigatorio: true, empresaObrigatoria: true, exigeSegundoFator: true });
+    assert.deepEqual(d.politica, { modoAcesso: "clientes_liberados", permiteCadastro: false, permiteRecuperacao: false, conviteObrigatorio: true, empresaObrigatoria: true, exigeMfa: true });
+    const semLogin = dados({ modoAcesso: "desativado", exigeSegundoFator: true });
+    assert.equal(semLogin.exigeSegundoFator, false);
+    assert.equal(semLogin.politica?.exigeMfa, false);
+  });
+
+  it("aceita site com política sem login mesmo quando o checkbox legado veio marcado", () => {
+    const site = dados({ tipo: "site", modoAcesso: "desativado", login: true });
+    assert.equal(recebeLogin(site), false);
+    assert.equal(validarCadastro(entrada({ tipo: "site", modoAcesso: "qualquer_conta", login: false })).ok, false);
+  });
 });
 
 describe("quem o login enxerga", () => {

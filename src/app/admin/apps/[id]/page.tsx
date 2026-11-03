@@ -52,7 +52,10 @@ export default async function AplicacaoPage({ params }: { params: Promise<{ id: 
         <section className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-6">
           <FormAcao acao={acaoSalvarAplicacao}>
             <CamposAplicacao c={c} />
-            <button type="submit" className={botao}>Salvar</button>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Link href="/admin/apps" className={botaoFraco}>Cancelar</Link>
+              <button type="submit" className={botao}>Salvar</button>
+            </div>
           </FormAcao>
         </section>
 

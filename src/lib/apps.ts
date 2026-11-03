@@ -1,4 +1,4 @@
-import { normalizarPolitica, type PoliticaAcesso } from "@/lib/politicaAplicacao";
+import { modoAcessoConhecido, normalizarPolitica, type PoliticaAcesso } from "@/lib/politicaAplicacao";
 
 /**
  * Regras dos aplicativos que usam o SSO.
@@ -310,10 +310,13 @@ export function validarCadastro(e: EntradaCadastro): { ok: true; dados: Cadastro
   if (!incluiEm(TIPOS, e.tipo)) return { ok: false, erro: "Tipo desconhecido." };
   if (!incluiEm(SITUACOES, e.situacao)) return { ok: false, erro: "Situação desconhecida." };
   if (e.publicacao && !incluiEm(PUBLICACOES, e.publicacao)) return { ok: false, erro: "Forma de publicação desconhecida." };
-  if (e.papelExigido && e.papelExigido !== "ADMIN") return { ok: false, erro: "Papel exigido desconhecido." };
+  const modo = e.modoAcesso;
+  if (modo !== undefined && !modoAcessoConhecido(modo)) return { ok: false, erro: "Política de acesso desconhecida." };
+  if (modo === undefined && e.papelExigido && e.papelExigido !== "ADMIN") return { ok: false, erro: "Papel exigido desconhecido." };
 
-  const login = e.tipo === "app" && e.login;
-  if (e.login && e.tipo === "site") return { ok: false, erro: "Site não recebe sessão do login único. Cadastre como aplicação." };
+  const recebeSessao = modo === undefined ? e.login : modo !== "desativado";
+  const login = e.tipo === "app" && recebeSessao;
+  if (recebeSessao && e.tipo === "site") return { ok: false, erro: "Site não recebe sessão do login único. Escolha ‘Não recebe login’ ou cadastre como aplicação." };
 
   const repositorio = e.repositorio.trim();
   if (repositorio && !REPOSITORIO_VALIDO.test(repositorio)) return { ok: false, erro: "Repositório no formato dono/nome (ex.: avilaops/lojas.avilaops.com)." };
@@ -342,8 +345,8 @@ export function validarCadastro(e: EntradaCadastro): { ok: true; dados: Cadastro
       login,
       // Sem login não há sessão a restringir: os campos de acesso ficam no
       // valor neutro, para a linha não carregar regra que ninguém aplica.
-      papelExigido: login && e.papelExigido === "ADMIN" ? "ADMIN" : null,
-      restrito: login ? e.restrito : true,
+      papelExigido: login && (modo === undefined ? e.papelExigido === "ADMIN" : modo === "equipe") ? "ADMIN" : null,
+      restrito: login ? (modo === undefined ? e.restrito : modo === "clientes_liberados") : true,
       exigeSegundoFator: login && e.exigeSegundoFator,
       dicaDominioGoogle: login && dica ? dica : null,
       deepLink: login && deepLink ? deepLink : null,
@@ -352,6 +355,14 @@ export function validarCadastro(e: EntradaCadastro): { ok: true; dados: Cadastro
       publicacao: e.publicacao && incluiEm(PUBLICACOES, e.publicacao) ? e.publicacao : null,
       situacao: e.situacao,
       observacao: observacao || null,
+      ...(modo !== undefined ? { politica: normalizarPolitica({
+        modoAcesso: modo,
+        exigeMfa: login && e.exigeSegundoFator,
+        permiteCadastro: e.permiteCadastro,
+        permiteRecuperacao: e.permiteRecuperacao,
+        conviteObrigatorio: e.conviteObrigatorio,
+        empresaObrigatoria: e.empresaObrigatoria,
+      }) } : {}),
     },
   };
 }
