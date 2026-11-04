@@ -106,28 +106,34 @@ export async function buscarApp(id: string | null | undefined): Promise<AppRegis
 
 export async function criarCadastro(dados: Cadastro, autor: string): Promise<void> {
   const { politica: _, ...linha } = dados;
-  await prisma.aplicacao.create({ data: { ...linha, atualizadoPor: autor.toLowerCase() } });
-  await salvarPoliticaAplicacao(dados.id, dados.politica ?? politicaLegada(dados), autor);
+  await prisma.$transaction(async (tx) => {
+    await tx.aplicacao.create({ data: { ...linha, atualizadoPor: autor.toLowerCase() } });
+    await salvarPoliticaAplicacao(dados.id, dados.politica ?? politicaLegada(dados), autor, tx);
+  });
 }
 
 /** O `id` não muda: é a chave das permissões já concedidas. */
 export async function atualizarCadastro(id: string, dados: Cadastro, autor: string): Promise<void> {
   const { politica: _, ...linha } = dados;
-  await prisma.aplicacao.update({ where: { id }, data: { ...linha, id, atualizadoPor: autor.toLowerCase() } });
-  await salvarPoliticaAplicacao(id, dados.politica ?? politicaLegada(dados), autor);
+  await prisma.$transaction(async (tx) => {
+    await tx.aplicacao.update({ where: { id }, data: { ...linha, id, atualizadoPor: autor.toLowerCase() } });
+    await salvarPoliticaAplicacao(id, dados.politica ?? politicaLegada(dados), autor, tx);
+  });
 }
 
-export async function salvarPoliticaAplicacao(id: string, politica: PoliticaAcesso, autor: string): Promise<void> {
+/** Compatibilidade de esquema ausente é de leitura; escrita de política deve falhar. */
+export async function salvarPoliticaAplicacao(
+  id: string,
+  politica: PoliticaAcesso,
+  autor: string,
+  db: Pick<Prisma.TransactionClient, "politicaAplicacao"> = prisma,
+): Promise<void> {
   const p = normalizarPolitica(politica);
-  try {
-    await prisma.politicaAplicacao.upsert({
-      where: { aplicacaoId: id },
-      create: { aplicacaoId: id, ...p, atualizadoPor: autor.toLowerCase() },
-      update: { ...p, atualizadoPor: autor.toLowerCase() },
-    });
-  } catch (e) {
-    if (!tabelaAusente(e)) throw e;
-  }
+  await db.politicaAplicacao.upsert({
+    where: { aplicacaoId: id },
+    create: { aplicacaoId: id, ...p, atualizadoPor: autor.toLowerCase() },
+    update: { ...p, atualizadoPor: autor.toLowerCase() },
+  });
 }
 
 /**
