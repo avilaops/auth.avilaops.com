@@ -210,3 +210,38 @@ responsável pela conclusão do núcleo amplo e pela migração dos consumidores
 
 O repositório possui merge e deploy automáticos para PR pronto. A entrega desta
 rodada deve permanecer em PR draft até revisão e autorização de integração.
+
+## Continuidade de 04/11/2026 — integração da base atual
+
+O pedido de continuidade pelo Linear retomou a entrega existente do PR #49.
+A branch recebeu a `main` em `6694ff3`, incluindo o cadastro/política atômicos
+da #51, sem conflitos e sem substituir as entregas de logout ou MCP.
+
+Verificação local em PostgreSQL 18.4 descartável, UTF-8, ligado somente ao
+loopback em porta exclusiva desta rodada:
+
+- 28 migrações aplicadas em banco novo; nenhuma migração adicional foi criada.
+- Prisma validate/generate aprovados; migrate diff sem diferenças.
+- Preflight aprovado.
+- Suíte padrão com `TEST_AUTH_DATABASE_URL`: 360 testes aprovados, incluindo
+  os oito testes do núcleo. Os testes dependentes das demais variáveis de banco
+  não são habilitados por essa variável.
+- Suíte corporativa habilitada separadamente: nove testes aprovados.
+
+O preflight de produção foi somente leitura, com timeout de 15 segundos:
+11 clientes OIDC, zero aplicações órfãs e zero ambientes inexistentes ou de
+outra aplicação. Antes da publicação, a FK simples
+`clientes_oidc_ambiente_id_fkey` estava validada, e a migração composta ainda
+não constava como aplicada. Nenhuma linha foi reparada ou reatribuída.
+
+Foi preservado um dump completo do banco próprio do Auth em
+`/opt/backups/db/auth-avl421-20261104.dump`, com permissões privadas,
+catálogo legível por `pg_restore --list` e SHA-256
+`466612b1e922207117d4f8c9d82ae12e12a443e4b67edaf8f198bbcd6b5ccff0`.
+O conteúdo do dump permanece no servidor e não integra o repositório.
+Essa verificação não equivale a um ensaio de restauração.
+
+A publicação usa a imagem construída no GitHub e o despachante existente,
+que aplica migrações antes de trocar o serviço. O encerramento da AVL-421
+exige conferir a revisão servida, a migração concluída e a FK composta validada
+após a publicação; os testes locais não substituem essas evidências.
