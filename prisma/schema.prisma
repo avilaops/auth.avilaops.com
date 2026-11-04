@@ -293,6 +293,7 @@ model AmbienteAplicacao {
   clientesOidc ClienteOidc[]
 
   @@unique([aplicacaoId, nome])
+  @@unique([id, aplicacaoId])
   @@index([aplicacaoId, ativo])
   @@map("ambientes_aplicacao")
 }
@@ -412,7 +413,9 @@ model ClienteOidc {
   ssf                    Boolean @default(false)
 
   aplicacao Aplicacao          @relation(fields: [appId], references: [id], onDelete: Restrict)
-  ambiente  AmbienteAplicacao? @relation(fields: [ambienteId], references: [id], onDelete: Restrict)
+  /// Um ambiente informado pertence obrigatoriamente à aplicação do cliente.
+  /// Restrict impede mover o ambiente e alterar a aplicação do cliente por cascata.
+  ambiente  AmbienteAplicacao? @relation(fields: [ambienteId, appId], references: [id, aplicacaoId], onDelete: Restrict, onUpdate: Restrict, map: "clientes_oidc_ambiente_aplicacao_fkey")
   redirects RedirectUri[]
 
   criadoEm      DateTime @default(now()) @map("criado_em")
@@ -574,7 +577,7 @@ model RotinaEstado {
 /// Organização cujo acesso é compartilhado entre produtos. Dados comerciais
 /// continuam no sistema proprietário; o Auth guarda somente identidade e autorização.
 model OrganizacaoCorporativa {
-  id                   String   @id @default(uuid())
+  id                   String   @id @default(uuid()) @db.Uuid
   clienteId            String   @map("cliente_id")
   referenciaExterna    String   @map("referencia_externa")
   nome                 String
@@ -595,8 +598,8 @@ model OrganizacaoCorporativa {
 
 /// Filial ou unidade operacional identificada pelo sistema proprietário.
 model UnidadeCorporativa {
-  id                String   @id @default(uuid())
-  organizacaoId     String   @map("organizacao_id")
+  id                String   @id @default(uuid()) @db.Uuid
+  organizacaoId     String   @map("organizacao_id") @db.Uuid
   referenciaExterna String   @map("referencia_externa")
   nome              String
   situacao          String   @default("ATIVO")
@@ -614,8 +617,8 @@ model UnidadeCorporativa {
 /// Participação de uma conta existente numa organização. `contaId` referencia
 /// `portal_clients.id`, que vive em outro banco e por isso não tem FK local.
 model VinculoCorporativo {
-  id                   String    @id @default(uuid())
-  organizacaoId        String    @map("organizacao_id")
+  id                   String    @id @default(uuid()) @db.Uuid
+  organizacaoId        String    @map("organizacao_id") @db.Uuid
   contaId              String    @map("conta_id")
   situacao             String    @default("ATIVO")
   convidadoPor         String?   @map("convidado_por")
@@ -634,9 +637,9 @@ model VinculoCorporativo {
 
 /// Papel e alçada num escopo organizacional (`unidadeId` nulo) ou de unidade.
 model AutorizacaoCorporativa {
-  id                      String   @id @default(uuid())
-  vinculoId               String   @map("vinculo_id")
-  unidadeId               String?  @map("unidade_id")
+  id                      String   @id @default(uuid()) @db.Uuid
+  vinculoId               String   @map("vinculo_id") @db.Uuid
+  unidadeId               String?  @map("unidade_id") @db.Uuid
   papel                   String
   limiteAprovacaoCentavos Int?     @map("limite_aprovacao_centavos")
   moeda                   String   @default("BRL")
