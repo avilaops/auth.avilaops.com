@@ -1,0 +1,16 @@
+name: Auth MLOps evaluation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    uses: ./.github/workflows/mlops-auth-evaluation.yml
+    permissions:
+      contents: read
+    with:
+      experiments-ref: dfd4682b46be7df9aaa398461ae107ab52faa5d9

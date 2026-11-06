@@ -1,0 +1,101 @@
+name: Avaliação MLOps do Auth
+
+# Workflow reutilizável. A referência do Experiments precisa ser um SHA
+# completo, porque uma branch móvel não é uma dependência reprodutível.
+on:
+  workflow_call:
+    inputs:
+      experiments-repository:
+        description: Repositório que contém os contratos oficiais do MLOps
+        required: false
+        type: string
+        default: avilaops/experiments
+      experiments-ref:
+        description: SHA completo publicado dos contratos do Experiments
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Auth MLOps evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Auth
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Checkout contratos do Experiments
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ inputs.experiments-repository }}
+          ref: ${{ inputs.experiments-ref }}
+          path: .mlops-contracts
+          persist-credentials: false
+
+      - name: Conferir referência imutável dos contratos
+        env:
+          EXPERIMENTS_REF: ${{ inputs.experiments-ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPERIMENTS_REF" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "experiments-ref precisa ser um SHA-1 completo" >&2
+            exit 1
+          }
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências do Auth
+        run: npm ci
+
+      - name: Criar evaluation-request/1
+        env:
+          MLOPS_PROJECT_ROOT: ${{ github.workspace }}
+          MLOPS_SCHEMA_ROOT: ${{ github.workspace }}/.mlops-contracts/schemas/mlops
+          MLOPS_REPORT_DIR: ${{ github.workspace }}/reports/mlops-ci
+          MLOPS_PRODUCT: auth
+          MLOPS_SUITE_ID: auth-ci
+          MLOPS_SUITE_VERSION: "1"
+        run: node .mlops-contracts/scripts/ci-mlops.mjs request
+
+      - name: Executar suíte do Auth
+        id: auth-tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports/mlops-ci
+          npm test 2>&1 | tee reports/mlops-ci/test-output.log
+
+      - name: Criar evidence-envelope/1 e evaluation-result/1
+        if: always()
+        env:
+          MLOPS_PROJECT_ROOT: ${{ github.workspace }}
+          MLOPS_SCHEMA_ROOT: ${{ github.workspace }}/.mlops-contracts/schemas/mlops
+          MLOPS_REPORT_DIR: ${{ github.workspace }}/reports/mlops-ci
+          MLOPS_PRODUCT: auth
+          MLOPS_TEST_LOG: ${{ github.workspace }}/reports/mlops-ci/test-output.log
+          MLOPS_TEST_OUTCOME: ${{ steps.auth-tests.outcome }}
+        run: node .mlops-contracts/scripts/ci-mlops.mjs result
+
+      - name: Preservar avaliação MLOps
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: mlops-auth-evaluation-${{ github.sha }}-${{ github.run_attempt }}
+          path: reports/mlops-ci/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Enforcer resultado do Auth
+        if: steps.auth-tests.outcome != 'success'
+        run: exit 1
