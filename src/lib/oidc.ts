@@ -12,7 +12,7 @@ import { baseUrl } from "@/lib/urls";
  *
  * O broker resolve o portfólio da casa: emite o cookie `avila_sso` em
  * `.avilaops.com` e cada app nosso valida o JWT localmente. Isso não serve para
- * software de terceiro — Outline, Grafana, qualquer coisa comprada pronta —
+ * software de terceiro, como Grafana ou qualquer ferramenta comprada pronta,
  * porque essas ferramentas não sabem ler nosso cookie. O que elas sabem falar é
  * OIDC.
  *
@@ -42,7 +42,7 @@ export type ClienteOIDC = {
   nome: string;
   /**
    * Igualdade exata, nunca prefixo. Um `startsWith` aqui deixaria
-   * `https://notas.avilaops.com/auth/oidc.callback.evil.io` passar.
+   * `https://app.exemplo.com/auth/oidc.callback.evil.io` passar.
    */
   redirectUris: readonly string[];
   /** Destinos exatos permitidos após end_session/logout. */
@@ -59,8 +59,8 @@ export type ClienteOIDC = {
 /**
  * Procura o cliente no cadastro do painel (`/admin/integracoes`).
  *
- * Notas e TMS ficavam numa lista fixa neste arquivo, com o segredo em variável
- * de ambiente. Em 16/10/2026 foram cadastrados no painel com o hash do mesmo
+ * O TMS ficava numa lista fixa neste arquivo, com o segredo em variável de
+ * ambiente. Em 16/10/2026 foi cadastrado no painel com o hash do mesmo
  * segredo, e a lista saiu: integração, agora, só pelo painel.
  */
 export async function buscarCliente(id: string | null | undefined): Promise<ClienteOIDC | null> {
@@ -122,7 +122,7 @@ export function gerarSegredoCliente(): { segredo: string; hash: string } {
  * Credencial do cliente numa requisição: cabeçalho `Basic` (preferido pelo
  * OIDC) ou `client_id`/`client_secret` no corpo.
  *
- * O Outline manda no corpo; outros mandam no cabeçalho. Aceitar os dois evita
+ * Alguns clientes mandam no corpo; outros mandam no cabeçalho. Aceitar os dois evita
  * um "não funciona" opaco na primeira integração de cada ferramenta nova.
  */
 export function lerCredencialCliente(

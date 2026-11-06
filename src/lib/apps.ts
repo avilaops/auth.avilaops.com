@@ -114,16 +114,6 @@ export const APPS_INICIAIS: readonly AppRegistrado[] = [
      `.avilaops.com`. Não responde mais; fica até alguém conferir que nenhum
      atalho salvo ainda aponta para cá. */
   { id: "minas", host: "minas.avilaops.com", nome: "Minas", papelExigido: null },
-  {
-    id: "notas",
-    host: "notas.avilaops.com",
-    nome: "Notas",
-    // Base de conhecimento interna: equipe. Não entra por cookie como os
-    // demais — o Outline é software de terceiro e fala OIDC, então chega
-    // pelo `/oauth/authorize`. O registro aqui continua valendo: é ele que
-    // `podeEntrar` consulta antes de emitir o código.
-    papelExigido: "ADMIN",
-  },
 ] as const;
 
 /**
@@ -308,6 +298,7 @@ export function validarCadastro(e: EntradaCadastro): { ok: true; dados: Cadastro
   if (!nome || nome.length > 80) return { ok: false, erro: "Nome é obrigatório (até 80 caracteres)." };
 
   if (!incluiEm(TIPOS, e.tipo)) return { ok: false, erro: "Tipo desconhecido." };
+  if (e.tipo !== "app") return { ok: false, erro: "O cadastro aceita apenas aplicações OAuth." };
   if (!incluiEm(SITUACOES, e.situacao)) return { ok: false, erro: "Situação desconhecida." };
   if (e.publicacao && !incluiEm(PUBLICACOES, e.publicacao)) return { ok: false, erro: "Forma de publicação desconhecida." };
   const modo = e.modoAcesso;
@@ -316,8 +307,6 @@ export function validarCadastro(e: EntradaCadastro): { ok: true; dados: Cadastro
 
   const recebeSessao = modo === undefined ? e.login : modo !== "desativado";
   const login = e.tipo === "app" && recebeSessao;
-  if (recebeSessao && e.tipo === "site") return { ok: false, erro: "Site não recebe sessão do login único. Escolha ‘Não recebe login’ ou cadastre como aplicação." };
-
   const repositorio = e.repositorio.trim();
   if (repositorio && !REPOSITORIO_VALIDO.test(repositorio)) return { ok: false, erro: "Repositório no formato dono/nome (ex.: avilaops/lojas.avilaops.com)." };
 

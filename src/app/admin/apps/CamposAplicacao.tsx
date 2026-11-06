@@ -54,12 +54,11 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
         </label>
       </div>
 
+      <input type="hidden" name="tipo" value={c?.tipo ?? "app"} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className={rotulo}>Tipo
-          <select name="tipo" defaultValue={c?.tipo ?? "app"} className={campo}>
-            <option value="app">Aplicação</option>
-            <option value="site">Site (sem login)</option>
-          </select></label>
+        <div className={rotulo}>Tipo
+          <div className={`${campo} flex items-center`}>Aplicação OAuth</div>
+        </div>
         <label className={rotulo}>Situação
           <select name="situacao" defaultValue={c?.situacao ?? "planejado"} className={campo}>
             {SITUACOES.map((s) => <option key={s.valor} value={s.valor}>{s.texto}</option>)}
@@ -74,7 +73,7 @@ export default function CamposAplicacao({ c }: { c: Cadastro | null }) {
           </select>
           <span className="text-[11px]">É esta política que o Auth aplica a todos os clientes OIDC desta aplicação.</span>
         </label>
-        <p className="text-xs text-[var(--color-texto-fraco)]">Para sites, escolha “Não recebe login”. Para clientes restritos, libere o acesso na ficha da conta.</p>
+        <p className="text-xs text-[var(--color-texto-fraco)]">A política define quais contas podem entrar. Para clientes restritos, libere o acesso na ficha da conta.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={caixa}><input type="checkbox" name="permiteCadastro" defaultChecked={c?.politica?.permiteCadastro ?? true} className="mt-1" /><span>Permitir cadastro pelo Auth</span></label>
           <label className={caixa}><input type="checkbox" name="permiteRecuperacao" defaultChecked={c?.politica?.permiteRecuperacao ?? true} className="mt-1" /><span>Permitir recuperação de conta</span></label>

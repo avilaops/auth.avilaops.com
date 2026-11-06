@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /**
  * `userinfo_endpoint`: os claims do usuário, a partir do access token.
  *
- * O Outline exige `sub`, `email` e ao menos um entre `name` e
+ * O cliente OIDC exige `sub`, `email` e ao menos um entre `name` e
  * `preferred_username` — sem isso ele recusa o login com erro de perfil
  * incompleto. Mandamos os três.
  */

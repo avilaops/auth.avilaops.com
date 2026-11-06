@@ -23,7 +23,7 @@ type Linha = Integracao & { appNome: string; empresaId: string | null; empresaNo
 
 /**
  * Sistemas que se conectam ao auth com credencial própria: login por OIDC
- * (TMS, Notas, software de terceiro) e leitura das conexões da Meta.
+ * (TMS e software de terceiro) e leitura das conexões da Meta.
  *
  * A empresa de uma integração é a da aplicação a que ela pertence. O segredo
  * nunca aparece aqui: ele só existe em claro na tela em que é gerado.

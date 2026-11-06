@@ -133,15 +133,9 @@ describe("validação do cadastro", () => {
     }
   });
 
-  it("site não recebe sessão", () => {
-    assert.equal(validarCadastro(entrada({ tipo: "site", login: true })).ok, false);
-    const site = dados({ tipo: "site", login: false, papelExigido: "ADMIN", exigeSegundoFator: true, deepLink: "meuapp://x" });
-    assert.equal(site.login, false);
-    // Sem login, nenhuma regra de acesso fica gravada na linha.
-    assert.equal(site.papelExigido, null);
-    assert.equal(site.exigeSegundoFator, false);
-    assert.equal(site.deepLink, null);
-    assert.equal(recebeLogin(site), false);
+  it("aceita apenas aplicações OAuth", () => {
+    assert.equal(validarCadastro(entrada({ tipo: "site", login: false })).ok, false);
+    assert.equal(validarCadastro(entrada({ tipo: "app", login: true })).ok, true);
   });
 
   it("deriva os campos legados somente da política central, mesmo com entradas contraditórias", () => {
@@ -173,9 +167,8 @@ describe("validação do cadastro", () => {
     assert.equal(semLogin.politica?.exigeMfa, false);
   });
 
-  it("aceita site com política sem login mesmo quando o checkbox legado veio marcado", () => {
-    const site = dados({ tipo: "site", modoAcesso: "desativado", login: true });
-    assert.equal(recebeLogin(site), false);
+  it("recusa site mesmo quando a política não recebe login", () => {
+    assert.equal(validarCadastro(entrada({ tipo: "site", modoAcesso: "desativado", login: false })).ok, false);
     assert.equal(validarCadastro(entrada({ tipo: "site", modoAcesso: "qualquer_conta", login: false })).ok, false);
   });
 });

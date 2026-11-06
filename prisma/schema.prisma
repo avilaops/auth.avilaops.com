@@ -387,7 +387,7 @@ model ExclusaoMeta {
 /// Cliente OIDC / de API cadastrado pelo painel (`/admin/integracoes`).
 ///
 /// Antes a lista vivia só em `oidc.ts` e cada sistema novo pedia commit e
-/// deploy. A lista do código continua valendo como reserva (Notas, TMS), com
+/// deploy. A lista do código continua valendo como reserva (TMS), com
 /// segredo em variável de ambiente; o que nasce pelo painel fica aqui.
 ///
 /// Só o hash do segredo vai ao banco. Ele é gerado aqui (256 bits aleatórios),

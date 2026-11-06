@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * `authorization_endpoint` do OIDC.
  *
  * É a porta pela qual software de terceiro entra no login da casa. O usuário
- * chega aqui vindo do app (Outline, por exemplo), passa pela mesma tela de
+ * chega aqui vindo do aplicativo cliente, passa pela mesma tela de
  * `/login` que todo mundo usa, e volta para o app com um código de uso único.
  */
 export async function GET(req: NextRequest) {
@@ -74,10 +74,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // E o mesmo segundo fator. Sem isto, software de terceiro (o Outline, por
-  // exemplo) seria a porta que aceita uma sessão anterior ao 2FA e devolve um
-  // token de identidade sem o fator — a exigência valeria em toda parte menos
-  // onde a identidade é exportada.
+  // E o mesmo segundo fator. Software de terceiro também passa por esta
+  // exigência antes de receber um token de identidade.
   if (!sessao.mfa && (await desafioNecessario({ email: sessao.email, papel: sessao.papel, app })) !== "nenhum") {
     const voltarPara = `${req.nextUrl.pathname}${req.nextUrl.search}`;
     return NextResponse.redirect(
