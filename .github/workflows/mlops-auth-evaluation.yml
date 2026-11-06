@@ -57,6 +57,10 @@ jobs:
       - name: Instalar dependências do Auth
         run: npm ci
 
+      - name: Instalar dependências do Experiments
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: .mlops-contracts
+
       - name: Criar evaluation-request/1
         env:
           MLOPS_PROJECT_ROOT: ${{ github.workspace }}

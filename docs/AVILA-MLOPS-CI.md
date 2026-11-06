@@ -20,7 +20,9 @@ jobs:
 
 O workflow recusa branches e tags móveis. O checkout do Auth e o checkout dos
 contratos usam `persist-credentials: false`, e o workflow possui somente
-`contents: read`.
+`contents: read`. As dependências do checkout central são instaladas com
+scripts de instalação desabilitados; as dependências do Auth permanecem
+isoladas no checkout principal.
 
 ## Documentos gerados
 
