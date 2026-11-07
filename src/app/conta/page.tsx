@@ -38,10 +38,10 @@ function gb(bytes: number): string {
  * webmail, que entra sozinho pelo SSO) e os sistemas a que tem acesso; depois
  * os dados dela; e as formas de entrar com a verificação em duas etapas.
  */
-export default async function ContaPage({ searchParams }: { searchParams: Promise<{ erro?: string; provedor?: string; secao?: string | string[] }> }) {
+export default async function ContaPage({ searchParams }: { searchParams: Promise<{ erro?: string; provedor?: string; secao?: string | string[]; salvo?: string }> }) {
   const sessao = await lerSessao();
   if (!sessao) redirect("/login?returnTo=/conta");
-  const { erro, provedor: provErro, secao: secaoPedida } = await searchParams;
+  const { erro, provedor: provErro, secao: secaoPedida, salvo } = await searchParams;
   const secao = secaoDaConta(secaoPedida, erro);
   const SEGURANCA = enderecoDaSecao("seguranca");
 
@@ -91,7 +91,6 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
             {s.rotulo}
           </Link>
         ))}
-        <Link href="/conta/meta" className={aba(false)}>Meta</Link>
         <Link href="/conta/threads" className={aba(false)}>Threads</Link>
       </nav>
 
@@ -145,6 +144,8 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
 
         {secao === "dados" && (
         <Cartao titulo="Meus dados" subtitulo="Como você aparece para a equipe Avila Ops.">
+          {salvo === "1" && <p role="status" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-verde)]">Dados salvos com sucesso.</p>}
+          {erro === "dados" && <p role="alert" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-marca-vermelho)]">Não foi possível salvar os dados. Tente novamente.</p>}
           <form action={acaoMeusDados} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">
               Nome
