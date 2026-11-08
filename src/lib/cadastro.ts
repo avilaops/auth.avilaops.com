@@ -60,7 +60,9 @@ export async function listarCadastro(): Promise<Cadastro[]> {
     try {
       linhas = await prisma.aplicacao.findMany({ orderBy: [{ tipo: "asc" }, { nome: "asc" }], include: { politica: true } });
     } catch (e) {
-      if (!tabelaAusente(e) || (e as { code?: string }).code !== "P2022") throw e;
+      // A relação de política pode ainda não existir. O catálogo persistido
+      // continua sendo a autoridade, inclusive para apps desativados.
+      if (!tabelaAusente(e)) throw e;
       linhas = await buscarLinhasLegadas();
     }
     return linhas.map(lerCadastro);
@@ -77,7 +79,7 @@ export async function buscarCadastro(id: string | null | undefined): Promise<Cad
     try {
       linha = await prisma.aplicacao.findUnique({ where: { id }, include: { politica: true } });
     } catch (e) {
-      if (!tabelaAusente(e) || (e as { code?: string }).code !== "P2022") throw e;
+      if (!tabelaAusente(e)) throw e;
       linha = await prisma.aplicacao.findUnique({ where: { id } });
     }
     return linha ? lerCadastro(linha) : null;

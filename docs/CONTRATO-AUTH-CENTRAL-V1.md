@@ -134,6 +134,14 @@ gravadas decisões contraditórias. Aplicações novas começam em
 `clientes_liberados`; sites precisam selecionar `desativado`. Valores de
 política desconhecidos são recusados antes da gravação.
 
+Durante a migração da política, a ausência da relação `politica` (`P2021` ou
+`P2022`) exige reler `aplicacoes` sem essa relação, tanto na busca individual
+quanto na listagem. O catálogo persistido continua definindo existência,
+desativação, acesso restrito, papel e MFA; um resultado vazio não recupera
+aplicações da lista de fábrica. Falhas operacionais de banco são propagadas,
+inclusive na segunda leitura. A compatibilidade de bootstrap já existente só
+é alcançada se a leitura sem relação também falhar por esquema ausente.
+
 Compatibilidades legadas podem permanecer somente durante uma migração
 explicitamente registrada. Não serão criados novos consumidores usando:
 
