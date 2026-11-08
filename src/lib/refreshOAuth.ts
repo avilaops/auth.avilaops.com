@@ -40,7 +40,7 @@ function semTabela(e: unknown): boolean {
 }
 
 /** Emite um refresh token. `familia` vem da troca anterior; ausente, começa uma nova. */
-export async function emitirRefresh(dados: { clienteId: string; sub: string; email: string; familia?: string; escopo?: string }): Promise<string | null> {
+export async function emitirRefresh(dados: { clienteId: string; sub: string; email: string; familia?: string; escopo?: string; mcpConexaoId?: string }): Promise<string | null> {
   const token = randomBytes(32).toString("hex");
   try {
     await prisma.refreshOAuth.create({
@@ -51,6 +51,7 @@ export async function emitirRefresh(dados: { clienteId: string; sub: string; ema
         sub: dados.sub,
         email: dados.email.toLowerCase(),
         escopo: dados.escopo ?? null,
+        ...(dados.mcpConexaoId ? { mcpConexaoId: dados.mcpConexaoId } : {}),
         expiraEm: new Date(Date.now() + VALIDADE_REFRESH_MS),
       },
     });
@@ -62,7 +63,7 @@ export async function emitirRefresh(dados: { clienteId: string; sub: string; ema
 }
 
 export type TrocaDeRefresh =
-  | { ok: true; sub: string; email: string; familia: string; escopo: string | null }
+  | { ok: true; sub: string; email: string; familia: string; escopo: string | null; mcpConexaoId?: string }
   | { ok: false; motivo: "invalido" | "reuso"; email?: string };
 
 /**
@@ -81,7 +82,7 @@ export async function gastarRefresh(token: string, clienteId: string): Promise<T
       where: { tokenHash, usadoEm: null, revogadoEm: null, expiraEm: { gt: new Date() } },
       data: { usadoEm: new Date() },
     });
-    if (gasto.count === 1) return { ok: true, sub: registro.sub, email: registro.email, familia: registro.familia, escopo: registro.escopo };
+    if (gasto.count === 1) return { ok: true, sub: registro.sub, email: registro.email, familia: registro.familia, escopo: registro.escopo, ...(registro.mcpConexaoId ? { mcpConexaoId: registro.mcpConexaoId } : {}) };
 
     // Já gasto e ainda não revogado: alguém está usando uma cópia.
     if (registro.usadoEm && !registro.revogadoEm) {
@@ -129,3 +130,4 @@ export function identidadeParaRenovar(conta: Pick<Conta, "id" | "email" | "nome"
   const papel: Papel = papelDaRole(conta.role);
   return { sub: conta.id, email: conta.email, nome: conta.nome, foto: null, papel };
 }
+

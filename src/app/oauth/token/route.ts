@@ -3,6 +3,8 @@ import { appsDaIdentidade } from "@/lib/appsDaIdentidade";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarConta } from "@/lib/contas";
 import { registrar } from "@/lib/eventos";
+import { createHash } from 'node:crypto';
+import { prisma } from '@/lib/prisma';
 import {
   assinarAccessToken,
   assinarIdToken,
@@ -29,11 +31,21 @@ function erro(code: string, descricao: string, status = 400) {
 }
 
 /** Corpo de sucesso do `token_endpoint`, igual para os dois caminhos. */
-async function tokens(identidade: IdentidadeOIDC, cliente: ClienteOIDC, nonce: string | null, escopo: string, familia?: string) {
-  const refresh = await emitirRefresh({ clienteId: cliente.id, sub: identidade.sub, email: identidade.email, familia, escopo });
+async function tokens(identidade: IdentidadeOIDC, cliente: ClienteOIDC, nonce: string | null, escopo: string, familia?: string, mcpConexaoId?: string) {
+  const centralMcp = cliente.appId === 'mcp' && Boolean(process.env.MCP_GATEWAY_CLIENT_ID);
+  if (centralMcp) {
+    const conexao = mcpConexaoId ? await prisma.mcpConexao.findUnique({ where: { id: mcpConexaoId } }) : null;
+    if (!conexao || conexao.revogadoEm || conexao.sub !== identidade.sub || conexao.clienteId !== cliente.id) return erro('invalid_grant', 'Conexão inválida.');
+  }
+  const refresh = await emitirRefresh({ clienteId: cliente.id, sub: identidade.sub, email: identidade.email, familia, escopo, mcpConexaoId });
+  // Só o consumidor MCP exige a família online. Demais consumidores preservados.
+  const familiaMcp = centralMcp && refresh
+    ? (await prisma.refreshOAuth.findUnique({ where: { tokenHash: createHash('sha256').update(refresh).digest('hex') } }))?.familia
+    : undefined;
+  if (centralMcp && !familiaMcp) return erro('temporarily_unavailable', 'Persistência MCP indisponível.', 503);
   return NextResponse.json(
     {
-      access_token: assinarAccessToken(identidade, cliente.id, escopo),
+      access_token: assinarAccessToken(identidade, cliente.id, escopo, familiaMcp),
       id_token: await assinarIdToken(identidade, cliente.id, nonce, await appsDaIdentidade(identidade)),
       // Ausente só quando a tabela ainda não foi migrada.
       ...(refresh ? { refresh_token: refresh } : {}),
@@ -73,7 +85,7 @@ async function renovar(cliente: ClienteOIDC, corpo: URLSearchParams) {
   // O escopo do SSF foi dado a alguém da equipe. Se a conta deixou de ser, a
   // renovação perde esses dois escopos junto com o papel.
   const escopo = escopoConcedido(troca.escopo, { clienteSsf: cliente.ssf, papel: identidade.papel });
-  return tokens(identidade, cliente, null, escopo, troca.familia);
+  return tokens(identidade, cliente, null, escopo, troca.familia, troca.mcpConexaoId);
 }
 
 /** `token_endpoint`: troca o código de uso único, ou um refresh token, pelos tokens. */
@@ -130,5 +142,6 @@ export async function POST(req: NextRequest) {
   const escopo = escopoConcedido(resgate.escopo, { clienteSsf: cliente.ssf, papel: identidade.papel });
 
   // A foto vem do provedor social e não é armazenada na conta central.
-  return tokens({ ...identidade, foto: resgate.foto }, cliente, resgate.nonce, escopo);
+  return tokens({ ...identidade, foto: resgate.foto }, cliente, resgate.nonce, escopo, undefined, resgate.mcpConexaoId);
 }
+
