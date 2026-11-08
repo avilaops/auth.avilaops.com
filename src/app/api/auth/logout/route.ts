@@ -1,9 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { returnToSeguro } from "@/lib/apps";
-import { buscarApp } from "@/lib/cadastro";
 import { avisarLogout } from "@/lib/avisoDeLogout";
 import { registrar } from "@/lib/eventos";
-import { buscarCliente, postLogoutRedirectUriValido } from "@/lib/oidc";
+import { destinoDoLogout, lerPedidoLogout, origemLocalDoLogout, PedidoLogoutInvalido } from "@/lib/pedidoLogout";
 import { revogarRefreshDaConta } from "@/lib/refreshOAuth";
 import { lerSessao, limparCookieSessao } from "@/lib/sessao";
 import { urlAbsoluta } from "@/lib/urls";
@@ -14,10 +12,10 @@ export const runtime = "nodejs";
  * Logout global: apaga o cookie de `.avilaops.com`, então derruba a sessão em
  * todos os subdomínios de uma vez.
  *
- * POST porque logout é efeito colateral — em GET, um `<img src="/api/auth/logout">`
- * em qualquer página desloga o usuário sem que ele peça.
+ * GET e POST de fora do serviço pedem confirmação. Só o POST originado no
+ * Auth/Conta pode encerrar a sessão, depois de validar o destino novamente.
  */
-async function encerrar(req: NextRequest) {
+async function encerrar(destino: string) {
   const sessao = await lerSessao();
   await limparCookieSessao();
   if (sessao) {
@@ -30,24 +28,30 @@ async function encerrar(req: NextRequest) {
     await registrar({ tipo: "logout", email: sessao.email });
   }
 
-  const cliente = await buscarCliente(req.nextUrl.searchParams.get("client_id"));
-  const postLogout = req.nextUrl.searchParams.get("post_logout_redirect_uri");
-  const destinoOidc = cliente && postLogoutRedirectUriValido(cliente, postLogout) ? postLogout : null;
-  const app = await buscarApp(req.nextUrl.searchParams.get("app"));
-  const destino = destinoOidc
-    ? destinoOidc
-    : app
-    ? returnToSeguro(req.nextUrl.searchParams.get("returnTo"), app)
-    : urlAbsoluta("/login");
-
-  return NextResponse.redirect(destino, { status: 303 });
+  return redirecionar(destino);
 }
 
-/** OIDC RP-initiated logout usa GET; a aplicação ainda pode usar POST local. */
-export async function GET(req: NextRequest) {
-  return encerrar(req);
+function redirecionar(destino: string) {
+  const res = NextResponse.redirect(destino, { status: 303 });
+  res.headers.set("Cache-Control", "no-store");
+  res.headers.set("Referrer-Policy", "no-referrer");
+  return res;
 }
 
-export async function POST(req: NextRequest) {
-  return encerrar(req);
+async function atender(req: NextRequest) {
+  try {
+    const pedido = await lerPedidoLogout(req);
+    if (req.method !== "POST" || !origemLocalDoLogout(req.headers.get("origin"))) {
+      return redirecionar(urlAbsoluta(`/sair${pedido.size ? `?${pedido}` : ""}`));
+    }
+    return await encerrar(await destinoDoLogout(pedido));
+  } catch (e) {
+    if (!(e instanceof PedidoLogoutInvalido)) throw e;
+    return NextResponse.json({ error: "invalid_request", error_description: e.message }, {
+      status: 400, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
+    });
+  }
 }
+
+export const GET = atender;
+export const POST = atender;
