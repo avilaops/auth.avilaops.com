@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
   // Empacota so o que o build provou necessario. Sem isto a imagem
   // carrega o node_modules inteiro: 1,2 GB em vez de ~200 MB.
   output: "standalone",

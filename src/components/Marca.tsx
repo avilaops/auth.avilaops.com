@@ -24,7 +24,7 @@ export default function Marca({ tamanho = 48, className }: Props) {
   return (
     <img
       src="/marca/simbolo-128.png"
-      alt="Ávila Ops"
+      alt="Avila Ops"
       width={tamanho}
       height={tamanho}
       className={className}

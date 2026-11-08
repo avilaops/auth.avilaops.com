@@ -10,6 +10,18 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-CONTA-VISUAL-20261108",
+      "title": "Refatorar a apresentação de Minha conta preservando autorização e ações",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Conta com marca, navegação responsiva e cards de sistemas; destinos autorizados e ações preservados; testes, tipos, lint e build verificados; prévia local sem dados reais.",
+      "evidence": "docs/CONTA-REFATORACAO-VISUAL-20261108.md; docs/superpowers/plans/2026-11-08-minha-conta.md; branch refactor/minha-conta sobre ba78cbb. Segunda versão com cards compactos, ícones vetoriais e busca nos sistemas autorizados. 354 testes, tipos, build e 12 combinações responsivas/tema passaram; busca por nome/domínio/acentos e estados vazios verificados. Lint sem erros com um aviso preexistente.",
+      "history": [
+        { "at": "2026-11-08", "status": "em-andamento", "note": "Clone separado solicitado pelo usuário para preservar a cópia local anterior; implementação visual sem alterar autenticação ou produção." },
+        { "at": "2026-11-08", "status": "em-revisao", "note": "Prévia local com componentes reais e dados fictícios. Fluxo autenticado completo depende da configuração de ambiente; sem commit, push ou publicação." }
+      ]
+    },
+    {
       "id": "AUTH-META-HOST-20261101",
       "title": "Manter inicio e callback OAuth da Meta no host Auth",
       "status": "em-revisao",

@@ -10,13 +10,17 @@ import { listarPermissoes } from "@/lib/permissoes";
 import { menuDeApps } from "@/lib/menuDeApps";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
-import { enderecoDaSecao, secaoDaConta, SECOES_DA_CONTA } from "@/lib/secoesDaConta";
+import { enderecoDaSecao, secaoDaConta } from "@/lib/secoesDaConta";
 import { lerSessao } from "@/lib/sessao";
 import { listarVinculos } from "@/lib/vinculos";
 import BotoesSociais from "@/app/login/BotoesSociais";
-import { acaoDesvincular, acaoMeusDados } from "./actions";
+import { acaoDesvincular, acaoMeusDados, acaoFotoPerfil } from "./actions";
+import { buscarFotoPerfil } from "@/lib/fotoPerfil";
+import PerfilForm from "./PerfilForm";
 import SegundoFator from "./SegundoFator";
 import SistemasDaConta from "./SistemasDaConta";
+import ContaShell from "./ContaShell";
+import "./conta.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Minha conta" };
@@ -44,6 +48,8 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
   const { erro, provedor: provErro, secao: secaoPedida, salvo } = await searchParams;
   const secao = secaoDaConta(secaoPedida, erro);
   const SEGURANCA = enderecoDaSecao("seguranca");
+  const fotoPerfil = await buscarFotoPerfil(sessao.sub);
+  const fotoUrl = fotoPerfil ? `/api/conta/foto?v=${fotoPerfil.atualizadoEm.getTime()}` : null;
 
   const [caixas, vinculos, ligados, permissoes, conta, fator] = await Promise.all([
     caixasDoDono(sessao.email),
@@ -61,38 +67,9 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
     .filter((app) => app.id !== "mail");
   const vinculados = new Set(vinculos.map((v) => v.provedor));
   const disponiveis = ligados.filter((p) => !vinculados.has(p.id));
-  const primeiroNome = sessao.nome.split(" ")[0];
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 basis-48">
-          <h1 className="break-words text-2xl font-semibold tracking-tight">Olá, {primeiroNome}</h1>
-          <p className="mt-1 break-words text-sm text-[var(--color-texto-fraco)]">
-            {sessao.email} ·{" "}
-            <span className={sessao.papel === "ADMIN" ? "text-[var(--color-marca)]" : ""}>
-              {sessao.papel === "ADMIN" ? "equipe Avila Ops" : "cliente"}
-            </span>
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3 text-xs">
-          {ehSuperadmin(sessao) && (
-            <Link href="/admin" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Painel</Link>
-          )}
-          <form action="/api/auth/logout" method="post">
-            <button className="min-h-11 rounded-lg border border-[var(--color-borda)] px-3 py-1.5 hover:bg-[var(--color-cartao)]">Sair</button>
-          </form>
-        </div>
-      </header>
-
-      <nav aria-label="Seções da conta" className="-mx-1 mb-6 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {SECOES_DA_CONTA.map((s) => (
-          <Link key={s.id} href={enderecoDaSecao(s.id)} aria-current={s.id === secao ? "page" : undefined} className={aba(s.id === secao)}>
-            {s.rotulo}
-          </Link>
-        ))}
-        <Link href="/conta/threads" className={aba(false)}>Threads</Link>
-      </nav>
+    <ContaShell nome={conta?.nome ?? sessao.nome} email={sessao.email} foto={fotoUrl} equipe={sessao.papel === "ADMIN"} painel={ehSuperadmin(sessao)} secao={secao}>
 
       {erro === "ja_usado" && (
         <p role="alert" className="mb-6 rounded-lg border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-3 text-xs text-[var(--color-marca-vermelho)]">
@@ -102,7 +79,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
 
       <div className="flex flex-col gap-6">
         {secao === "inicio" && caixas.length > 0 && (
-          <Cartao titulo="Seus e-mails" subtitulo="Abra o webmail sem digitar senha de novo — a sua sessão já vale lá.">
+          <Cartao titulo="Seus e-mails" subtitulo="Sua sessão também vale no webmail. Abra sua caixa para continuar.">
             <ul className="flex flex-col divide-y divide-[var(--color-borda)]">
               {caixas.map((c) => (
                 <li key={c.address} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -146,42 +123,15 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         <Cartao titulo="Meus dados" subtitulo="Como você aparece para a equipe Avila Ops.">
           {salvo === "1" && <p role="status" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-verde)]">Dados salvos com sucesso.</p>}
           {erro === "dados" && <p role="alert" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-marca-vermelho)]">Não foi possível salvar os dados. Tente novamente.</p>}
-          <form action={acaoMeusDados} className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">
-              Nome
-              <input
-                name="nome"
-                defaultValue={conta?.nome ?? sessao.nome}
-                required
-                className="rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 py-2 text-sm text-[var(--color-texto)] outline-none focus:border-[var(--color-marca)]"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">
-              Telefone
-              <input
-                name="telefone"
-                defaultValue={conta?.telefone ?? ""}
-                placeholder="(00) 00000-0000"
-                className="rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 py-2 text-sm text-[var(--color-texto)] outline-none focus:border-[var(--color-marca)]"
-              />
-            </label>
-            <div className="flex items-center gap-3 text-xs text-[var(--color-texto-fraco)]">
-              <span>E-mail: {sessao.email}</span>
-              {conta?.cpf && <span>· CPF: {conta.cpf}</span>}
-            </div>
-            <button
-              type="submit"
-              className="self-start rounded-lg bg-[var(--color-marca-solida)] px-4 py-2 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90"
-            >
-              Salvar
-            </button>
-          </form>
+          {salvo === "foto" && <p role="status">Foto do perfil atualizada.</p>}
+          {erro === "foto" && <p role="alert" className="perfil-erro">Não foi possível salvar a foto. Use JPG, PNG ou WebP de até 2 MB e tente novamente.</p>}
+          <PerfilForm key={fotoUrl ?? "sem-foto"} nome={conta?.nome ?? sessao.nome} telefone={conta?.telefone ?? ""} email={sessao.email} foto={fotoUrl} salvarDados={acaoMeusDados} salvarFoto={acaoFotoPerfil}/>
         </Cartao>
         )}
 
         {secao === "seguranca" && (
         <>
-        <Cartao titulo="Formas de entrar" subtitulo="Tudo aqui leva à mesma conta — entrar com senha ou com um destes é a mesma coisa.">
+        <Cartao titulo="Formas de entrar" subtitulo="Use sua senha ou um dos provedores vinculados para acessar a mesma conta.">
           <ul className="divide-y divide-[var(--color-borda)]">
             <li className="flex items-center justify-between py-2.5 text-sm">
               <div>
@@ -258,7 +208,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         <Cartao titulo="Confirmação por SMS" subtitulo="Confirme que você tem acesso ao telefone da sua conta.">
           <p className="break-all text-sm">{conta?.telefone || "Nenhum telefone cadastrado"}</p>
           <p id="confirmacao-sms-indisponivel" className="mt-2 text-xs font-medium text-[var(--color-texto-fraco)]">
-            Indisponível — integração pendente
+            Indisponível: integração pendente
           </p>
           <p className="mt-3 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
             Ter um telefone no cadastro não confirma a posse do número. O envio de códigos por SMS ainda não está disponível.
@@ -271,21 +221,15 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         </>
         )}
       </div>
-    </main>
+    </ContaShell>
   );
-}
-
-function aba(ativa: boolean): string {
-  return `flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm ${
-    ativa ? "bg-[var(--color-marca-suave)] font-semibold text-[var(--color-marca)]" : "text-[var(--color-texto-fraco)] hover:bg-[var(--color-cartao)] hover:text-[var(--color-texto)]"
-  }`;
 }
 
 function Cartao({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children?: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-6">
-      <h2 className="text-sm font-semibold">{titulo}</h2>
-      {subtitulo && <p className="mb-4 mt-1 text-xs text-[var(--color-texto-fraco)]">{subtitulo}</p>}
+    <section className="conta-cartao">
+      <h2>{titulo}</h2>
+      {subtitulo && <p className="conta-cartao-descricao">{subtitulo}</p>}
       {!subtitulo && <div className="mb-3" />}
       {children}
     </section>

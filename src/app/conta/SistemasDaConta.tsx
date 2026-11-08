@@ -1,35 +1,45 @@
+"use client";
+import { useState } from "react";
 import type { ItemDoMenu } from "@/lib/menuDeApps";
+import IconeConta from "@/app/conta/IconeConta";
+
+const nomes = new Map<string, string>([["mail", "Mail"], ["crm", "CRM"], ["erp", "ERP"], ["lojas", "E-Commerce"], ["cms", "CMS"], ["tms", "TMS"]]);
+const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /** Recebe somente destinos autorizados pelo servidor, via menuDeApps. */
 export default function SistemasDaConta({ sistemas }: { sistemas: ItemDoMenu[] }) {
+  const [busca, setBusca] = useState("");
+  const termos = normalizar(busca).trim().split(/\s+/).filter(Boolean);
+  const visiveis = sistemas.filter((app) => termos.every((termo) => normalizar(`${nomes.get(app.id) ?? app.nome} ${app.url}`).includes(termo)));
   return (
-    <section aria-labelledby="sistemas-titulo" className="rounded-2xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-4 sm:p-6">
-      <h2 id="sistemas-titulo" className="text-lg font-semibold">
+    <section aria-labelledby="sistemas-titulo" className="conta-cartao conta-sistemas">
+      <div className="conta-sistemas-cabecalho"><div><p className="conta-legenda">Seu ambiente de trabalho</p><h2 id="sistemas-titulo">
         {sistemas.length ? "Seus sistemas" : "Nenhum sistema disponível nesta conta"}
-      </h2>
+      </h2></div></div>
       {sistemas.length ? (
         <>
-          <p className="mb-4 mt-2 text-sm leading-relaxed text-[var(--color-texto-fraco)]">
-            Escolha um sistema para continuar. Ao entrar, você poderá selecionar uma empresa
-            autorizada ou seguir as opções de cadastro disponíveis no sistema.
+          <p className="conta-cartao-descricao">
+            Escolha onde deseja trabalhar. A seleção da empresa acontece dentro de cada sistema.
           </p>
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {sistemas.map((app) => (
+          <div className="conta-busca"><IconeConta id="busca" tamanho={19}/><input type="search" aria-label="Buscar sistemas" value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por nome ou domínio" autoComplete="off" />{busca && <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca">×</button>}</div>
+          <ul className="conta-sistemas-grade">
+            {visiveis.map((app) => (
               <li key={app.id} className="min-w-0">
                 <a
                   href={app.url}
-                  className="flex min-h-11 h-full items-center justify-between gap-3 rounded-xl border border-[var(--color-borda)] bg-[var(--color-fundo)] px-4 py-3 hover:border-[var(--color-texto-fraco)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-marca)]"
+                  aria-label={`Abrir ${nomes.get(app.id) ?? app.nome.replace(/[Áá]vila/g, "Avila")}`}
+                  className="conta-sistema"
                 >
-                  <span className="min-w-0 break-words">
-                    <span className="block text-sm font-semibold">Abrir {app.nome}</span>
-                    <span className="mt-1 block break-all text-xs text-[var(--color-texto-fraco)]">{new URL(app.url).host}</span>
-                  </span>
-                  <span aria-hidden="true" className="shrink-0 text-[var(--color-texto-fraco)]">→</span>
+                  <span className="conta-sistema-icone" aria-hidden="true"><IconeConta id={app.id} tamanho={24}/></span>
+                  <span className="conta-sistema-nome">{nomes.get(app.id) ?? app.nome.replace(/[Áá]vila/g, "Avila")}</span>
+                  <span className="conta-sistema-dominio">{new URL(app.url).host}</span>
+                  <span className="conta-sistema-abrir">Abrir sistema <span aria-hidden="true">↗</span></span>
                 </a>
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm leading-relaxed text-[var(--color-texto-fraco)]">
+          {visiveis.length === 0 && <div className="conta-busca-vazia"><IconeConta id="busca" tamanho={28}/><h3>Nenhum sistema encontrado</h3><p>Tente outro nome ou domínio.</p><button type="button" onClick={() => setBusca("")}>Limpar busca</button></div>}
+          <p className="conta-aviso-acesso">
             Sua conta identifica você. O acesso aos dados de cada empresa depende do seu vínculo e das permissões nesse sistema.
           </p>
         </>

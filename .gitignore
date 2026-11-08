@@ -20,3 +20,4 @@ build/
 *.p12
 npm-debug.log*
 tsconfig.tsbuildinfo
+reports/conta-preview/

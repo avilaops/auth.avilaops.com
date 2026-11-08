@@ -40,7 +40,7 @@ test("CLI migra antes do servidor, preserva estados e recusa banco sem tabela", 
     await client.query("INSERT INTO portal_clients VALUES ('legado')");
     await migrate(url.href);
     assert.deepEqual((await client.query("SELECT * FROM portal_clients")).rows, [{
-      id: "legado", email_verificado: false, mfa_email_ativo: false, mfa_email_bloqueado_ate: null,
+      id: "legado", email_verificado: false, mfa_email_ativo: false, mfa_email_bloqueado_ate: null, foto_perfil: null,
     }]);
     await client.query("UPDATE portal_clients SET email_verificado=true, mfa_email_ativo=true, mfa_email_bloqueado_ate='2026-11-01T12:00:00Z'");
     await Promise.all([migrate(url.href), migrate(url.href)]);

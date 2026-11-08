@@ -55,7 +55,7 @@ describe("início da conta", () => {
 
   it("escapa os nomes dos sistemas ao renderizar o destino autorizado", () => {
     const html = renderToStaticMarkup(createElement(SistemasDaConta, {
-      sistemas: [{ id: "erp", nome: '<script>alert("x")</script>', url: "https://erp.avilaops.com/" }],
+      sistemas: [{ id: "custom", nome: '<script>alert("x")</script>', url: "https://erp.avilaops.com/" }],
     }));
     assert.doesNotMatch(html, /<script>/);
     assert.match(html, /&lt;script&gt;/);
