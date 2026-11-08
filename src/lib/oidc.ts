@@ -53,6 +53,7 @@ export type ClienteOIDC = {
   acessoMeta: boolean;
   /** Pode abrir um canal de sinais de segurança e recebê-los (`lib/ssf.ts`). */
   ssf: boolean;
+  mcpGatewayId?: string;
 };
 
 /** Um endereço por linha, como o painel grava. */
@@ -69,6 +70,7 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
     const linha = await prisma.clienteOidc.findUnique({ where: { id } });
     if (linha) {
       if (!linha.ativo) return null;
+      const publicoMcp = linha.appId === 'mcp' && process.env.MCP_GATEWAY_CLIENT_ID ? await prisma.mcpClientePublico.findUnique({ where: { clienteId: id } }) : null;
       return {
         id: linha.id,
         appId: linha.appId,
@@ -78,6 +80,7 @@ export async function buscarCliente(id: string | null | undefined): Promise<Clie
         segredoHash: linha.segredoHash,
         acessoMeta: linha.acessoMeta,
         ssf: linha.ssf,
+        ...(publicoMcp ? { mcpGatewayId: publicoMcp.gatewayId } : {}),
       };
     }
   } catch (e) {
@@ -153,6 +156,10 @@ export async function autenticarCliente(
   corpo?: URLSearchParams,
 ): Promise<ClienteOIDC | null> {
   const cred = lerCredencialCliente(autorizacao, corpo);
+  if (!cred && !autorizacao && corpo?.get('client_id') && !corpo.get('client_secret')) {
+    const publico = await buscarCliente(corpo.get('client_id'));
+    return publico?.mcpGatewayId ? publico : null;
+  }
   const cliente = await buscarCliente(cred?.id);
   return cliente && segredoConfere(cliente, cred?.segredo) ? cliente : null;
 }
@@ -206,6 +213,7 @@ export type PedidoCodigo = IdentidadeOIDC & {
   codeChallengeMethod: string | null;
   /** Escopo já decidido por `escopoConcedido`. */
   escopo?: string;
+  mcpConexaoId?: string;
 };
 
 export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
@@ -220,6 +228,7 @@ export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
       codeChallenge: p.codeChallenge,
       codeChallengeMethod: p.codeChallengeMethod,
       escopo: p.escopo ?? null,
+      ...(p.mcpConexaoId ? { mcpConexaoId: p.mcpConexaoId } : {}),
       sub: p.sub,
       email: p.email,
       nome: p.nome,
@@ -232,7 +241,7 @@ export async function emitirCodigoOAuth(p: PedidoCodigo): Promise<string> {
   return codigo;
 }
 
-export type ResgateOAuth = IdentidadeOIDC & { nonce: string | null; escopo: string };
+export type ResgateOAuth = IdentidadeOIDC & { nonce: string | null; escopo: string; mcpConexaoId?: string };
 
 /**
  * Resgata o código, marcando-o como usado na mesma operação.
@@ -282,6 +291,7 @@ export async function resgatarCodigoOAuth(
     papel: registro.papel as Papel,
     nonce: registro.nonce,
     escopo: registro.escopo ?? ESCOPO_PADRAO,
+    ...(registro.mcpConexaoId ? { mcpConexaoId: registro.mcpConexaoId } : {}),
   };
 }
 
@@ -343,11 +353,11 @@ export async function assinarIdToken(i: IdentidadeOIDC, clienteId: string, nonce
  * isso continua em HS256 com o segredo da sessão: ninguém de fora precisa
  * conferi-lo.
  */
-export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string, escopo: string = ESCOPO_PADRAO): string {
-  return jwt.sign({ ...conteudoDoToken(i, null), scope: escopo, token_use: "access" }, segredoJwt(), { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId });
+export function assinarAccessToken(i: IdentidadeOIDC, clienteId: string, escopo: string = ESCOPO_PADRAO, familia?: string): string {
+  return jwt.sign({ ...conteudoDoToken(i, null), scope: escopo, token_use: "access", ...(familia ? { sid: familia } : {}) }, segredoJwt(), { expiresIn: TTL_TOKEN_SEGUNDOS, issuer: EMISSOR, audience: clienteId });
 }
 
-export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string; escopos: string[] }) | null {
+export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: string; escopos: string[]; familia?: string }) | null {
   try {
     // Só HS256: um `id_token` RS256 não serve de access token.
     const p = jwt.verify(token, segredoJwt(), { issuer: EMISSOR, algorithms: ["HS256"] }) as jwt.JwtPayload;
@@ -361,6 +371,7 @@ export function verificarAccessToken(token: string): (IdentidadeOIDC & { aud: st
       foto: typeof p.picture === "string" ? p.picture : null,
       papel: (p.papel as Papel) ?? "CLIENTE",
       aud: typeof p.aud === "string" ? p.aud : "",
+      ...(typeof p.sid === 'string' ? { familia: p.sid } : {}),
       // Token emitido antes de o escopo existir vale o padrão.
       escopos: (typeof p.scope === "string" ? p.scope : ESCOPO_PADRAO).split(/\s+/).filter(Boolean),
     };
@@ -381,6 +392,7 @@ export function documentoDescoberta(comChave: boolean) {
     issuer: EMISSOR,
     authorization_endpoint: `${base}/oauth/authorize`,
     token_endpoint: `${base}/oauth/token`,
+    ...(process.env.MCP_GATEWAY_CLIENT_ID ? { registration_endpoint: `${base}/oauth/register`, revocation_endpoint: `${base}/oauth/revoke` } : {}),
     userinfo_endpoint: `${base}/oauth/userinfo`,
     corporate_context_endpoint: `${base}/api/corporativo/contextos`,
     end_session_endpoint: `${base}/api/auth/logout`,
@@ -393,8 +405,9 @@ export function documentoDescoberta(comChave: boolean) {
     backchannel_logout_supported: comChave,
     backchannel_logout_session_supported: false,
     id_token_signing_alg_values_supported: [comChave ? "RS256" : "HS256"],
-    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", ...(process.env.MCP_GATEWAY_CLIENT_ID ? ['none'] : [])],
     code_challenge_methods_supported: ["S256", "plain"],
     claims_supported: ["sub", "email", "email_verified", "name", "given_name", "family_name", "preferred_username", "picture", "papel", "apps"],
   };
 }
+
