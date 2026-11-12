@@ -21,9 +21,8 @@
    ========================================================================= */
 
 /*
- * Tema escuro é o valor de base, e o claro sobrescreve logo abaixo. É a mesma
- * ordem do painel: o `<html>` nasce com `data-theme="light"` e o script do
- * modo noturno troca para `dark` entre 18h e 6h, antes da primeira pintura.
+ * O Auth usa o tema claro como padrão fixo para manter a tela de autenticação
+ * legível e consistente durante o fluxo OIDC.
  */
 :root {
   --fundo: #0b0d10;

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
-import { scriptInicial } from "@/lib/tema-noturno";
 import "./globals.css";
 
 /* Manrope é a fonte da identidade; `variable` deixa o CSS decidir onde aplica. */
@@ -16,9 +15,11 @@ export const metadata: Metadata = {
   // e o navegador cai no /favicon.ico implícito, que aqui não existia.
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/favicon.ico" },
+      {
+        url: "/marca/simbolo-128.png?v=2",
+        sizes: "128x128",
+        type: "image/png",
+      },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
@@ -47,14 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={manrope.variable}
       style={{ colorScheme: "light" }}
     >
-      <head>
-        {/*
-          Modo noturno da casa: 18h escurece, 6h clareia, igual ao painel.
-          Precisa rodar antes do CSS, senão a tela pinta clara e escurece
-          depois, e o flash branco às 22h é pior do que não ter tema escuro.
-        */}
-        <script dangerouslySetInnerHTML={{ __html: scriptInicial() }} />
-      </head>
+      <head />
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );

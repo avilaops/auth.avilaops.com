@@ -36,7 +36,7 @@ export default async function ContaThreadsPage() {
           <p className="text-xs text-[var(--color-texto-fraco)]">O acesso é conferido novamente ao executar uma operação no Threads.</p>
         </>}
       <p className="text-sm text-[var(--color-texto-fraco)]">A equipe responsável gerencia a conexão no Hub Social. Para conectar, renovar ou retirar o acesso da empresa, entre em contato com essa equipe.</p>
-      {ehDaCasa(conta.role) && <a href="https://app.avilaops.com/hub-social/meta" className="inline-block text-sm underline">Gerenciar no Hub Social</a>}
+      {ehDaCasa(conta.role) && <a href="https://app.avilaops.com/hub-social/meta" target="_blank" rel="noopener noreferrer" className="inline-block text-sm underline">Abrir gerenciamento no Hub Social (nova aba)</a>}
     </section>
   </main>;
 }
