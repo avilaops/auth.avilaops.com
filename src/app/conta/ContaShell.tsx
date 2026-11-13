@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import Marca from "@/components/Marca";
+import BotaoTema from "@/lib/tema-noturno/react";
 import IconeConta from "@/app/conta/IconeConta";
 import { enderecoDaSecao, SECOES_DA_CONTA, type SecaoDaConta } from "@/lib/secoesDaConta";
 
@@ -25,6 +26,7 @@ export default function ContaShell({ nome, email, equipe, painel, secao, childre
         </Link>
         <span className="conta-barra-contexto">Minha conta</span>
         <div className="conta-acoes">
+          <BotaoTema className="conta-botao conta-botao-tema" />
           {painel && <Link href="/admin" className="conta-botao">Painel <span aria-hidden="true">↗</span></Link>}
           <form action="/api/auth/logout" method="post"><button type="submit" className="conta-botao">Sair <span aria-hidden="true">↗</span></button></form>
         </div>
