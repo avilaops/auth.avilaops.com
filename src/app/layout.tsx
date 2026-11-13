@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
-import { scriptInicial } from "@/lib/tema-noturno";
+import { scriptTemaDispositivo } from "@/lib/tema-dispositivo";
 import "./globals.css";
 
 /* Manrope é a fonte da identidade; `variable` deixa o CSS decidir onde aplica. */
@@ -43,17 +43,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      data-theme="light"
       className={manrope.variable}
-      style={{ colorScheme: "light" }}
     >
       <head>
-        {/*
-          Modo noturno da casa: 18h escurece, 6h clareia, igual ao painel.
-          Precisa rodar antes do CSS, senão a tela pinta clara e escurece
-          depois, e o flash branco às 22h é pior do que não ter tema escuro.
-        */}
-        <script dangerouslySetInnerHTML={{ __html: scriptInicial() }} />
+        <script dangerouslySetInnerHTML={{ __html: scriptTemaDispositivo() }} />
       </head>
       <body className="min-h-screen antialiased">{children}</body>
     </html>
