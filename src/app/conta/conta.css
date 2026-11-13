@@ -9,6 +9,7 @@
 .conta-barra-contexto { border-left: 1px solid var(--linha); padding-left: 28px; font-size: 13px; color: var(--texto-secundario); }
 .conta-acoes { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .conta-botao { display: inline-flex; justify-content: center; align-items: center; gap: 12px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--linha); border-radius: 8px; background: var(--superficie); color: var(--texto); font-size: 12px; font-weight: 600; cursor: pointer; }
+.conta-botao-tema { min-width: 44px; padding-inline: 0; font-size: 20px; line-height: 1; }
 .conta-botao:hover { background: var(--superficie-suave); }
 .conta-estrutura { display: grid; grid-template-columns: 208px minmax(0,1fr); gap: 48px; max-width: 1336px; margin: auto; padding: 40px 28px 28px; }
 .conta-lateral { min-width: 0; }
@@ -115,6 +116,8 @@
   .conta-sistema-abrir span { font-size: 18px; }
   .conta-cartao { padding: 20px; }
   .conta-marca img { width: 27px !important; height: 27px !important; }
-  .conta-botao span { display: none; }
+  .conta-botao:not(.conta-botao-tema) span { display: none; }
+  .conta-botao-tema { padding-inline: 0; }
+  .conta-barra { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .conta-sistema { transition: none; } }
