@@ -20,12 +20,8 @@
    `text-texto` e companhia.
    ========================================================================= */
 
-/*
- * Tema escuro é o valor de base, e o claro sobrescreve logo abaixo. É a mesma
- * ordem do painel: o `<html>` nasce com `data-theme="light"` e o script do
- * modo noturno troca para `dark` entre 18h e 6h, antes da primeira pintura.
- */
-:root {
+:root[data-theme="dark"] {
+  color-scheme: dark;
   --fundo: #0b0d10;
   --superficie: #101318;
   --superficie-suave: #161a21;
@@ -64,7 +60,6 @@
    * folga, e é o único lugar em que a marca aparece como área grande.
    */
   --marca-solida: #2f6fe4;
-  --marca-contraste: #ffffff;
 
   --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --sombra-2: 0 10px 28px rgba(0, 0, 0, 0.45);
@@ -75,7 +70,9 @@
  * fundo branco: azul 5,68:1, vermelho 5,63:1 e amarelo 4,79:1. Sem isto os
  * três ficariam com o valor do tema escuro e o amarelo sumiria na tela clara.
  */
-:root[data-theme="light"] {
+:root {
+  color-scheme: light;
+  --marca-contraste: #ffffff;
   --fundo: #f7f8fa;
   --superficie: #ffffff;
   --superficie-suave: #f4f6f9;
@@ -177,4 +174,20 @@ body {
 .simbolo-marca {
   display: block;
   height: auto;
+}
+
+.controle-tema {
+  min-height: 44px;
+  padding-inline: 8px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: var(--superficie);
+  color: var(--texto-secundario);
+  font: 600 12px var(--fonte);
+  cursor: pointer;
+}
+
+.controle-tema:focus-visible {
+  outline: 2px solid var(--marca-azul);
+  outline-offset: 2px;
 }
