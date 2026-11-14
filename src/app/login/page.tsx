@@ -9,7 +9,6 @@ import { podeEntrar } from "@/lib/permissoes";
 import { desafioNecessario } from "@/lib/segundoFator";
 import { lerSessao } from "@/lib/sessao";
 import Marca from "@/components/Marca";
-import ControleTema from "@/components/ControleTema";
 import BotoesSociais from "./BotoesSociais";
 import FormLogin from "./FormLogin";
 
@@ -76,7 +75,6 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
       <div className="w-full max-w-sm">
-        <div className="mb-2 flex justify-end"><ControleTema /></div>
         <div className="mb-8 text-center">
           <Marca tamanho={48} className="mx-auto mb-5" />
           <h1 className="text-xl font-semibold tracking-tight">Avila Ops</h1>
