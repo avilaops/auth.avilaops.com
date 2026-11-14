@@ -26,7 +26,7 @@ O consumidor é uma ferramenta local; não equivale à integração do ERP.
 
 A preparação cria `.env.development.local` com segredos aleatórios e
 `.local/auth/` com o cluster PostgreSQL, logs, mensagens e `access.json`.
-Esses caminhos são ignorados pelo Git. A senha das contas e o segredo OIDC
+Esses caminhos são ignorados pelo Git e excluídos do contexto Docker. A senha das contas e o segredo OIDC
 ficam em `access.json`; não os copie para issues ou evidências.
 
 | Conta | Cenário |
