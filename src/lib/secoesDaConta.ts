@@ -9,6 +9,8 @@ export const SECOES_DA_CONTA = [
   { id: "inicio", rotulo: "Início" },
   { id: "dados", rotulo: "Meus dados" },
   { id: "seguranca", rotulo: "Segurança" },
+  { id: "empresas", rotulo: "Empresas" },
+  { id: "conexoes", rotulo: "Conexões" },
 ] as const;
 
 export type SecaoDaConta = (typeof SECOES_DA_CONTA)[number]["id"];
@@ -28,4 +30,10 @@ export function secaoDaConta(secao: string | string[] | undefined, erro?: string
 
 export function enderecoDaSecao(secao: SecaoDaConta): string {
   return secao === "inicio" ? "/conta" : `/conta?secao=${secao}`;
+}
+
+/** Paginação recebida na URL nunca vira um offset arbitrário ou repetido. */
+export function paginaDaConta(valor: unknown): number {
+  return typeof valor === "number" && Number.isInteger(valor) && valor >= 1 && valor <= 10000 ? valor
+    : typeof valor === "string" && /^[1-9]\d{0,4}$/.test(valor) && Number(valor) <= 10000 ? Number(valor) : 1;
 }

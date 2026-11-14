@@ -1,17 +1,18 @@
 import type { AppRegistrado } from "@/lib/apps";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarCliente, redirectUriValido } from "@/lib/oidc";
+import { baseDaAplicacao } from "@/lib/baseDaAplicacao";
 
 export type OrigemDoCadastro = { app: string | null; returnTo: string | null };
 
 /** Destino de navegação, nunca um callback com estado de autenticação antigo. */
 function destinoDoProduto(app: AppRegistrado, valor: unknown): string {
-  const inicio = `https://${app.host}/`;
+  const inicio = baseDaAplicacao(app.host);
   if (typeof valor !== "string" || valor.length > 2000 || /[\\\u0000-\u0020\u007f]/.test(valor)) return inicio;
   try {
     const url = new URL(valor);
     const caminho = decodeURIComponent(url.pathname);
-    if (url.protocol !== "https:" || url.host !== app.host || url.username || url.password) return inicio;
+    if (url.protocol !== new URL(inicio).protocol || url.host !== app.host || url.username || url.password) return inicio;
     if (/[\\\u0000-\u0020\u007f%]/.test(caminho) || caminho.startsWith("//")) return inicio;
     if (/^\/(?:api|oauth|login|entrar|criar|criar-conta|recuperar)(?:\/|$)/i.test(caminho)) return inicio;
     if (["code", "state", "nonce", "code_challenge", "code_verifier", "access_token", "id_token"].some((chave) => url.searchParams.has(chave))) return inicio;

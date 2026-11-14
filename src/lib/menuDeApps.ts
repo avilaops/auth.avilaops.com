@@ -1,5 +1,6 @@
 import { motivoDoAcesso, paraApp, recebeLogin, type Cadastro, type Papel } from "@/lib/apps";
 import { HOST_DA_CONTA, ID_DO_APP_CONTA } from "@/lib/hostDaConta";
+import { baseDaAplicacao, baseDoAuthLocal } from "@/lib/baseDaAplicacao";
 
 /**
  * O que cada conta pode abrir: a lista do menu de apps e a claim `apps`.
@@ -36,7 +37,8 @@ export function appsDaConta(cadastro: Cadastro[], papel: Papel, liberados: strin
 export function menuDeApps(cadastro: Cadastro[], papel: Papel, liberados: string[]): MenuDeApps {
   const apps = ondeAContaEntra(cadastro, papel, liberados)
     .filter((c) => c.id !== ID_DO_APP_CONTA && c.situacao === "no_ar")
-    .map((c) => ({ id: c.id, nome: c.nome, url: `https://${c.host}/` }))
+    .map((c) => ({ id: c.id, nome: c.nome, url: baseDaAplicacao(c.host) }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  return { conta: `https://${HOST_DA_CONTA}/`, apps };
+  const local = baseDoAuthLocal();
+  return { conta: local ? `${local}/conta` : `https://${HOST_DA_CONTA}/`, apps };
 }

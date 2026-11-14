@@ -22,6 +22,9 @@ describe("confirmação de saída da conta", () => {
     const html = await renderizar({ client_id: "produto", post_logout_redirect_uri: "https://produto.example.test/saiu", state: "a&b" });
     assert.match(html, /pessoa@example.test/);
     assert.match(html, /sistemas conectados/);
+    assert.match(html, /somente de um sistema/);
+    assert.match(html, /podem continuar abertas/);
+    assert.match(html, /acesso contínuo/);
     assert.match(html, /method="post"/);
     assert.match(html, /action="\/api\/auth\/logout\?client_id=produto&amp;post_logout_redirect_uri=https%3A%2F%2Fproduto.example.test%2Fsaiu&amp;state=a%26b"/);
     assert.match(html, /Manter minha sessão/);

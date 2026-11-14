@@ -36,10 +36,10 @@ test("CLI migra antes do servidor, preserva estados e recusa banco sem tabela", 
       assert.equal(error.stderr.trim(), "Migração do portal falhou; inicialização interrompida.");
       return true;
     });
-    await client.query("CREATE TABLE portal_clients (id text PRIMARY KEY)");
-    await client.query("INSERT INTO portal_clients VALUES ('legado')");
+    await client.query("CREATE TABLE portal_clients (id text PRIMARY KEY, email text NOT NULL)");
+    await client.query("INSERT INTO portal_clients VALUES ('legado','legado@example.test')");
     await migrate(url.href);
-    assert.deepEqual((await client.query("SELECT * FROM portal_clients")).rows, [{
+    assert.deepEqual((await client.query("SELECT id,email_verificado,mfa_email_ativo,mfa_email_bloqueado_ate,foto_perfil FROM portal_clients")).rows, [{
       id: "legado", email_verificado: false, mfa_email_ativo: false, mfa_email_bloqueado_ate: null, foto_perfil: null,
     }]);
     await client.query("UPDATE portal_clients SET email_verificado=true, mfa_email_ativo=true, mfa_email_bloqueado_ate='2026-11-01T12:00:00Z'");

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { emitirSinal, sinalDoEvento } from "@/lib/ssf";
 
 export type TipoEvento =
+  | "email_confirmacao_enviada"
+  | "email_confirmado"
   | "login_ok"
   | "login_falhou"
   | "login_sem_permissao"

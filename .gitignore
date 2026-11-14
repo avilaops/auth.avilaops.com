@@ -21,3 +21,4 @@ build/
 npm-debug.log*
 tsconfig.tsbuildinfo
 reports/conta-preview/
+.local/
