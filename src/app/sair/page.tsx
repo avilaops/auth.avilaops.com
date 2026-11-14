@@ -42,6 +42,11 @@ export default async function SairPage({ searchParams }: {
                   : "Não há sessão ativa da conta neste navegador. Você pode continuar para concluir a saída do sistema de origem."}
               </p>
               {sessao && <p className="mt-3 break-all text-sm font-medium">{sessao.email}</p>}
+              {sessao && <div className="mt-3 space-y-3 text-sm leading-relaxed text-[var(--color-texto-fraco)]">
+                <p>Para sair somente de um sistema, use a opção de saída dentro dele. Sua conta Ávila Ops pode continuar conectada e permitir entrar novamente.</p>
+                <p>Ao encerrar a conta, sessões próprias dos sistemas podem continuar abertas até que eles processem o aviso ou revalidem o acesso. Conexões autorizadas para acesso contínuo são gerenciadas separadamente em Conexões.</p>
+                <Link href="/conexoes" className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)]">Conferir minhas conexões</Link>
+              </div>}
               <form action={`/api/auth/logout${pedido?.size ? `?${pedido}` : ""}`} method="post" className="mt-5">
                 <button type="submit" className="min-h-11 w-full rounded-lg bg-[var(--color-marca-solida)] px-4 py-2 text-sm font-semibold text-white">
                   {sessao ? "Encerrar sessão da conta" : "Continuar"}

@@ -28,7 +28,7 @@ export default function ContaShell({ nome, email, equipe, painel, secao, childre
         <div className="conta-acoes">
           <ControleTema />
           {painel && <Link href="/admin" className="conta-botao">Painel <span aria-hidden="true">↗</span></Link>}
-          <form action="/api/auth/logout" method="post"><button type="submit" className="conta-botao">Sair <span aria-hidden="true">↗</span></button></form>
+          <Link href="/sair" className="conta-botao">Sair da conta <span aria-hidden="true">↗</span></Link>
         </div>
       </header>
       <div className="conta-estrutura">

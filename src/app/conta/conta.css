@@ -10,6 +10,10 @@
 .conta-acoes { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .conta-botao { display: inline-flex; justify-content: center; align-items: center; gap: 12px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--linha); border-radius: 8px; background: var(--superficie); color: var(--texto); font-size: 12px; font-weight: 600; cursor: pointer; }
 .conta-botao:hover { background: var(--superficie-suave); }
+.conta-vinculos { margin: 16px 0; padding: 0; list-style: none; }
+.conta-vinculos li { padding: 16px 0; border-bottom: 1px solid var(--linha); overflow-wrap: anywhere; }
+.conta-vinculos strong, .conta-vinculos span { display: block; }
+.conta-vinculos span, .conta-vinculos p { margin: 5px 0; font-size: 13px; line-height: 1.6; color: var(--texto-secundario); }
 .conta-estrutura { display: grid; grid-template-columns: 208px minmax(0,1fr); gap: 48px; max-width: 1336px; margin: auto; padding: 40px 28px 28px; }
 .conta-lateral { min-width: 0; }
 .conta-legenda { color: var(--texto-secundario); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 1.4px; margin: 0 0 18px; }

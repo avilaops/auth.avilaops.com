@@ -7,7 +7,8 @@ import { caixasDoDono } from "@/lib/caixaEmail";
 import { conectoresLigados } from "@/lib/conectores";
 import { buscarConta } from "@/lib/contas";
 import { listarPermissoes } from "@/lib/permissoes";
-import { menuDeApps } from "@/lib/menuDeApps";
+import { appsDaConta, menuDeApps } from "@/lib/menuDeApps";
+import { acessosDaConta } from "@/lib/acessosDaConta";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
 import { enderecoDaSecao, secaoDaConta } from "@/lib/secoesDaConta";
@@ -20,6 +21,7 @@ import PerfilForm from "./PerfilForm";
 import SegundoFator from "./SegundoFator";
 import SistemasDaConta from "./SistemasDaConta";
 import ContaShell from "./ContaShell";
+import AcessosDaConta from "./AcessosDaConta";
 import "./conta.css";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +67,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
   const cadastro = await listarCadastro();
   const sistemas = menuDeApps(cadastro, sessao.papel, permissoes).apps
     .filter((app) => app.id !== "mail");
+  const acessos = secao === "inicio" ? await acessosDaConta(sessao.sub, cadastro, appsDaConta(cadastro, sessao.papel, permissoes)) : null;
   const vinculados = new Set(vinculos.map((v) => v.provedor));
   const disponiveis = ligados.filter((p) => !vinculados.has(p.id));
 
@@ -118,6 +121,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         {secao === "inicio" && (
           <SistemasDaConta sistemas={sistemas} />
         )}
+        {acessos && <AcessosDaConta emailVerificado={conta?.emailVerificado ?? false} {...acessos} />}
 
         {secao === "dados" && (
         <Cartao titulo="Meus dados" subtitulo="Como você aparece para a equipe Avila Ops.">

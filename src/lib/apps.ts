@@ -1,4 +1,5 @@
 import { modoAcessoConhecido, normalizarPolitica, type PoliticaAcesso } from "@/lib/politicaAplicacao";
+import { baseDaAplicacao } from "@/lib/baseDaAplicacao";
 
 /**
  * Regras dos aplicativos que usam o SSO.
@@ -127,7 +128,7 @@ export const APPS_INICIAIS: readonly AppRegistrado[] = [
  * `evil-avilaops.com`.
  */
 export function returnToSeguro(returnTo: string | null | undefined, app: AppRegistrado): string {
-  const padrao = `https://${app.host}/`;
+  const padrao = baseDaAplicacao(app.host);
   if (!returnTo) return padrao;
 
   let url: URL;
@@ -137,7 +138,7 @@ export function returnToSeguro(returnTo: string | null | undefined, app: AppRegi
     return padrao;
   }
 
-  if (url.protocol !== "https:") return padrao;
+  if (url.protocol !== new URL(padrao).protocol || url.username || url.password) return padrao;
   if (url.host !== app.host) return padrao;
 
   return url.toString();

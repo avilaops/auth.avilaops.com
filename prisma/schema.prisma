@@ -419,6 +419,9 @@ model ClienteOidc {
   ambiente  AmbienteAplicacao? @relation(fields: [ambienteId, appId], references: [id, aplicacaoId], onDelete: Restrict, onUpdate: Restrict, map: "clientes_oidc_ambiente_aplicacao_fkey")
   redirects RedirectUri[]
   mcpPoliticas McpPoliticaFerramenta[]
+  mcpClientesPublicos McpClientePublico[] @relation("McpClienteDelegado")
+  mcpDelegacoes McpClientePublico[] @relation("McpGateway")
+  mcpConexoes McpConexao[]
 
   criadoEm      DateTime @default(now()) @map("criado_em")
   atualizadoEm  DateTime @default(now()) @updatedAt @map("atualizado_em")
@@ -536,6 +539,8 @@ model RefreshOAuth {
 model McpClientePublico {
   clienteId String @id @map("cliente_id")
   gatewayId String @map("gateway_id")
+  cliente ClienteOidc @relation("McpClienteDelegado", fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  gateway ClienteOidc @relation("McpGateway", fields: [gatewayId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   @@map("mcp_clientes_publicos")
 }
 
@@ -552,6 +557,7 @@ model McpConexao {
   usadoEm DateTime? @map("usado_em")
   revogadoEm DateTime? @map("revogado_em")
   criadoEm DateTime @default(now()) @map("criado_em")
+  cliente ClienteOidc @relation(fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   @@index([sub, clienteId])
   @@map("mcp_conexoes")
 }
@@ -702,7 +708,7 @@ model McpPoliticaFerramenta {
   argumentoEmpresa String @map("argumento_empresa")
   argumentoUnidade String? @map("argumento_unidade")
   ativo            Boolean @default(false)
-  cliente          ClienteOidc @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  cliente          ClienteOidc @relation(fields: [clienteId], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([clienteId, ferramenta])
   @@map("mcp_politicas_ferramenta")

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { connect as conectarTls, type TLSSocket } from "node:tls";
 import { Socket } from "node:net";
+import { emailLocalHabilitado, gravarEmailLocal } from "@/lib/emailLocal";
 
 /**
  * Envio de e-mail pelo SMTP da casa, sem dependência nova.
@@ -86,7 +87,7 @@ export function lerReleDeEmail(env: Record<string, string | undefined> = process
 
 /** A plataforma consegue mandar e-mail neste ambiente? */
 export function emailConfigurado(): boolean {
-  return lerConfiguracaoSmtp() !== null || lerReleDeEmail() !== null;
+  return emailLocalHabilitado() || lerConfiguracaoSmtp() !== null || lerReleDeEmail() !== null;
 }
 
 // --- Montagem da mensagem (pura) -------------------------------------------
@@ -314,6 +315,7 @@ function b64(texto: string): string {
  */
 export async function enviarEmail(email: EmailParaEnviar): Promise<{ messageId: string }> {
   if (!enderecoValido(email.para)) throw new FalhaDeEnvio(`destinatário inválido: ${umaLinha(email.para).slice(0, 80)}`);
+  if (emailLocalHabilitado()) return gravarEmailLocal(email);
   const config = lerConfiguracaoSmtp();
   if (!config) {
     const rele = lerReleDeEmail();

@@ -589,6 +589,23 @@ Ver `.env.example`. As que merecem atenção:
 
 ## Desenvolvimento
 
+Para trabalhar sem servidor, com PostgreSQL e contas sintéticas locais:
+
+```bash
+npm ci
+npm run dev:setup
+npm run dev:local
+# Em outro terminal:
+npm run dev:consumer
+```
+
+O Auth abre em `http://127.0.0.1:3010` e o consumidor OIDC em
+`http://127.0.0.1:3011`. Credenciais geradas ficam em `.local/auth/access.json`.
+Cadastro/recuperação usam mensagens capturadas no disco por `npm run dev:emails`.
+Preparação, testes e limites em [`docs/DEV-LOCAL.md`](docs/DEV-LOCAL.md).
+
+Para ambientes configurados manualmente:
+
 ```bash
 cp .env.example .env    # preencher; deixar SSO_COOKIE_DOMAIN vazio
 npm install

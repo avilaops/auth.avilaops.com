@@ -6,9 +6,11 @@ import ContaShell from "@/app/conta/ContaShell";
 
 describe("estrutura de Minha conta", () => {
   const props = { nome: "Pessoa Exemplo", email: "pessoa@example.com", equipe: false, painel: false, secao: "inicio" as const, children: "Conteúdo autorizado" };
-  it("mantém a saída por POST e não oferece o painel ao cliente", () => {
+  it("oferece confirmação da saída da conta e não oferece o painel ao cliente", () => {
     const html = renderToStaticMarkup(createElement(ContaShell, props));
-    assert.match(html, /action="\/api\/auth\/logout" method="post"/);
+    assert.match(html, /href="\/sair"/);
+    assert.match(html, /Sair da conta/);
+    assert.doesNotMatch(html, /action="\/api\/auth\/logout"/);
     assert.doesNotMatch(html, /href="\/admin"/);
     assert.match(html, /Conteúdo autorizado/);
     assert.match(html, /aria-current="page"/);

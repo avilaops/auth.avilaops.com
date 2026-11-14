@@ -10,6 +10,37 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-DEV-LOCAL-20261113",
+      "title": "Ambiente DEV local e validação das pendências do Auth no Linear",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "priority": "alta",
+      "acceptance": "Auth com PostgreSQL e contas locais, preparação idempotente, captura local de e-mail, consumidor OIDC real e contratos validados; entrega em branch/PR draft sem deploy.",
+      "evidence": "docs/DEV-LOCAL.md; docs/AUTH-DEV-LOCAL-20261113.md; docs/superpowers/plans/2026-11-13-auth-dev-local.md. 57 testes PostgreSQL aprovados; navegador local com 15 cenários aprovados e zero pageerrors. Linear recusou nova issue pelo limite gratuito: acompanhamento nas issues existentes.",
+      "history": [
+        { "at": "2026-11-13", "status": "em-andamento", "note": "Pedido direto de implementações via Linear/GitHub em DEV local sem servidor. Escopo limitado a auth.avilaops.com; sem delegação ou publicação." },
+        { "at": "2026-11-13", "status": "em-revisao", "note": "Núcleo, MCP, cadastro/recuperação e saída exercitados localmente; evidência de produção e dos consumidores permanece separada." }
+      ]
+    },
+    {
+      "id": "AVL-386",
+      "title": "Distinguir identidade, acesso ao sistema e vínculos corporativos na conta",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Mostrar e-mail, sistema, empresa e papéis a partir da conta autenticada; distinguir ausência de vínculo, suspensão, remoção e falta de autorização; não conceder acesso por coincidência de e-mail/CNPJ.",
+      "evidence": "src/lib/acessosDaConta.ts; src/app/conta/AcessosDaConta.tsx; tests/acessosDaContaBanco.test.ts; docs/AUTH-DEV-LOCAL-20261113.md. Consulta PostgreSQL real por contaId, limitada a 50 vínculos, com isolamento e erro propagado. Estados de zero/duas empresas e suspensão verificados em navegador local.",
+      "history": [{ "at": "2026-11-13", "status": "em-revisao", "note": "Implementação do Auth validada localmente. Seleção da empresa, convites mantidos pelo ERP e evidência publicada continuam dependentes do consumidor." }]
+    },
+    {
+      "id": "AVL-388",
+      "title": "Explicitar alcance da saída local e da sessão central",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "acceptance": "Sair da conta abre confirmação; explicar saída local, SSO, notificações e conexões contínuas; preservar POST, origem e destinos autorizados.",
+      "evidence": "src/app/conta/ContaShell.tsx; src/app/sair/page.tsx; tests/contaShell.test.ts; tests/confirmacaoLogout.test.ts; consumidor OIDC local com saída local e global verificados no navegador.",
+      "history": [{ "at": "2026-11-13", "status": "em-revisao", "note": "Parte do Auth concluída para revisão. Alteração e validação dos rótulos/cookies próprios do ERP não pertencem a este repositório." }]
+    },
+    {
       "id": "AUTH-CONTA-VISUAL-20261108",
       "title": "Refatorar a apresentação de Minha conta preservando autorização e ações",
       "status": "em-revisao",
