@@ -55,5 +55,12 @@
 - [x] Executar suíte padrão, suítes PostgreSQL do núcleo/corporativo/MCP, tipos, lint e build.
 - [x] Corrigir drift confirmado pelo migrate diff: relações MCP já criadas pela migração e ausentes/divergentes no Prisma; declarar as FKs existentes e ON UPDATE NO ACTION, sem alterar SQL ou dados.
 - [x] Validar login real, cadastro/recuperação com mensagem capturada, navegação e logout em desktop/mobile local.
-- [ ] Registrar revisão, resultados e limitações; publicar branch e PR draft sem merge/deploy.
-- [ ] Atualizar Linear com evidências, sem concluir critérios que exigem outros repositórios/produção.
+- [x] Registrar revisão, resultados e limitações; publicar branch e PR draft sem merge/deploy.
+- [x] Atualizar Linear com evidências, sem concluir critérios que exigem outros repositórios/produção.
+
+## Entrega
+
+Implementação em `f8188d2`, PR draft [#58](https://github.com/avilaops/auth.avilaops.com/pull/58).
+AVL-384/386/388/421/431/397/383 atualizadas com o vínculo do PR, resultados e
+critérios externos preservados. A criação de uma nova issue foi recusada pelo
+limite gratuito do Linear; o controle local registra a iniciativa.

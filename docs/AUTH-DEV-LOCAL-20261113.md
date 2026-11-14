@@ -92,3 +92,11 @@ Nenhuma conta, banco, política de MFA ou credencial de produção foi alterada.
 O GitHub faz merge/deploy automáticos de PR pronto; esta entrega permanece em
 PR draft, sem merge. A criação de uma issue DEV no Linear foi recusada pelo
 limite gratuito do workspace; os registros existentes recebem a evidência.
+
+## Entrega para revisão
+
+Implementação: `f8188d2618363cb15b9300a585dad6b451f37a76`.
+PR draft [#58](https://github.com/avilaops/auth.avilaops.com/pull/58).
+Foram atualizadas as issues AVL-384, AVL-386, AVL-388, AVL-421, AVL-431,
+AVL-397 e AVL-383 com evidências e o vínculo do PR. AVL-386 está em revisão;
+AVL-388 foi iniciada mantendo explícita a parte do ERP ainda pendente.
