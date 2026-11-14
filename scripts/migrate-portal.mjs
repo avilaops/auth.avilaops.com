@@ -8,7 +8,7 @@ if (!connectionString) {
 } else {
   const client = new pg.Client({ connectionString, connectionTimeoutMillis: 10000 });
   try {
-    const scripts = ["202610290001_email_verification.sql", "202611080001_profile_photo.sql"];
+    const scripts = ["202610290001_email_verification.sql", "202611080001_profile_photo.sql", "202611140001_email_confirmation.sql"];
     await client.connect();
     // Serializa inicializações concorrentes, com espera limitada. A migração
     // contém sua própria transação; fechar a sessão também libera o advisory lock.

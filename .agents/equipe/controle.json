@@ -10,6 +10,19 @@
   ],
   "tasks": [
     {
+      "id": "CONTA-FUNCIONAL-20261114",
+      "title": "Uso funcional da conta com perfil, segurança, empresas e conexões",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "priority": "alta",
+      "acceptance": "Perfil persistido; identidade atual revalidada; confirmação de e-mail transacional com expiração, uso único, limite e invalidação; vínculos e conexões paginados por identidade; revogação própria auditada; browser desktop/mobile e entrega em PR draft DEV sem deploy.",
+      "evidence": "PR draft #58; docs/CONTA-FUNCIONAL-20261114.md; docs/superpowers/plans/2026-11-14-conta-funcional.md. 414 testes padrão, 76 PostgreSQL e 39 grupos de navegador aprovados; tipos/lint/build sem erros. Fluxos reais com fixtures locais e mensagens em disco; sem comprovação de entrega externa ou do ERP publicado.",
+      "history": [
+        { "at": "2026-11-14", "status": "em-andamento", "note": "Usuário confirmou prioridade: uso da conta • perfil, segurança, empresas e conexões. Continuidade em DEV local sem servidor e sem delegação." },
+        { "at": "2026-11-14", "status": "em-revisao", "note": "Concorrência e rollback verificados no PostgreSQL. Login, perfil/foto, confirmação em outro contexto, isolamento e revogação comprovados no navegador. AVL-383/397 permanecem pendentes para critérios externos; entrega em draft sem publicação." }
+      ]
+    },
+    {
       "id": "AUTH-DEV-LOCAL-20261113",
       "title": "Ambiente DEV local e validação das pendências do Auth no Linear",
       "status": "em-revisao",
@@ -28,8 +41,8 @@
       "status": "em-revisao",
       "owner": "nicolas-rosa",
       "acceptance": "Mostrar e-mail, sistema, empresa e papéis a partir da conta autenticada; distinguir ausência de vínculo, suspensão, remoção e falta de autorização; não conceder acesso por coincidência de e-mail/CNPJ.",
-      "evidence": "src/lib/acessosDaConta.ts; src/app/conta/AcessosDaConta.tsx; tests/acessosDaContaBanco.test.ts; docs/AUTH-DEV-LOCAL-20261113.md. Consulta PostgreSQL real por contaId, limitada a 50 vínculos, com isolamento e erro propagado. Estados de zero/duas empresas e suspensão verificados em navegador local.",
-      "history": [{ "at": "2026-11-13", "status": "em-revisao", "note": "Implementação do Auth validada localmente. Seleção da empresa, convites mantidos pelo ERP e evidência publicada continuam dependentes do consumidor." }]
+      "evidence": "src/lib/acessosDaConta.ts; src/app/conta/AcessosDaConta.tsx; tests/acessosDaContaBanco.test.ts; docs/AUTH-DEV-LOCAL-20261113.md; docs/CONTA-FUNCIONAL-20261114.md. Consulta PostgreSQL real por contaId, paginada em 50 vínculos, com isolamento e erro propagado. Seção Empresas, identidade atual e zero/duas empresas/suspensão verificados em navegador local.",
+      "history": [{ "at": "2026-11-13", "status": "em-revisao", "note": "Implementação do Auth validada localmente. Seleção da empresa, convites mantidos pelo ERP e evidência publicada continuam dependentes do consumidor." }, { "at": "2026-11-14", "status": "em-revisao", "note": "Área Empresas própria, paginação funcional e estado de página vazia distintos. Sessão divergente é recusada; sem alteração de autorização do ERP." }]
     },
     {
       "id": "AVL-388",

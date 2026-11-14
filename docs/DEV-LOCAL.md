@@ -82,6 +82,7 @@ real de navegador também pode ser repetido:
 
 ```sh
 npm run test:browser:local
+npm run test:browser:conta
 ```
 
 Playwright é opcional: instale-o em seu ambiente de ferramentas ou indique
@@ -91,11 +92,20 @@ instalado. Não instala dependências nem navegadores automaticamente.
 Resultados e capturas ficam em `.local/auth/`. O teste cria contas sintéticas
 e consome mensagens locais; os limites normais de cadastro permanecem ativos.
 
+`test:browser:conta` exige apenas o Auth DEV. Faz login real com uma fixture
+própria, salva nome/telefone/foto, confirma o e-mail recebido no disco e revoga
+uma conexão própria. Verifica autorização cruzada, identidade atual e cinco
+áreas em 320/390/1440 px nos dois temas. Evidências sem credenciais ficam em
+`.local/auth/conta-portal/`. As fixtures sintéticas permanecem no banco DEV;
+o script não usa bancos publicados. Detalhes em
+[Conta funcional • 14/11/2026](CONTA-FUNCIONAL-20261114.md).
+
 `test:local` recria somente os schemas dos bancos descartáveis
 `auth_contract_test`, `auth_pagination_test` e `avl431_test` no cluster local.
 Nunca usa os bancos DEV. Serializa as execuções por advisory lock, aplica as
 migrações reais e verifica drift, núcleo, corporativo, vínculos, catálogo,
-paginação de 300 mil registros, persistência do portal e isolamento/revogação MCP.
+paginação de 300 mil registros, persistência do portal, confirmação transacional
+de e-mail, conexões da conta e isolamento/revogação MCP.
 
 No Windows, encerre o Next antes de `dev:setup`, `test:local` ou `build`:
 o Prisma precisa substituir a DLL carregada pelo processo do Next.

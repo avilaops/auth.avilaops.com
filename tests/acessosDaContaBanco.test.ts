@@ -75,6 +75,10 @@ describe("vínculos apresentados na conta com PostgreSQL", { skip: !conexao }, a
     const resultado = await acessosDaConta("muitas", cadastro, ["conta-app"]);
     assert.equal(resultado.vinculos.length, 50);
     assert.equal(resultado.temMais, true);
+    const proxima = await acessosDaConta("muitas", cadastro, ["conta-app"], 2);
+    assert.equal(proxima.vinculos.length, 1);
+    assert.equal(proxima.temMais, false);
+    assert.equal(new Set([...resultado.vinculos, ...proxima.vinculos].map((v) => v.id)).size, 51);
   });
   it("propaga falha de banco em vez de apresentar conta sem empresas", async () => {
     await sql.query("ALTER TABLE vinculos_corporativos RENAME TO vinculos_indisponiveis");

@@ -32,8 +32,9 @@ const mensagem = async (email) => {
     await p.getByText('Empresa Alfa DEV', {exact:false}).waitFor();
     await p.getByText('Empresa Beta DEV', {exact:false}).waitFor();
     registrar('Login OIDC real com state, nonce, PKCE, assinatura RS256 e duas empresas');
-    await p.goto(auth+'/conta');
+    await p.goto(auth+'/conta?secao=empresas');
     await p.getByRole('heading', {name:'Sua identidade e suas empresas'}).waitFor();
+    await p.goto(auth+'/conta');
     for(const viewport of [{width:1440,height:1000},{width:390,height:844},{width:320,height:812}]) {
       await p.setViewportSize(viewport);
       for(const tema of ['light','dark']) {
@@ -72,6 +73,7 @@ const mensagem = async (email) => {
       await page.goto(auth+'/login?returnTo=/conta');
       await page.getByLabel('E-mail ou CPF').fill(email); await page.getByLabel('Senha',{exact:true}).fill(senha);
       await page.getByRole('button',{name:'Entrar',exact:true}).click(); await page.waitForURL(auth+'/conta');
+      await page.goto(auth+'/conta?secao=empresas');
       await page.getByText(texto,{exact:false}).waitFor();
       registrar(email.startsWith('dev.zero')?'Conta sem empresas':'Vínculo suspenso sem papéis ativos'); await c.close();
     }

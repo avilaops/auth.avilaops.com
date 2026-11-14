@@ -5,6 +5,12 @@ import { describe, it } from "node:test";
 import AcessosDaConta from "@/app/conta/AcessosDaConta";
 
 describe("identidade, acesso e empresa na conta", () => {
+  it("página além do fim não afirma que a conta não tem empresas", () => {
+    const html = renderToStaticMarkup(createElement(AcessosDaConta, { emailVerificado: true, vinculos: [], temMais: false, pagina: 2 }));
+    assert.match(html, /Não há vínculos nesta página/);
+    assert.match(html, /secao=empresas&amp;pagina=1/);
+    assert.doesNotMatch(html, /Nenhum vínculo de empresa registrado/);
+  });
   it("distingue e-mail pendente e conta sem vínculo, sem inventar convite", () => {
     const html = renderToStaticMarkup(createElement(AcessosDaConta, { emailVerificado: false, vinculos: [], temMais: false }));
     assert.match(html, /E-mail ainda não confirmado/);
@@ -25,7 +31,7 @@ describe("identidade, acesso e empresa na conta", () => {
     assert.match(html, /Vínculo suspenso/);
     assert.match(html, /Vínculo removido/);
     assert.match(html, /Sistema sem acesso/);
-    assert.match(html, /primeiros 50/);
+    assert.match(html, /secao=empresas&amp;pagina=2/);
     assert.match(html, /selecionada dentro de cada sistema/);
     assert.doesNotMatch(html, /<select|<form|href="https:/);
   });

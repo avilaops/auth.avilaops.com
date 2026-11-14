@@ -9,7 +9,8 @@ const manrope = Manrope({ subsets: ["latin"], display: "swap", variable: "--font
 export const metadata: Metadata = {
   // Cada página dá o próprio nome; antes toda aba se chamava "Entrar", inclusive
   // o painel, e quem tinha três abertas não sabia qual era qual.
-  title: { default: "Entrar Avila Ops", template: "%s Avila Ops" },
+  title: { default: "Auth • Avila Ops", template: "%s • Avila Ops" },
+  applicationName: "Auth",
   description: "Autenticação única dos sistemas Avila Ops.",
   robots: { index: false, follow: false },
   // Sem estas entradas os arquivos existem em /public mas nada os referencia,

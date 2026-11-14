@@ -22,9 +22,9 @@ try {
   await executar([path.join(raiz, "node_modules/prisma/build/index.js"), "generate"]);
   const base = ["--experimental-strip-types", "--disable-warning=ExperimentalWarning", "--import", "./tests/register.mjs", "--test", "--test-concurrency=1"];
   const suites = [
-    { banco: "auth_contract_test", arquivos: ["tests/nucleoAuthBanco.test.ts", "tests/corporativoBanco.test.ts", "tests/acessosDaContaBanco.test.ts", "tests/cadastroTransacaoBanco.test.ts"],
+    { banco: "auth_contract_test", arquivos: ["tests/nucleoAuthBanco.test.ts", "tests/corporativoBanco.test.ts", "tests/acessosDaContaBanco.test.ts", "tests/conexoesDaContaBanco.test.ts", "tests/cadastroTransacaoBanco.test.ts"],
       variaveis: ["TEST_AUTH_DATABASE_URL", "TEST_DATABASE_URL", "TEST_CADASTRO_DATABASE_URL"], migrar: true },
-    { banco: "auth_pagination_test", arquivos: ["tests/contasPaginadasBanco.test.ts", "tests/empresasPaginadasBanco.test.ts", "tests/contasEmailBanco.test.ts", "tests/fotoPerfilBanco.test.ts", "tests/portalMigration.test.mjs"],
+    { banco: "auth_pagination_test", arquivos: ["tests/contasPaginadasBanco.test.ts", "tests/empresasPaginadasBanco.test.ts", "tests/contasEmailBanco.test.ts", "tests/fotoPerfilBanco.test.ts", "tests/confirmacaoEmailBanco.test.ts", "tests/portalMigration.test.mjs"],
       variaveis: ["TEST_PORTAL_DATABASE_URL"], migrar: false },
     { banco: "avl431_test", arquivos: ["tests/mcpBanco.test.ts"], variaveis: ["TEST_MCP_DATABASE_URL"], migrar: true },
   ];

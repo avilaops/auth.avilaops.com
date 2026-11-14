@@ -47,8 +47,8 @@ export default function ContaShell({ nome, email, equipe, painel, secao, childre
           <header className="conta-boas-vindas">
             <div>
               <p className="conta-legenda">Seu espaço Avila Ops</p>
-              <h1>{secao === "inicio" ? `Olá, ${nome.trim().split(/\s+/)[0] || "bem-vindo"}.` : secao === "dados" ? "Meus dados" : "Segurança da conta"}</h1>
-              <p className="conta-introducao">{secao === "inicio" ? "Acesse os sistemas disponíveis para sua conta." : secao === "dados" ? "Mantenha suas informações de contato atualizadas." : "Gerencie suas formas de entrar e a verificação em duas etapas."}</p>
+              <h1>{secao === "inicio" ? `Olá, ${nome.trim().split(/\s+/)[0] || "bem-vindo"}.` : secao === "dados" ? "Meus dados" : secao === "empresas" ? "Empresas e acessos" : secao === "conexoes" ? "Conexões autorizadas" : "Segurança da conta"}</h1>
+              <p className="conta-introducao">{secao === "inicio" ? "Acesse seus sistemas e cuide da sua conta." : secao === "dados" ? "Mantenha suas informações de contato atualizadas." : secao === "empresas" ? "Confira seus vínculos e papéis em cada empresa." : secao === "conexoes" ? "Veja quais conexões você autorizou e encerre as que não usa mais." : "Gerencie suas formas de entrar e a verificação em duas etapas."}</p>
             </div>
             <div className="conta-identidade"><span className="conta-avatar" aria-hidden="true">{foto ? <Image src={foto} alt="" width={40} height={40} unoptimized /> : iniciais}</span><div><strong>{nome}</strong><span className="conta-email">{email}</span><span className="conta-papel">{equipe ? "Equipe Avila Ops" : "Cliente"}</span><Link className="conta-editar-perfil" href={enderecoDaSecao("dados")}>Editar perfil ↗</Link></div></div>
           </header>

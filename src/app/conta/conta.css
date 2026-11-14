@@ -14,6 +14,37 @@
 .conta-vinculos li { padding: 16px 0; border-bottom: 1px solid var(--linha); overflow-wrap: anywhere; }
 .conta-vinculos strong, .conta-vinculos span { display: block; }
 .conta-vinculos span, .conta-vinculos p { margin: 5px 0; font-size: 13px; line-height: 1.6; color: var(--texto-secundario); }
+.conta-retorno { margin: 16px 0; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.conta-alerta { margin: 0 0 20px; padding: 14px 18px; border: 1px solid var(--marca-vermelho); border-radius: 10px; color: var(--marca-vermelho); }
+.conta-estado { display: inline-flex; margin: 12px 0; padding: 6px 10px; border-radius: 7px; background: var(--superficie-suave); font-size: 13px; font-weight: 650; }
+.conta-estado-ok { color: var(--color-verde); }
+.conta-atalhos { margin-top: 16px; }
+.conta-atalhos h2 { margin-bottom: 24px; font-size: 22px; font-weight: 650; letter-spacing: -.5px; }
+.conta-atalhos .conta-legenda { margin-bottom: 10px; }
+.conta-atalhos-grade { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.conta-atalho { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; transition: border-color .15s; }
+.conta-atalho:hover { border-color: var(--marca-azul); }
+.conta-atalho-icone { color: var(--marca-azul); }
+.conta-atalho h3 { font-size: 16px; font-weight: 650; }
+.conta-atalho p { color: var(--texto-secundario); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.conta-atalho-acao { margin-top: auto; color: var(--marca-azul); font-size: 12px; font-weight: 600; }
+.conta-paginacao { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 24px 0; font-size: 13px; }
+.conta-conexoes { margin: 20px 0; padding: 0; list-style: none; }
+.conta-conexoes li { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 22px 0; border-bottom: 1px solid var(--linha); }
+.conta-conexoes li > div { flex: 1; min-width: 160px; overflow-wrap: anywhere; }
+.conta-conexoes h3 { font-size: 15px; font-weight: 650; }
+.conta-conexoes p { margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--texto-secundario); }
+.conta-botao-perigo { color: var(--marca-vermelho); }
+.conta-botao:disabled { cursor: wait; opacity: .6; }
+.conta-vazio { padding: 28px 0; }
+.conta-vazio h3 { font-weight: 650; margin-bottom: 10px; }
+.conta-vazio p { font-size: 14px; line-height: 1.8; color: var(--texto-secundario); }
+.conta-confirmar { min-height: 100dvh; display: grid; place-items: center; padding: 24px; font-family: var(--fonte); }
+.conta-confirmar > div { width: 100%; max-width: 520px; }
+.conta-confirmar .conta-legenda { margin-top: 24px; }
+.conta-confirmar h1 { margin-bottom: 20px; font-size: 26px; font-weight: 700; }
+.conta-confirmar p { line-height: 1.8; }
+.conta-cartao-descricao { overflow-wrap: anywhere; }
 .conta-estrutura { display: grid; grid-template-columns: 208px minmax(0,1fr); gap: 48px; max-width: 1336px; margin: auto; padding: 40px 28px 28px; }
 .conta-lateral { min-width: 0; }
 .conta-legenda { color: var(--texto-secundario); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 1.4px; margin: 0 0 18px; }
@@ -122,4 +153,12 @@
   .conta-marca img { width: 27px !important; height: 27px !important; }
   .conta-botao span { display: none; }
 }
+@media (max-width: 600px) {
+  .conta-atalhos-grade { grid-template-columns: 1fr; }
+  .conta-barra { flex-wrap: wrap; }
+  .conta-acoes { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+  .conta-navegacao { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); overflow: visible; }
+  .conta-navegacao a { min-width: 0; justify-content: center; padding: 10px 6px; font-size: 14px; }
+}
+.conta-editar-perfil { min-height: 44px; align-items: center; }
 @media (prefers-reduced-motion: reduce) { .conta-sistema { transition: none; } }

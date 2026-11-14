@@ -10,6 +10,8 @@ describe("seções de /conta", () => {
   it("abre a seção pedida", () => {
     assert.equal(secaoDaConta("dados"), "dados");
     assert.equal(secaoDaConta("seguranca"), "seguranca");
+    assert.equal(secaoDaConta("empresas"), "empresas");
+    assert.equal(secaoDaConta("conexoes"), "conexoes");
   });
 
   it("valor desconhecido ou repetido cai no início", () => {

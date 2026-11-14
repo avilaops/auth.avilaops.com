@@ -43,7 +43,7 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code
       - run: npm run db:preflight-aplicacoes
-      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/nucleoAuthBanco.test.ts tests/acessosDaContaBanco.test.ts
+      - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/nucleoAuthBanco.test.ts tests/acessosDaContaBanco.test.ts tests/conexoesDaContaBanco.test.ts
       - run: node --experimental-strip-types --disable-warning=ExperimentalWarning --import ./tests/register.mjs --test tests/corporativoBanco.test.ts
         env:
           TEST_DATABASE_URL: ${{ env.DATABASE_URL }}

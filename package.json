@@ -11,6 +11,7 @@
     "dev:consumer": "node scripts/dev-consumer.mjs",
     "test:local": "node scripts/test-local.mjs",
     "test:browser:local": "node scripts/check-dev-local.cjs",
+    "test:browser:conta": "node scripts/check-conta-portal.cjs",
     "build": "prisma generate && next build",
     "start": "next start -p 3010",
     "lint": "eslint",

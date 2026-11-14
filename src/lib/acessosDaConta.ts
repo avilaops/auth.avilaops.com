@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { normalizarPapelCorporativo } from "@/lib/corporativo";
 import type { Cadastro } from "@/lib/apps";
+import { paginaDaConta } from "@/lib/secoesDaConta";
 
 export type VinculoDaConta = {
   id: string;
@@ -12,9 +13,9 @@ export type VinculoDaConta = {
 };
 
 /** Projeção informativa. Não seleciona empresa, concede acesso ou infere convite. */
-export async function acessosDaConta(contaId: string, cadastro: Cadastro[], appsAutorizados: string[]): Promise<{ vinculos: VinculoDaConta[]; temMais: boolean }> {
+export async function acessosDaConta(contaId: string, cadastro: Cadastro[], appsAutorizados: string[], pagina = 1): Promise<{ vinculos: VinculoDaConta[]; temMais: boolean }> {
   const linhas = await prisma.vinculoCorporativo.findMany({
-    where: { contaId }, take: 51, orderBy: [{ organizacao: { nome: "asc" } }, { id: "asc" }],
+    where: { contaId }, skip: (paginaDaConta(pagina) - 1) * 50, take: 51, orderBy: [{ organizacao: { nome: "asc" } }, { id: "asc" }],
     include: { organizacao: true, autorizacoes: { include: { unidade: true }, orderBy: { id: "asc" } } },
   });
   const clientes = await prisma.clienteOidc.findMany({

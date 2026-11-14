@@ -22,10 +22,12 @@ export default function IconeConta({ id, tamanho = 22 }: Props) {
       desenho = <><path d="M9 3h6m-5 0v6l-6 10a1.5 1.5 0 0 0 1.3 2h13.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 15h9"/><path d="m10 16 2-2 2 2"/></>; break;
     case "n8n": case "mcp":
       desenho = <><rect x="9" y="9" width="6" height="6" rx="1.5"/><circle cx="4" cy="4" r="2"/><circle cx="20" cy="4" r="2"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/><path d="m6 6 3 3m6 6 3 3M6 18l3-3m6-6 3-3"/></>; break;
-    case "arxis":
+    case "empresas": case "arxis":
       desenho = <><path d="m3 9 9-6 9 6v12H3V9Zm6 12V9h6v12M3 9h18"/></>; break;
     case "threads":
       desenho = <><path d="M8 10h8M8 14h5"/><path d="M21 11a9 9 0 0 1-9 9H4l-2 2V11a9 9 0 0 1 19 0Z"/></>; break;
+    case "conexoes":
+      desenho = <><path d="m10 14 4-4M8 16l-2 2a4.2 4.2 0 0 1-6-6l4-4a4.2 4.2 0 0 1 6 0m4 0 2-2a4.2 4.2 0 0 1 6 6l-4 4a4.2 4.2 0 0 1-6 0"/></>; break;
     case "busca":
       desenho = <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>; break;
     default:

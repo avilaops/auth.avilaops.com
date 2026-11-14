@@ -151,7 +151,7 @@ async function preparar() {
         create: { organizacaoId: organizacao.id, contaId, situacao, autorizacoes: { create: { papel: "COMPRADOR" } } } });
     }
   } finally { await prisma.$disconnect(); }
-  console.log("DEV pronto: http://127.0.0.1:3010/login — dev@example.test ou dev.admin@example.test.");
+  console.log("DEV pronto: http://127.0.0.1:3010/login • dev@example.test ou dev.admin@example.test.");
   console.log("Senha e client secret: .local/auth/access.json. Mensagens: npm run dev:emails.");
 }
 
@@ -162,7 +162,7 @@ async function main() {
     const diretorio = path.join(local, "emails");
     const mensagens = await Promise.all((await readdir(diretorio).catch(() => [])).filter((n) => /^[\da-f-]+\.json$/.test(n))
       .map(async (nome) => JSON.parse(await readFile(path.join(diretorio, nome), "utf8"))));
-    for (const m of mensagens.sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))) console.log(`${m.criadoEm} | ${m.email.para} | ${m.email.assunto}\n${m.email.texto}\n`);
+    for (const m of mensagens.sort((a, b) => a.criadoEm.localeCompare(b.criadoEm))) console.log(`${m.criadoEm} • ${m.email.para} • ${m.email.assunto}\n${m.email.texto}\n`);
     if (!mensagens.length) console.log("Nenhuma mensagem local recebida.");
     return;
   }

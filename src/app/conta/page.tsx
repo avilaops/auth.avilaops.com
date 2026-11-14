@@ -1,31 +1,44 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import IconeProvedor from "@/components/IconeProvedor";
 import { ehSuperadmin } from "@/lib/admin";
 import { listarCadastro } from "@/lib/cadastro";
 import { caixasDoDono } from "@/lib/caixaEmail";
 import { conectoresLigados } from "@/lib/conectores";
-import { buscarConta } from "@/lib/contas";
+import { lerContaAutenticada } from "@/lib/contaAutenticada";
+import { conexoesDaConta } from "@/lib/conexoesDaConta";
+import { emailConfigurado } from "@/lib/email";
 import { listarPermissoes } from "@/lib/permissoes";
 import { appsDaConta, menuDeApps } from "@/lib/menuDeApps";
 import { acessosDaConta } from "@/lib/acessosDaConta";
 import { estado as estadoSegundoFator, exigeSegundoFator, mfaDisponivel, mfaHabilitado } from "@/lib/segundoFator";
 import { buscarProvedor, nomeProvedor } from "@/lib/provedores";
-import { enderecoDaSecao, secaoDaConta } from "@/lib/secoesDaConta";
-import { lerSessao } from "@/lib/sessao";
+import { enderecoDaSecao, paginaDaConta, secaoDaConta, SECOES_DA_CONTA } from "@/lib/secoesDaConta";
 import { listarVinculos } from "@/lib/vinculos";
 import BotoesSociais from "@/app/login/BotoesSociais";
-import { acaoDesvincular, acaoMeusDados, acaoFotoPerfil } from "./actions";
+import { acaoDesvincular, acaoMeusDados, acaoFotoPerfil, acaoRevogarConexao } from "./actions";
 import { buscarFotoPerfil } from "@/lib/fotoPerfil";
 import PerfilForm from "./PerfilForm";
 import SegundoFator from "./SegundoFator";
 import SistemasDaConta from "./SistemasDaConta";
 import ContaShell from "./ContaShell";
 import AcessosDaConta from "./AcessosDaConta";
+import ConfirmacaoEmail from "./ConfirmacaoEmail";
+import ConexoesDaConta from "./ConexoesDaConta";
+import ResumoDaConta from "./ResumoDaConta";
 import "./conta.css";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Minha conta" };
+type Consulta = { erro?: string; provedor?: string; secao?: string | string[]; salvo?: string; pagina?: string | string[] };
+type Props = { searchParams: Promise<Consulta> };
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { secao: pedida, erro } = await searchParams;
+  const secao = secaoDaConta(pedida, erro);
+  const titulo = SECOES_DA_CONTA.find((s) => s.id === secao)!.rotulo;
+  return { title: secao === "inicio" ? "Conta" : `${titulo} • Conta`, applicationName: "Conta" };
+}
 
 const WEBMAIL = "https://mail.avilaops.com";
 
@@ -44,35 +57,38 @@ function gb(bytes: number): string {
  * webmail, que entra sozinho pelo SSO) e os sistemas a que tem acesso; depois
  * os dados dela; e as formas de entrar com a verificação em duas etapas.
  */
-export default async function ContaPage({ searchParams }: { searchParams: Promise<{ erro?: string; provedor?: string; secao?: string | string[]; salvo?: string }> }) {
-  const sessao = await lerSessao();
-  if (!sessao) redirect("/login?returnTo=/conta");
-  const { erro, provedor: provErro, secao: secaoPedida, salvo } = await searchParams;
+export default async function ContaPage({ searchParams }: Props) {
+  const { erro, provedor: provErro, secao: secaoPedida, salvo, pagina: pagPedida } = await searchParams;
   const secao = secaoDaConta(secaoPedida, erro);
+  const pagina = paginaDaConta(pagPedida);
+  const atual = await lerContaAutenticada();
+  if (atual.tipo === "anonima") redirect(`/login?returnTo=${encodeURIComponent(enderecoDaSecao(secao))}`);
+  if (atual.tipo !== "autenticada") redirect("/sair");
+  const { sessao, conta } = atual;
   const SEGURANCA = enderecoDaSecao("seguranca");
   const fotoPerfil = await buscarFotoPerfil(sessao.sub);
   const fotoUrl = fotoPerfil ? `/api/conta/foto?v=${fotoPerfil.atualizadoEm.getTime()}` : null;
 
-  const [caixas, vinculos, ligados, permissoes, conta, fator] = await Promise.all([
-    caixasDoDono(sessao.email),
-    listarVinculos(sessao.sub),
-    conectoresLigados(),
-    listarPermissoes(sessao.email),
-    buscarConta(sessao.sub),
-    estadoSegundoFator(sessao.email),
+  const [caixas, vinculos, ligados, permissoes, fator] = await Promise.all([
+    secao === "inicio" ? caixasDoDono(conta.email) : [],
+    secao === "seguranca" ? listarVinculos(conta.id) : [],
+    secao === "seguranca" ? conectoresLigados() : [],
+    secao === "inicio" || secao === "empresas" ? listarPermissoes(conta.email) : [],
+    secao === "inicio" || secao === "seguranca" ? estadoSegundoFator(conta.email) : { ativo: false, confirmadoEm: null, codigosRestantes: 0 },
   ]);
 
   // Mesma autorização do menu do ecossistema e do login. O acesso às empresas
   // continua sendo verificado por cada produto ao abrir o destino.
-  const cadastro = await listarCadastro();
+  const cadastro = secao === "inicio" || secao === "empresas" ? await listarCadastro() : [];
   const sistemas = menuDeApps(cadastro, sessao.papel, permissoes).apps
     .filter((app) => app.id !== "mail");
-  const acessos = secao === "inicio" ? await acessosDaConta(sessao.sub, cadastro, appsDaConta(cadastro, sessao.papel, permissoes)) : null;
+  const acessos = secao === "empresas" ? await acessosDaConta(conta.id, cadastro, appsDaConta(cadastro, sessao.papel, permissoes), pagina) : null;
+  const conexoes = secao === "conexoes" ? await conexoesDaConta(conta.id, pagina) : null;
   const vinculados = new Set(vinculos.map((v) => v.provedor));
   const disponiveis = ligados.filter((p) => !vinculados.has(p.id));
 
   return (
-    <ContaShell nome={conta?.nome ?? sessao.nome} email={sessao.email} foto={fotoUrl} equipe={sessao.papel === "ADMIN"} painel={ehSuperadmin(sessao)} secao={secao}>
+    <ContaShell nome={conta.nome} email={conta.email} foto={fotoUrl} equipe={sessao.papel === "ADMIN"} painel={ehSuperadmin(sessao)} secao={secao}>
 
       {erro === "ja_usado" && (
         <p role="alert" className="mb-6 rounded-lg border border-[var(--color-marca-vermelho)]/40 bg-[var(--marca-vermelho-suave)] p-3 text-xs text-[var(--color-marca-vermelho)]">
@@ -94,7 +110,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                       <div className="truncate text-sm">{c.address}</div>
                       <div className="text-xs text-[var(--color-texto-fraco)]">
                         {c.status === "active" ? "ativa" : c.status === "suspended" ? "suspensa" : "indisponível"}
-                        {c.cotaBytes > 0 && ` · ${gb(c.usadoBytes)} de ${gb(c.cotaBytes)}`}
+                        {c.cotaBytes > 0 && ` • ${gb(c.usadoBytes)} de ${gb(c.cotaBytes)}`}
                       </div>
                       {c.cotaBytes > 0 && (
                         <div className="mt-1.5 h-1 w-full max-w-40 overflow-hidden rounded-full bg-[var(--color-fundo)]">
@@ -121,10 +137,16 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
         {secao === "inicio" && (
           <SistemasDaConta sistemas={sistemas} />
         )}
-        {acessos && <AcessosDaConta emailVerificado={conta?.emailVerificado ?? false} {...acessos} />}
+        {secao === "inicio" && <ResumoDaConta emailVerificado={conta.emailVerificado} autenticadorAtivo={fator.ativo} />}
+        {acessos && <AcessosDaConta emailVerificado={conta.emailVerificado} pagina={pagina} {...acessos} />}
+        {conexoes && <>
+          {erro === "conexao" && <p role="alert" className="conta-alerta">Não foi possível revogar a conexão. Atualize a lista e tente novamente.</p>}
+          {salvo === "conexao" && <p role="status" className="conta-retorno">Conexão revogada. Ela precisará de uma nova autorização para voltar a acessar seus dados.</p>}
+          <ConexoesDaConta pagina={pagina} revogar={acaoRevogarConexao} {...conexoes} />
+        </>}
 
         {secao === "dados" && (
-        <Cartao titulo="Meus dados" subtitulo="Como você aparece para a equipe Avila Ops.">
+        <Cartao titulo="Meus dados" subtitulo="Suas informações de identificação e contato.">
           {salvo === "1" && <p role="status" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-verde)]">Dados salvos com sucesso.</p>}
           {erro === "dados" && <p role="alert" className="mb-4 rounded-lg border border-[var(--color-borda)] p-3 text-sm text-[var(--color-marca-vermelho)]">Não foi possível salvar os dados. Tente novamente.</p>}
           {salvo === "foto" && <p role="status">Foto do perfil atualizada.</p>}
@@ -142,7 +164,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                 <div>Senha</div>
                 <div className="text-xs text-[var(--color-texto-fraco)]">e-mail ou CPF + senha</div>
               </div>
-              <Link href={`/trocar-senha?returnTo=${encodeURIComponent(SEGURANCA)}`} className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-texto)]">Trocar</Link>
+              <Link href={`/trocar-senha?returnTo=${encodeURIComponent(SEGURANCA)}`} className="conta-botao">Trocar senha</Link>
             </li>
             {vinculos.map((v) => (
               <li key={v.id} className="flex items-center justify-between py-2.5 text-sm">
@@ -155,7 +177,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
                 </div>
                 <form action={acaoDesvincular}>
                   <input type="hidden" name="provedor" value={v.provedor} />
-                  <button className="text-xs text-[var(--color-texto-fraco)] hover:text-[var(--color-marca-vermelho)]">Desvincular</button>
+                  <button className="conta-botao" type="submit">Desvincular</button>
                 </form>
               </li>
             ))}
@@ -187,41 +209,7 @@ export default async function ContaPage({ searchParams }: { searchParams: Promis
           />
         </Cartao>
 
-        <Cartao titulo="Confirmação por e-mail" subtitulo="Confirme que você tem acesso ao endereço da sua conta.">
-          <p className="break-all text-sm">{conta?.email ?? sessao.email}</p>
-          <p className={`mt-2 text-xs font-medium ${conta?.emailVerificado ? "text-[var(--color-verde)]" : "text-[var(--color-texto-fraco)]"}`}>
-            {conta ? (conta.emailVerificado ? "Confirmado" : "Não confirmado") : "Confirmação não informada"}
-          </p>
-          <p id="confirmacao-email-indisponivel" className="mt-3 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
-            O envio de um novo link de confirmação ainda não está disponível nesta tela.
-            A confirmação no cadastro de uma nova conta é uma etapa separada.
-          </p>
-          <button type="button" disabled aria-describedby="confirmacao-email-indisponivel"
-            className="mt-4 min-h-11 cursor-not-allowed rounded-lg border border-[var(--color-borda)] px-4 py-2 text-sm opacity-60">
-            Enviar link de confirmação
-          </button>
-          <label className="mt-4 flex min-h-11 cursor-not-allowed items-center gap-3 text-sm text-[var(--color-texto-fraco)]">
-            <input type="checkbox" disabled checked={false} readOnly aria-describedby="mfa-email-indisponivel" className="h-4 w-4 shrink-0" />
-            Usar e-mail como segundo fator
-          </label>
-          <p id="mfa-email-indisponivel" className="mt-1 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
-            Indisponível. A verificação em duas etapas por e-mail ainda não está disponível para sua conta.
-          </p>
-        </Cartao>
-
-        <Cartao titulo="Confirmação por SMS" subtitulo="Confirme que você tem acesso ao telefone da sua conta.">
-          <p className="break-all text-sm">{conta?.telefone || "Nenhum telefone cadastrado"}</p>
-          <p id="confirmacao-sms-indisponivel" className="mt-2 text-xs font-medium text-[var(--color-texto-fraco)]">
-            Indisponível: integração pendente
-          </p>
-          <p className="mt-3 text-xs leading-relaxed text-[var(--color-texto-fraco)]">
-            Ter um telefone no cadastro não confirma a posse do número. O envio de códigos por SMS ainda não está disponível.
-          </p>
-          <label className="mt-4 flex min-h-11 cursor-not-allowed items-center gap-3 text-sm text-[var(--color-texto-fraco)]">
-            <input type="checkbox" disabled checked={false} readOnly aria-describedby="confirmacao-sms-indisponivel" className="h-4 w-4 shrink-0" />
-            Usar SMS para verificar a conta
-          </label>
-        </Cartao>
+        <ConfirmacaoEmail email={conta.email} confirmado={conta.emailVerificado} disponivel={emailConfigurado()} />
         </>
         )}
       </div>

@@ -15,6 +15,8 @@ describe("estrutura de Minha conta", () => {
     assert.match(html, /Conteúdo autorizado/);
     assert.match(html, /aria-current="page"/);
     assert.match(html, /href="\/conta\?secao=seguranca"/);
+    assert.match(html, /href="\/conta\?secao=empresas"/);
+    assert.match(html, /href="\/conta\?secao=conexoes"/);
     assert.doesNotMatch(html, /href="\/conta\/meta"/);
   });
   it("exibe o painel apenas quando a página autorizou e escapa a identidade", () => {
