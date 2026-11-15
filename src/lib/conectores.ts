@@ -2,6 +2,7 @@ import { cifrar, decifrar } from "@/lib/cripto";
 import { prisma } from "@/lib/prisma";
 import { PROVEDORES, buscarProvedor, type Provedor } from "@/lib/provedores";
 import { urlAbsoluta } from "@/lib/urls";
+import { baseGovBr } from "@/lib/govbr";
 
 export type ConectorEstado = {
   provedor: Provedor;
@@ -98,6 +99,7 @@ export async function salvarConector(
 ): Promise<void> {
   const p = buscarProvedor(provedorId);
   if (!p) throw new Error("Provedor desconhecido");
+  if (provedorId === "govbr") baseGovBr(dados.extras);
 
   const atual = await prisma.conector.findUnique({ where: { id: provedorId } });
   // Secret vazio no formulário = manter o que já está.
@@ -123,6 +125,11 @@ export async function salvarConector(
 }
 
 export async function ligarConector(provedorId: string, ligado: boolean, autor: string): Promise<void> {
+  if (provedorId === "govbr" && ligado) {
+    const configuracao = await credenciais(provedorId, { mesmoDesligado: true });
+    if (!configuracao) throw new Error("Cadastre as credenciais oficiais do gov.br antes de ligar.");
+    baseGovBr(configuracao.extras);
+  }
   await prisma.conector.upsert({
     where: { id: provedorId },
     create: { id: provedorId, ligado, atualizadoPor: autor },

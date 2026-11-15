@@ -43,7 +43,8 @@ export async function acaoLigarConector(_: Resultado | null, fd: FormData): Prom
   const ligar = texto(fd, "ligado") === "1";
   if (!buscarProvedor(id)) return { ok: false, erro: "Provedor desconhecido." };
 
-  await ligarConector(id, ligar, admin.email);
+  try { await ligarConector(id, ligar, admin.email); }
+  catch (e) { return { ok: false, erro: e instanceof Error ? e.message : "Não foi possível ligar o conector." }; }
   await registrar({ tipo: "conector_alterado", autor: admin.email, detalhe: `${id}: ${ligar ? "ligado" : "desligado"}` });
   revalidatePath("/admin/conectores");
   revalidatePath(`/admin/conectores/${id}`);

@@ -54,7 +54,7 @@ async function tratar(req: NextRequest, ctx: { params: Promise<{ provedor: strin
   let perfil;
   try {
     const tokens = await trocarCodigo(p, cred, { code: dados.code, redirectUri: redirectUri(p.id), verifier: estado.verifier || undefined });
-    perfil = await obterPerfil(p, tokens, estado.nonce, dados);
+    perfil = await obterPerfil(p, tokens, estado.nonce, dados, cred);
   } catch (e) {
     console.error(`[${p.id}] callback`, e);
     await registrar({ tipo: "login_falhou", ip, detalhe: `${p.id}: ${e instanceof Error ? e.message : String(e)}` });

@@ -1,3 +1,5 @@
+import { baseGovBr } from "@/lib/govbr";
+
 /**
  * Catálogo de conectores de login.
  *
@@ -34,7 +36,7 @@ export type Provedor = {
   cor: string;
   authorizeUrl: string | ((extras: Record<string, string>) => string);
   tokenUrl: string | ((extras: Record<string, string>) => string);
-  userinfoUrl?: string;
+  userinfoUrl?: string | ((extras: Record<string, string>) => string);
   escopos: string[];
   /** usa PKCE (S256) além do state */
   pkce?: boolean;
@@ -190,11 +192,12 @@ export const PROVEDORES: readonly Provedor[] = [
     nome: "gov.br",
     descricao: "Login oficial do cidadão brasileiro (CPF). Setor público e licitações.",
     cor: "#1351B4",
-    authorizeUrl: (x) => `https://sso.${x.ambiente === "staging" ? "staging." : ""}acesso.gov.br/authorize`,
-    tokenUrl: (x) => `https://sso.${x.ambiente === "staging" ? "staging." : ""}acesso.gov.br/token`,
-    userinfoUrl: "https://sso.acesso.gov.br/userinfo",
+    authorizeUrl: (x) => `${baseGovBr(x)}/authorize`,
+    tokenUrl: (x) => `${baseGovBr(x)}/token`,
+    userinfoUrl: (x) => `${baseGovBr(x)}/userinfo`,
     escopos: ["openid", "email", "profile"],
     authNoHeader: false,
+    pkce: true,
     extras: [{ chave: "ambiente", rotulo: "Ambiente", dica: "producao ou staging", padrao: "producao" }],
     docs: "https://acesso.gov.br/roteiro-tecnico/",
     instrucoes:
