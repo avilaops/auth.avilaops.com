@@ -46,7 +46,11 @@ export default async function ConectorPage({ params }: { params: Promise<{ id: s
             {(p.extras ?? []).map((x) => (
               <label key={x.chave} className="flex flex-col gap-1 text-xs text-[var(--color-texto-fraco)]">
                 {x.rotulo}{x.obrigatorio && " *"}
-                {x.multilinha ? (
+                {p.id === "govbr" && x.chave === "ambiente" ? (
+                  <select name="extra_ambiente" defaultValue={c.extras.ambiente ?? "producao"} className={campo}>
+                    <option value="staging">Homologação</option><option value="producao">Produção</option>
+                  </select>
+                ) : x.multilinha ? (
                   <textarea name={`extra_${x.chave}`} rows={6} className={`${campo} font-mono text-xs`} placeholder={c.extras[x.chave] ? "salvo — deixe vazio para manter" : ""} />
                 ) : (
                   <input name={`extra_${x.chave}`} defaultValue={c.extras[x.chave] ?? x.padrao ?? ""} className={campo} autoComplete="off" />
@@ -59,6 +63,12 @@ export default async function ConectorPage({ params }: { params: Promise<{ id: s
         </section>
 
         <aside className="flex flex-col gap-4">
+          {p.id === "govbr" && <section className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs">
+            <h2 className="mb-2 font-semibold">Acesso GOV centralizado</h2>
+            <p className="text-[var(--color-texto-fraco)]">Cadastre as credenciais oficiais, escolha o ambiente e ligue o conector para permitir entrar ou vincular gov.br à conta Ávila Ops.</p>
+            <p className="mt-2 text-[var(--color-texto-fraco)]">A Central GOV do EngOps consulta dados públicos sem exigir este login. A identidade gov.br não concede acesso automático às APIs restritas do governo.</p>
+            <Link href="https://engops.avilaops.com/gov" className="mt-3 inline-block text-[var(--color-marca)] hover:underline">Abrir Central GOV ↗</Link>
+          </section>}
           <div className="rounded-xl border border-[var(--color-borda)] bg-[var(--color-cartao)] p-5 text-xs">
             <div className="mb-2 font-semibold">Estado</div>
             <div className="text-[var(--color-texto-fraco)]">

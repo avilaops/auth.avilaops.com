@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
+import { validarTokensGovBr } from "@/lib/govbr";
 import { decifrar } from "@/lib/cripto";
 import type { Credenciais } from "@/lib/conectores";
 import { resolverUrl, type PerfilExterno, type Provedor } from "@/lib/provedores";
@@ -86,7 +87,7 @@ export async function trocarCodigo(
   }
   if (p.pkce && opts.verifier) body.set("code_verifier", opts.verifier);
 
-  const r = await fetch(resolverUrl(p.tokenUrl, cred.extras), { method: "POST", headers, body });
+  const r = await fetch(resolverUrl(p.tokenUrl, cred.extras), { method: "POST", headers, body, ...(p.id === "govbr" ? { signal: AbortSignal.timeout(10000) } : {}) });
   const dados = (await r.json().catch(() => ({}))) as RespostaToken;
   if (!r.ok || dados.error) {
     throw new Error(`${p.nome}: ${dados.error_description || dados.error || `HTTP ${r.status}`}`);
@@ -112,8 +113,14 @@ export async function obterPerfil(
   tokens: RespostaToken,
   nonce: string,
   extraDoCallback?: Record<string, unknown>,
+  cred?: Credenciais,
 ): Promise<PerfilExterno> {
   let dados: Record<string, unknown> = {};
+  let identidadeGov: jwt.JwtPayload | null = null;
+  if (p.id === "govbr") {
+    if (!cred) throw new Error("gov.br: configuração ausente");
+    identidadeGov = await validarTokensGovBr(tokens, cred, nonce);
+  }
 
   if (p.perfilNoIdToken || (!p.userinfoUrl && tokens.id_token)) {
     if (!tokens.id_token) throw new Error("id_token ausente");
@@ -121,11 +128,13 @@ export async function obterPerfil(
     if (dados.nonce && dados.nonce !== nonce) throw new Error("nonce não confere");
   } else {
     if (!p.userinfoUrl || !tokens.access_token) throw new Error("sem meio de obter o perfil");
-    const r = await fetch(p.userinfoUrl, {
+    const r = await fetch(resolverUrl(p.userinfoUrl, cred?.extras ?? {}), {
+      ...(p.id === "govbr" ? { signal: AbortSignal.timeout(10000) } : {}),
       headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: "application/json", "User-Agent": "auth.avilaops.com" },
     });
     if (!r.ok) throw new Error(`${p.nome}: userinfo HTTP ${r.status}`);
     dados = (await r.json()) as Record<string, unknown>;
+    if (identidadeGov && dados.sub !== identidadeGov.sub) throw new Error("gov.br: perfil divergente da identidade validada");
     if (tokens.id_token) {
       // Se veio id_token também, confere o nonce nele.
       try {
