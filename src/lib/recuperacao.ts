@@ -13,7 +13,7 @@ export type LinkRecuperacao = { email: string; appId: string | null; destino: st
 
 /**
  * Emite um link de recuperação. Só o hash vai ao banco; o link em claro é
- * mostrado ao admin uma vez para ele mandar por WhatsApp/e-mail.
+ * enviado por e-mail no autoatendimento ou apresentado ao administrador.
  *
  * `validadeMs` existe para o convite de conta nova (`/api/provisionamento`),
  * que precisa durar dias; a recuperação pedida no painel continua em 1 hora.
@@ -35,6 +35,7 @@ export async function emitirLinkRecuperacao(email: string, validadeMs: number = 
 }
 
 export async function validarTokenRecuperacao(token: string): Promise<LinkRecuperacao | null> {
+  if (!/^[a-f0-9]{64}$/.test(token)) return null;
   const r = await prisma.tokenRecuperacao.findUnique({ where: { tokenHash: hash(token) } });
   if (!r || r.usadoEm || r.expiraEm < new Date()) return null;
   return { email: r.email, appId: r.appId, destino: r.destino };
@@ -42,6 +43,7 @@ export async function validarTokenRecuperacao(token: string): Promise<LinkRecupe
 
 /** Consome o token (uso único, sem janela de corrida). */
 export async function consumirTokenRecuperacao(token: string): Promise<LinkRecuperacao | null> {
+  if (!/^[a-f0-9]{64}$/.test(token)) return null;
   const tokenHash = hash(token);
   const r = await prisma.tokenRecuperacao.findUnique({ where: { tokenHash } });
   if (!r) return null;
@@ -50,4 +52,11 @@ export async function consumirTokenRecuperacao(token: string): Promise<LinkRecup
     data: { usadoEm: new Date() },
   });
   return c.count === 1 ? { email: r.email, appId: r.appId, destino: r.destino } : null;
+}
+
+/** Após trocar a senha, links antigos da mesma conta deixam de servir. */
+export async function invalidarLinksRecuperacao(email: string): Promise<void> {
+  await prisma.tokenRecuperacao.updateMany({
+    where: { email: email.toLowerCase(), usadoEm: null }, data: { usadoEm: new Date() },
+  });
 }

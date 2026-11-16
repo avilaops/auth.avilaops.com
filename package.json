@@ -12,6 +12,7 @@
     "test:local": "node scripts/test-local.mjs",
     "test:browser:local": "node scripts/check-dev-local.cjs",
     "test:browser:conta": "node scripts/check-conta-portal.cjs",
+    "test:browser:recovery": "node scripts/check-recuperacao-propria.cjs",
     "build": "prisma generate && next build",
     "start": "next start -p 3010",
     "lint": "eslint",

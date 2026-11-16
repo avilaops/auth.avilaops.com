@@ -108,7 +108,7 @@ export default async function LoginPage({ searchParams }: Props) {
         )}
 
         <p className="mt-3 text-center text-xs leading-relaxed text-[var(--color-texto-fraco)]">
-          Esqueceu a senha? Fale com a equipe Avila Ops — enviamos um link de recuperação.
+          <Link href={`/recuperar${paraCriar.size ? `?${paraCriar}` : ""}`} className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)] hover:underline">Esqueci minha senha</Link>
         </p>
       </div>
     </main>

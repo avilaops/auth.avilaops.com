@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { buscarApp } from "@/lib/cadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
@@ -7,6 +8,7 @@ import Marca from "@/components/Marca";
 import FormSenha from "@/app/trocar-senha/FormSenha";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Definir senha • Ávila Ops", referrer: "no-referrer", robots: { index: false, follow: false } };
 
 export default async function RecuperarPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -38,7 +40,8 @@ export default async function RecuperarPage({ params }: { params: Promise<{ toke
             </>
           ) : (
             <div className="space-y-3 text-sm text-[var(--color-texto-fraco)]">
-              <p>O link expirou ou já foi usado. Se você já definiu sua senha, entre com ela. Para recuperar o acesso, peça um novo link a quem enviou o convite ou à equipe Avila Ops.</p>
+              <p>O link expirou ou já foi usado. Se você já definiu sua senha, entre com ela. Para recuperar o acesso, solicite um novo link pelo seu e-mail.</p>
+              <Link href="/recuperar" className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)] hover:underline">Pedir novo link de recuperação</Link>
               <Link href="/login" className="inline-flex min-h-11 items-center font-medium text-[var(--color-marca)] hover:underline">Voltar para entrar</Link>
             </div>
           )}
