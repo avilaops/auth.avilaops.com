@@ -7,7 +7,7 @@ import { entrar } from "@/lib/entrada";
 import { registrar } from "@/lib/eventos";
 import { podeEntrar } from "@/lib/permissoes";
 import { limitar } from "@/lib/rateLimit";
-import { consumirTokenRecuperacao } from "@/lib/recuperacao";
+import { consumirTokenRecuperacao, invalidarLinksRecuperacao, validarTokenRecuperacao } from "@/lib/recuperacao";
 
 export const runtime = "nodejs";
 
@@ -30,16 +30,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "A senha precisa ter ao menos 8 caracteres." }, { status: 400 });
   }
 
-  const link = await consumirTokenRecuperacao(token);
+  const link = await validarTokenRecuperacao(token);
   if (!link) return NextResponse.json({ erro: "Link inválido ou expirado." }, { status: 400 });
 
   const conta = await buscarContaPorEmail(link.email);
-  if (!conta) return NextResponse.json({ erro: "Conta não encontrada." }, { status: 404 });
+  if (!conta || conta.ativa === false) return NextResponse.json({ erro: "Link inválido ou expirado." }, { status: 400 });
   if (link.appId && !(await politicaDaAplicacao(link.appId))?.permiteRecuperacao) {
     return NextResponse.json({ erro: "A recuperação de conta não está habilitada para este sistema." }, { status: 403 });
   }
 
+  if (!(await consumirTokenRecuperacao(token))) return NextResponse.json({ erro: "Link inválido ou expirado." }, { status: 400 });
   await definirSenha(conta.id, nova, false);
+  await invalidarLinksRecuperacao(conta.email);
   await registrar({ tipo: "recuperacao_usada", email: conta.email, ip, autor: conta.email });
 
   const papel = papelDaRole(conta.role);

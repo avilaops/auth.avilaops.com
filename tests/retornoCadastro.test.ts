@@ -9,8 +9,8 @@ type Token = { tokenHash: string; email: string; appId: string | null; destino: 
 const fixture = {
   existente: true, liberado: true, fatorAtivo: false,
   emails: [] as { texto: string }[], cookies: new Map<string, string>(), tokens: new Map<string, Token>(),
-  conta: { id: "conta-teste", email: "pessoa@example.test", nome: "Pessoa Teste", role: "CLIENT" },
-  app: { id: "erp", host: "erp.avilaops.com", nome: "ERP", tipo: "app", login: true, papelExigido: null, restrito: false, exigeSegundoFator: false, situacao: "no_ar" },
+  conta: { id: "conta-teste", email: "pessoa@example.test", nome: "Pessoa Teste", role: "CLIENT", ativa: true },
+  app: { id: "erp", host: "erp.avilaops.com", nome: "ERP", tipo: "app", login: true, papelExigido: null, restrito: false, exigeSegundoFator: false, situacao: "no_ar", politica: null as { permiteRecuperacao: boolean } | null },
   prisma: {
     aplicacao: { findUnique: async ({ where }: { where: { id: string } }) => where.id === "erp" ? fixture.app : null },
     clienteOidc: { findUnique: async ({ where }: { where: { id: string } }) => where.id === "erp-client" ? { id: "erp-client", appId: "erp", nome: "ERP", ativo: true, redirectUris: "https://erp.avilaops.com/api/auth/callback", segredoHash: "unused", acessoMeta: false, ssf: false } : null },
@@ -19,11 +19,14 @@ const fixture = {
     tokenRecuperacao: {
       create: async ({ data }: { data: Token }) => { fixture.tokens.set(data.tokenHash, data); return data; },
       findUnique: async ({ where }: { where: { tokenHash: string } }) => fixture.tokens.get(where.tokenHash) ?? null,
-      updateMany: async ({ where, data }: { where: { tokenHash: string; expiraEm: { gt: Date } }; data: { usadoEm: Date } }) => {
-        const token = fixture.tokens.get(where.tokenHash);
-        if (!token || token.usadoEm || token.expiraEm <= where.expiraEm.gt) return { count: 0 };
-        token.usadoEm = data.usadoEm;
-        return { count: 1 };
+      updateMany: async ({ where, data }: { where: { tokenHash?: string; email?: string; expiraEm?: { gt: Date } }; data: { usadoEm: Date } }) => {
+        let count = 0;
+        for (const token of fixture.tokens.values()) {
+          if ((where.tokenHash && token.tokenHash !== where.tokenHash) || (where.email && token.email !== where.email)
+            || token.usadoEm || (where.expiraEm && token.expiraEm <= where.expiraEm.gt)) continue;
+          token.usadoEm = data.usadoEm; count++;
+        }
+        return { count };
       },
     },
   },
@@ -72,11 +75,31 @@ function tokenEnviado() {
 }
 beforeEach(() => {
   fixture.existente = true; fixture.liberado = true; fixture.fatorAtivo = false;
+  fixture.conta.ativa = true; fixture.app.politica = null;
   fixture.app.restrito = false; fixture.app.exigeSegundoFator = false;
   fixture.emails = []; fixture.tokens.clear(); fixture.cookies.clear();
 });
 
 describe("origem de cadastro e recuperação", () => {
+  it("não consome o link quando a política foi desabilitada depois da emissão", async () => {
+    await pedir(); const token = tokenEnviado();
+    fixture.app.politica = { permiteRecuperacao: false };
+    assert.equal((await recuperar(req("/api/auth/recuperar", { token, nova: "senha-de-teste" }))).status, 403);
+    assert.equal([...fixture.tokens.values()][0].usadoEm, undefined);
+    fixture.app.politica = null;
+    assert.equal((await recuperar(req("/api/auth/recuperar", { token, nova: "senha-de-teste" }))).status, 200);
+  });
+  it("conta inativa não redefine senha nem recebe sessão", async () => {
+    await pedir(); fixture.conta.ativa = false;
+    assert.equal((await recuperar(req("/api/auth/recuperar", { token: tokenEnviado(), nova: "senha-de-teste" }))).status, 400);
+    assert.equal(fixture.cookies.size, 0);
+    assert.equal([...fixture.tokens.values()][0].usadoEm, undefined);
+  });
+  it("redefinir senha inutiliza outros links emitidos para a mesma conta", async () => {
+    await pedir(); const first = tokenEnviado(); await pedir(); const second = tokenEnviado();
+    assert.equal((await recuperar(req("/api/auth/recuperar", { token: first, nova: "senha-de-teste" }))).status, 200);
+    assert.equal((await recuperar(req("/api/auth/recuperar", { token: second, nova: "outra-senha" }))).status, 400);
+  });
   it("recupera conta existente no ERP mesmo sem cookies do fluxo original", async () => {
     await pedir();
     const token = tokenEnviado();
