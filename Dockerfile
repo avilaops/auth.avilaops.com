@@ -31,14 +31,13 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 # O rastreamento de arquivos do Next nao alcanca o engine nativo do Prisma.
 # Sem estas copias o container sobe normalmente e so quebra na primeira consulta.
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
-COPY --from=build /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/migrations/portal ./migrations/portal
 COPY --from=build /app/scripts/migrate-portal.mjs /app/scripts/docker-entrypoint.sh ./scripts/
 # Verifica que a dependência usada antes do servidor está no standalone.
-RUN node -e "require.resolve('pg')"
+RUN node -e "require.resolve('pg'); require.resolve('prisma/build/index.js'); require.resolve('@prisma/debug')"
 
 USER nextjs
 EXPOSE 3010
