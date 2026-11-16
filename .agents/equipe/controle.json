@@ -16,10 +16,25 @@
       "owner": "nicolas-rosa",
       "priority": "alta",
       "acceptance": "Usuário solicita seu próprio link, recebe a mensagem e redefine a senha; uso único, expiração, privacidade, limites, conta ativa, política do produto e MFA preservados; prova real em PostgreSQL e navegador DEV.",
-      "evidence": "PR draft #60; docs/RECUPERACAO-PROPRIA-20261116.md; docs/superpowers/plans/2026-11-16-recuperacao-propria.md; 428 testes Node, 76 PostgreSQL e seis grupos de navegador aprovados, além de tipos/build. Publicação depende de configurar o transporte no serviço Render do Auth; credencial disponível alcança apenas Conta.",
+      "evidence": "PR #60 mesclado no commit 73bd3de. 428 testes Node, 76 PostgreSQL e seis grupos de navegador aprovados, além de tipos/build. Deploy em applications no workflow 43894838167; /api/saude, TLS, /recuperar e pedido com endereço reservado não cadastrado responderam HTTP 200. Relay n8n configurado no host; entrega real não foi testada. Ver docs/RECUPERACAO-PROPRIA-20261116.md.",
+      "blocker": "Entrega de um e-mail real de recuperação ainda não foi comprovada.",
       "history": [
         { "at": "2026-11-16", "status": "em-andamento", "note": "Pedido explícito do proprietário para autonomia na recuperação. Worktree isolado sem alterar a branch gov.br preexistente." },
         { "at": "2026-11-16", "status": "em-revisao", "note": "Fluxo real com e-mail DEV capturado e mudança de senha confirmada em login independente. Sem envio externo ou alteração de contas reais; produção não anunciada como concluída." }
+      ]
+    },
+    {
+      "id": "AUTH-APPLICATIONS-20261116",
+      "title": "Migrar Auth público do Render para applications",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "priority": "alta",
+      "acceptance": "Imagem publicada no servidor applications; DNS público direciona ao host; saúde, TLS e fluxo de recuperação disponíveis; dados e entrega de e-mail reconciliados; rollback preservado.",
+      "evidence": "Merge #60 no commit 73bd3de; workflow 43894838167 publicou a imagem sha256:69ce08d9c801a345179fafca1118db415a076e9f3871b5f8bda83a0b5b1d0cea. Cloudflare A auth.avilaops.com → 178.105.82.48, DNS only, TTL 300. /api/saude, /recuperar e solicitação genérica com endereço reservado não cadastrado responderam HTTP 200; container healthy.",
+      "blocker": "A base local cliente_portal tem 30 contas, mas sua paridade com o banco anterior no Render não foi comprovada. Entrega externa pelo relay n8n também não foi executada. Render permanece disponível para rollback.",
+      "history": [
+        { "at": "2026-11-16", "status": "em-andamento", "note": "Proprietário solicitou migração do Auth para applications. Cloudflare apontava CNAME para Render; container nativo já existia e estava saudável." },
+        { "at": "2026-11-16", "status": "em-revisao", "note": "Deploy nativo e corte DNS concluídos e verificados; reconciliação das contas e envio real ainda pendentes." }
       ]
     },
     {
