@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { destinoDepoisDoCadastro, lerTokenDeCadastro } from "@/lib/cadastroProprio";
-import { buscarContaPorEmail, criarConta, definirSenha, papelDaRole } from "@/lib/contas";
+import { consumirTokenDeCadastro, destinoDepoisDoCadastro, lerTokenDeCadastro } from "@/lib/cadastroProprio";
+import { buscarContaPorEmail, criarConta, definirSenha, marcarEmailVerificado, papelDaRole } from "@/lib/contas";
 import { entrar } from "@/lib/entrada";
 import { registrar } from "@/lib/eventos";
 import { limitar } from "@/lib/rateLimit";
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ erro: "Requisição inválida." }, { status: 400 });
   }
-  const pedido = typeof corpo.token === "string" ? lerTokenDeCadastro(corpo.token) : null;
+  const token = typeof corpo.token === "string" ? corpo.token : "";
+  const pedido = token ? await lerTokenDeCadastro(token) : null;
   if (!pedido) return NextResponse.json({ erro: "Link inválido ou vencido. Peça um novo em Criar conta." }, { status: 400 });
   const nova = typeof corpo.nova === "string" ? corpo.nova : "";
   if (nova.length < 8) return NextResponse.json({ erro: "A senha precisa ter ao menos 8 caracteres." }, { status: 400 });
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   let conta;
   try {
-    ({ conta } = await criarConta({ nome: pedido.nome, email: pedido.email, role: "CLIENT" }));
+    ({ conta } = await criarConta({ nome: pedido.nome, email: pedido.email, cpf: pedido.cpf, telefone: pedido.telefone, role: "CLIENT" }));
   } catch (erro) {
     const mensagem = erro instanceof Error ? erro.message : "";
     // Dois cliques ao mesmo tempo: o segundo bate na chave única.
@@ -62,6 +63,10 @@ export async function POST(req: NextRequest) {
     await definirSenha(conta.id, randomBytes(24).toString("base64url"), false).catch(() => {});
     throw erro;
   });
+  await marcarEmailVerificado(conta.id);
+  if (!(await consumirTokenDeCadastro(token))) {
+    return NextResponse.json({ erro: "Este link já foi usado ou expirou. Entre com a sua conta." }, { status: 409 });
+  }
   await registrar({ tipo: "conta_criada", email: conta.email, appId: pedido.app, ip, detalhe: "cadastro próprio, e-mail confirmado", autor: conta.email });
 
   const entrada = await entrar(

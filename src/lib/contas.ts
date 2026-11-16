@@ -413,6 +413,14 @@ export async function definirSenha(id: string, senha: string, provisoria = false
   );
 }
 
+/** A confirmação do cadastro também comprova a posse do endereço de e-mail. */
+export async function marcarEmailVerificado(id: string): Promise<void> {
+  await getPool().query(
+    `update portal_clients set email_verificado = true, atualizado_em = now() where id = $1`,
+    [id],
+  );
+}
+
 /** Gera uma provisória nova e devolve em claro — uma vez só. */
 export async function redefinirSenhaProvisoria(id: string): Promise<string> {
   const senha = gerarSenhaProvisoria();

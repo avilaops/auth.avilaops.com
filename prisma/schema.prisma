@@ -145,6 +145,27 @@ model TokenRecuperacao {
   @@map("tokens_recuperacao")
 }
 
+/// Pedido de cadastro próprio aguardando confirmação do e-mail. CPF e telefone
+/// ficam no banco do Auth; o link contém somente um token aleatório armazenado
+/// como hash.
+model CadastroPendente {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique @map("token_hash")
+  email      String
+  nome       String
+  cpf        String
+  telefone   String
+  appId      String?   @map("app_id")
+  destino    String?
+  expiraEm   DateTime  @map("expira_em")
+  usadoEm    DateTime? @map("usado_em")
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+
+  @@index([email])
+  @@index([expiraEm])
+  @@map("cadastros_pendentes")
+}
+
 /// Conector de login (Google, Apple, GitHub…). Uma linha por provedor; o
 /// segredo fica cifrado com `AUTH_ENCRYPTION_KEY` (só no .env do servidor).
 model Conector {
