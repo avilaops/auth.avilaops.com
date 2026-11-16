@@ -11,7 +11,7 @@ export const metadata = { title: "Criar conta", robots: { index: false } };
 /** Segundo passo do cadastro: o link confirmou o e-mail; falta escolher a senha. */
 export default async function ConfirmarCadastroPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const pedido = lerTokenDeCadastro(token);
+  const pedido = await lerTokenDeCadastro(token);
   const jaExiste = pedido ? Boolean(await buscarContaPorEmail(pedido.email)) : false;
   const origem = pedido ? await origemDoCadastro(pedido.app, pedido.returnTo) : null;
   const entrarEm = origem?.app ? destinoDepoisDoCadastro(origem) : "/login";

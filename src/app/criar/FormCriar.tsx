@@ -5,10 +5,12 @@ import { useState } from "react";
 const campo =
   "min-h-11 w-full rounded-lg border border-[var(--color-borda)] bg-[var(--color-fundo)] px-3 py-2 text-base outline-none focus:border-[var(--color-marca)] sm:text-sm";
 
-/** Primeiro passo do cadastro: nome e e-mail. A senha vem depois, no link. */
+/** Primeiro passo do cadastro; a senha vem depois, no link de confirmação. */
 export default function FormCriar({ app, returnTo }: { app: string | null; returnTo: string | null }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviado, setEnviado] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -21,7 +23,7 @@ export default function FormCriar({ app, returnTo }: { app: string | null; retur
       const res = await fetch("/api/auth/criar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, app, returnTo }),
+        body: JSON.stringify({ nome, email, cpf, telefone, app, returnTo }),
       });
       const dados = await res.json();
       if (!res.ok) return setErro(dados.erro || "Não foi possível enviar.");
@@ -56,6 +58,16 @@ export default function FormCriar({ app, returnTo }: { app: string | null; retur
         E-mail
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required maxLength={254} className={campo} />
       </label>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5 text-xs text-[var(--color-texto-fraco)]">
+          CPF
+          <input value={cpf} onChange={(e) => setCpf(e.target.value)} inputMode="numeric" autoComplete="off" required maxLength={14} placeholder="000.000.000-00" className={campo} />
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs text-[var(--color-texto-fraco)]">
+          Telefone
+          <input value={telefone} onChange={(e) => setTelefone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" required maxLength={30} placeholder="(00) 00000-0000" className={campo} />
+        </label>
+      </div>
       {erro && <p role="alert" className="text-xs text-[var(--color-marca-vermelho)]">{erro}</p>}
       <button type="submit" disabled={enviando} className="mt-1 min-h-11 rounded-lg bg-[var(--color-marca-solida)] px-4 py-2.5 text-sm font-semibold text-[var(--color-marca-contraste)] hover:opacity-90 disabled:opacity-60">
         {enviando ? "Enviando…" : "Enviar link de confirmação"}

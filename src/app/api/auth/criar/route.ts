@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { emailAceito, emailDeConfirmacao, emailDeContaExistente, linkDeConfirmacao, nomeAceito, normalizarEmail, tokenDeCadastro } from "@/lib/cadastroProprio";
+import { cpfAceito, criarPedidoDeCadastro, emailAceito, emailDeConfirmacao, emailDeContaExistente, linkDeConfirmacao, nomeAceito, normalizarEmail, telefoneAceito } from "@/lib/cadastroProprio";
 import { origemDoCadastro } from "@/lib/origemDoCadastro";
 import { buscarContaPorEmail } from "@/lib/contas";
 import { politicaDaAplicacao } from "@/lib/cadastro";
@@ -12,15 +12,15 @@ export const runtime = "nodejs";
 const RESPOSTA = { ok: true, mensagem: "Se o endereço puder receber e-mail, o link de confirmação chega em instantes. Confira também a caixa de spam." };
 
 /**
- * Primeiro passo do cadastro próprio: recebe nome e e-mail e manda o link.
+ * Primeiro passo do cadastro próprio: recebe dados pessoais e manda o link.
  *
  * A resposta é a mesma quer o e-mail já tenha conta, quer não: responder
  * "este e-mail já está cadastrado" entregaria de graça a lista de quem tem
  * conta. Quem já tem recebe, no lugar da confirmação, um link para definir uma
  * senha nova.
  *
- * Nada é gravado aqui além do contador de tentativas. A conta só nasce quando
- * a pessoa abre o link e escolhe a senha.
+ * Os dados pendentes ficam no banco do Auth até a confirmação. A conta só
+ * nasce quando a pessoa abre o link e escolhe a senha.
  */
 export async function POST(req: NextRequest) {
   if (!emailConfigurado()) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "Muitas tentativas. Tente de novo mais tarde." }, { status: 429 });
   }
 
-  let corpo: { nome?: unknown; email?: unknown; app?: unknown; returnTo?: unknown };
+  let corpo: { nome?: unknown; email?: unknown; cpf?: unknown; telefone?: unknown; app?: unknown; returnTo?: unknown };
   try {
     corpo = await req.json();
   } catch {
@@ -39,8 +39,12 @@ export async function POST(req: NextRequest) {
   }
   const nome = typeof corpo.nome === "string" ? corpo.nome.trim() : "";
   const email = typeof corpo.email === "string" ? normalizarEmail(corpo.email) : "";
+  const cpf = typeof corpo.cpf === "string" ? corpo.cpf.trim() : "";
+  const telefone = typeof corpo.telefone === "string" ? corpo.telefone.trim() : "";
   if (!nomeAceito(nome)) return NextResponse.json({ erro: "Informe seu nome." }, { status: 400 });
   if (!emailAceito(email)) return NextResponse.json({ erro: "Informe um e-mail válido." }, { status: 400 });
+  if (!cpfAceito(cpf)) return NextResponse.json({ erro: "Informe um CPF válido." }, { status: 400 });
+  if (!telefoneAceito(telefone)) return NextResponse.json({ erro: "Informe um telefone válido com DDD." }, { status: 400 });
 
   // Um endereço não recebe mais de três e-mails por hora, peça quem pedir.
   if (!(await limitar(`criar-email:${email}`, 3, 60 * 60 * 1000))) return NextResponse.json(RESPOSTA);
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest) {
       const link = await emitirLinkRecuperacao(email, undefined, origem.app, origem.returnTo);
       await enviarEmail({ para: email, ...emailDeContaExistente(link) });
     } else {
-      const token = tokenDeCadastro({ email, nome, ...origem });
+      const token = await criarPedidoDeCadastro({ email, nome, cpf, telefone, ...origem });
       await enviarEmail({ para: email, ...emailDeConfirmacao(nome, linkDeConfirmacao(token)) });
     }
   } catch (erro) {

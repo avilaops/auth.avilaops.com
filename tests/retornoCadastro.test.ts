@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { register } from "node:module";
 import { beforeEach, describe, it } from "node:test";
 
 // Rotas, tokens, validação de destino, permissão e MFA reais. Somente os
 // adaptadores de armazenamento, entrega de e-mail e cookies usam memória.
 type Token = { tokenHash: string; email: string; appId: string | null; destino: string | null; expiraEm: Date; usadoEm?: Date };
+type CadastroPendente = { tokenHash: string; email: string; nome: string; cpf: string; telefone: string; appId: string | null; destino: string | null; expiraEm: Date; usadoEm?: Date };
 const fixture = {
   existente: true, liberado: true, fatorAtivo: false,
-  emails: [] as { texto: string }[], cookies: new Map<string, string>(), tokens: new Map<string, Token>(),
+  emails: [] as { texto: string }[], cookies: new Map<string, string>(), tokens: new Map<string, Token>(), cadastros: new Map<string, CadastroPendente>(),
+  dadosConta: null as { cpf?: string | null; telefone?: string | null } | null,
   conta: { id: "conta-teste", email: "pessoa@example.test", nome: "Pessoa Teste", role: "CLIENT", ativa: true },
   app: { id: "erp", host: "erp.avilaops.com", nome: "ERP", tipo: "app", login: true, papelExigido: null, restrito: false, exigeSegundoFator: false, situacao: "no_ar", politica: null as { permiteRecuperacao: boolean } | null },
   prisma: {
@@ -29,13 +31,23 @@ const fixture = {
         return { count };
       },
     },
+    cadastroPendente: {
+      create: async ({ data }: { data: CadastroPendente }) => { fixture.cadastros.set(data.tokenHash, data); return data; },
+      findUnique: async ({ where }: { where: { tokenHash: string } }) => fixture.cadastros.get(where.tokenHash) ?? null,
+      updateMany: async ({ where, data }: { where: { tokenHash: string; expiraEm: { gt: Date } }; data: { usadoEm: Date } }) => {
+        const cadastro = fixture.cadastros.get(where.tokenHash);
+        if (!cadastro || cadastro.usadoEm || cadastro.expiraEm <= where.expiraEm.gt) return { count: 0 };
+        cadastro.usadoEm = data.usadoEm;
+        return { count: 1 };
+      },
+    },
   },
 };
 Object.assign(globalThis, { __retornoCadastro: fixture });
 const data = (source: string) => "data:text/javascript," + encodeURIComponent(source);
 const substitutos = {
   "@/lib/prisma": "export const prisma=globalThis.__retornoCadastro.prisma;",
-  "@/lib/contas": "const f=globalThis.__retornoCadastro; export const buscarContaPorEmail=async()=>f.existente?f.conta:null; export const criarConta=async()=>{f.existente=true;return {conta:f.conta}}; export const definirSenha=async()=>{}; export const papelDaRole=()=> 'CLIENTE';",
+  "@/lib/contas": "const f=globalThis.__retornoCadastro; export const buscarContaPorEmail=async()=>f.existente?f.conta:null; export const criarConta=async(dados)=>{f.existente=true;f.dadosConta={cpf:dados.cpf,telefone:dados.telefone};return {conta:{...f.conta,...dados}}}; export const definirSenha=async()=>{}; export const marcarEmailVerificado=async()=>{}; export const papelDaRole=()=> 'CLIENTE';",
   "@/lib/email": "export const emailConfigurado=()=>true; export const enviarEmail=async(msg)=>globalThis.__retornoCadastro.emails.push(msg);",
   "@/lib/rateLimit": "export const limitar=async()=>true;",
   "@/lib/eventos": "export const registrar=async()=>{};",
@@ -60,12 +72,11 @@ const { origemDoCadastro } = await import("@/lib/origemDoCadastro");
 const { POST: criar } = await import("@/app/api/auth/criar/route");
 const { POST: recuperar } = await import("@/app/api/auth/recuperar/route");
 const { POST: confirmar } = await import("@/app/api/auth/criar/confirmar/route");
-const { lerTokenDeCadastro } = await import("@/lib/cadastroProprio");
 const { verificarDesafio } = await import("@/lib/desafio");
 const oidc = "/oauth/authorize?" + new URLSearchParams({ client_id: "erp-client", redirect_uri: "https://erp.avilaops.com/api/auth/callback", response_type: "code", state: "estado-antigo", nonce: "nonce-antigo", code_challenge: "desafio-antigo", code_challenge_method: "S256" });
 const req = (path: string, body: object) => new NextRequest("https://auth.avilaops.com" + path, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
 async function pedir(app: string | null = null, returnTo: string | null = oidc) {
-  const res = await criar(req("/api/auth/criar", { nome: "Pessoa Teste", email: fixture.conta.email, app, returnTo }));
+  const res = await criar(req("/api/auth/criar", { nome: "Pessoa Teste", email: fixture.conta.email, cpf: "529.982.247-25", telefone: "+55 11 98765-4321", app, returnTo }));
   assert.equal(res.status, 200);
   return res.json();
 }
@@ -77,7 +88,7 @@ beforeEach(() => {
   fixture.existente = true; fixture.liberado = true; fixture.fatorAtivo = false;
   fixture.conta.ativa = true; fixture.app.politica = null;
   fixture.app.restrito = false; fixture.app.exigeSegundoFator = false;
-  fixture.emails = []; fixture.tokens.clear(); fixture.cookies.clear();
+  fixture.emails = []; fixture.tokens.clear(); fixture.cadastros.clear(); fixture.cookies.clear(); fixture.dadosConta = null;
 });
 
 describe("origem de cadastro e recuperação", () => {
@@ -116,9 +127,14 @@ describe("origem de cadastro e recuperação", () => {
     const novo = await pedir();
     assert.deepEqual(novo, existente);
     const token = tokenEnviado();
-    const pedido = lerTokenDeCadastro(token)!;
-    assert.equal(pedido.app, "erp");
-    assert.equal(pedido.returnTo, "https://erp.avilaops.com/");
+    const pedido = [...fixture.cadastros.values()][0];
+    assert.ok(pedido);
+    const hash = createHash("sha256").update(token).digest("hex");
+    assert.equal(pedido.tokenHash, hash);
+    assert.equal(pedido.cpf, "52998224725");
+    assert.equal(pedido.telefone, "+55 11 98765-4321");
+    assert.equal(pedido.appId, "erp");
+    assert.equal(pedido.destino, "https://erp.avilaops.com/");
     assert.doesNotMatch(JSON.stringify(pedido), /estado-antigo|nonce-antigo|desafio-antigo/);
     const res = await confirmar(req("/api/auth/criar/confirmar", { token, nova: "senha-de-teste" }));
     assert.equal(res.status, 200);
@@ -126,9 +142,10 @@ describe("origem de cadastro e recuperação", () => {
     assert.equal(destino.pathname, "/login");
     assert.equal(destino.searchParams.get("app"), "erp");
     assert.equal(destino.searchParams.get("returnTo"), "https://erp.avilaops.com/");
+    assert.equal(fixture.dadosConta?.cpf, "52998224725");
+    assert.equal(fixture.dadosConta?.telefone, "+55 11 98765-4321");
     const repetido = await confirmar(req("/api/auth/criar/confirmar", { token, nova: "senha-de-teste" }));
-    assert.equal(repetido.status, 409);
-    assert.equal((await repetido.json()).entrarEm, destino.pathname + destino.search);
+    assert.equal(repetido.status, 400);
   });
 
   it("mantém caminho válido de produto explícito e o destino padrão do portal", async () => {

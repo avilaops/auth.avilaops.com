@@ -1,5 +1,5 @@
-import { createHmac } from "crypto";
-import jwt from "jsonwebtoken";
+import { createHash, randomBytes } from "crypto";
+import { prisma } from "@/lib/prisma";
 import { urlAbsoluta } from "@/lib/urls";
 
 /**
@@ -12,13 +12,12 @@ import { urlAbsoluta } from "@/lib/urls";
  *
  * O caminho, em dois passos:
  *
- * 1. `/criar` pede nome e e-mail e manda um link de confirmação.
+ * 1. `/criar` pede nome, e-mail, CPF e telefone e manda um link de confirmação.
  * 2. O link abre `/criar/confirmar/<token>`, a pessoa escolhe a senha e a conta
  *    nasce ali, já logada, voltando para o sistema de onde ela veio.
  *
- * **Nada é gravado antes da confirmação.** O link é assinado e carrega o que
- * foi pedido; quem nunca clica não deixa linha em banco nenhum, e ninguém
- * consegue reservar o e-mail de outra pessoa.
+ * O pedido fica temporariamente no banco do Auth, protegido por token aleatório
+ * de uso único. CPF e telefone nunca são colocados no token da URL.
  *
  * A conta nasce como equipe do cliente (`CLIENT`), sem empresa e sem liberação
  * nenhuma. Ter conta não dá acesso a aplicação restrita nem a dados de empresa:
@@ -26,26 +25,20 @@ import { urlAbsoluta } from "@/lib/urls";
  * `docs/PAPEIS-VINCULOS-E-ACESSO.md`).
  */
 
-const VALIDADE_S = 24 * 60 * 60;
-const PROPOSITO = "cadastro-proprio";
+const VALIDADE_MS = 24 * 60 * 60 * 1000;
 
 export type PedidoDeCadastro = {
   email: string;
   nome: string;
+  cpf: string;
+  telefone: string;
   /** Aplicação e destino que estavam na tela de login, para voltar depois. */
   app: string | null;
   returnTo: string | null;
 };
 
-/**
- * Chave própria deste link, derivada do segredo da sessão. Um token de
- * cadastro não serve de sessão nem o contrário: a chave é outra, e o propósito
- * é conferido na leitura.
- */
-function chave(): string {
-  const segredo = process.env.SSO_JWT_SECRET;
-  if (!segredo) throw new Error("SSO_JWT_SECRET não configurado");
-  return createHmac("sha256", segredo).update(PROPOSITO).digest("hex");
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function normalizarEmail(v: string): string {
@@ -61,24 +54,58 @@ export function nomeAceito(v: string): boolean {
   return nome.length >= 2 && nome.length <= 120 && !/[<>\r\n]/.test(nome);
 }
 
-export function tokenDeCadastro(p: PedidoDeCadastro): string {
-  return jwt.sign({ p: PROPOSITO, email: normalizarEmail(p.email), nome: p.nome.trim(), app: p.app, returnTo: p.returnTo }, chave(), {
-    algorithm: "HS256",
-    expiresIn: VALIDADE_S,
-  });
+export function cpfNormalizado(v: string): string {
+  return v.replace(/\D/g, "");
 }
 
-export function lerTokenDeCadastro(token: string): PedidoDeCadastro | null {
-  try {
-    const dados = jwt.verify(token, chave(), { algorithms: ["HS256"] });
-    if (typeof dados !== "object" || dados === null) return null;
-    const { p, email, nome, app, returnTo } = dados as Record<string, unknown>;
-    if (p !== PROPOSITO || typeof email !== "string" || typeof nome !== "string") return null;
-    if (!emailAceito(email) || !nomeAceito(nome)) return null;
-    return { email, nome, app: typeof app === "string" ? app : null, returnTo: typeof returnTo === "string" ? returnTo : null };
-  } catch {
-    return null;
-  }
+export function cpfAceito(v: string): boolean {
+  const cpf = cpfNormalizado(v);
+  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const digito = (base: string, pesoInicial: number) => {
+    const soma = [...base].reduce((total, n, i) => total + Number(n) * (pesoInicial - i), 0);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(cpf.slice(0, 9), 10) === Number(cpf[9]) && digito(cpf.slice(0, 10), 11) === Number(cpf[10]);
+}
+
+export function telefoneAceito(v: string): boolean {
+  const telefone = v.trim();
+  const digitos = telefone.replace(/\D/g, "");
+  return telefone.length <= 30 && digitos.length >= 10 && digitos.length <= 15;
+}
+
+export async function criarPedidoDeCadastro(p: PedidoDeCadastro): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  await prisma.cadastroPendente.create({
+    data: {
+      tokenHash: hashToken(token),
+      email: normalizarEmail(p.email),
+      nome: p.nome.trim(),
+      cpf: cpfNormalizado(p.cpf),
+      telefone: p.telefone.trim(),
+      appId: p.app,
+      destino: p.returnTo,
+      expiraEm: new Date(Date.now() + VALIDADE_MS),
+    },
+  });
+  return token;
+}
+
+export async function lerTokenDeCadastro(token: string): Promise<PedidoDeCadastro | null> {
+  if (!/^[A-Za-z0-9_-]{40,50}$/.test(token)) return null;
+  const p = await prisma.cadastroPendente.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!p || p.usadoEm || p.expiraEm <= new Date()) return null;
+  return { email: p.email, nome: p.nome, cpf: p.cpf, telefone: p.telefone, app: p.appId, returnTo: p.destino };
+}
+
+export async function consumirTokenDeCadastro(token: string): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{40,50}$/.test(token)) return false;
+  const atualizado = await prisma.cadastroPendente.updateMany({
+    where: { tokenHash: hashToken(token), usadoEm: null, expiraEm: { gt: new Date() } },
+    data: { usadoEm: new Date() },
+  });
+  return atualizado.count === 1;
 }
 
 /**
