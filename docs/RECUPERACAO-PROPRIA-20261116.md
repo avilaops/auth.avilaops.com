@@ -37,10 +37,10 @@ Quando Playwright está instalado fora do checkout, `AUTH_DEV_PLAYWRIGHT_MODULE`
 
 ## Publicação
 
-Em 16/11/2026, a imagem da main foi implantada em `applications` e o registro Cloudflare de `auth.avilaops.com` foi alterado de CNAME para Render a A `178.105.82.48` • DNS only • TTL 300. O container `auth-avilaops-com-web` está saudável; `/api/saude`, TLS e `/recuperar` responderam HTTP 200 pelo domínio.
+Em 16/11/2026, a imagem da main foi implantada no servidor remoto `applications` • não é DEV local. A imagem atual é do commit `6b637a4`, publicada no workflow `43898336536`. No Cloudflare, `auth.avilaops.com` e `conta.avilaops.com` apontam por A para `178.105.82.48`, com proxy desativado. A zona não tem registros apontando para `render.com`. O container `auth-avilaops-com-web` está saudável; `/api/saude`, TLS e `/recuperar` responderam HTTP 200 pelo domínio.
 
 O `POST /api/auth/recuperar/solicitar` respondeu com a mensagem genérica esperada usando um endereço reservado e não cadastrado (`migration-check@invalid.example`); esse ensaio não enviou e-mail. O `.env` do Auth em `applications` tem token e URL base do relay n8n, e o código forma o webhook `auth-enviar-email`. Uma entrega real do e-mail de recuperação ainda não foi verificada.
 
-A base nativa consultada durante a mudança contém 30 contas em `cliente_portal.portal_clients`; a base `avilaops-auth` tem 12 clientes OIDC e zero usuários SSO. A equivalência dessas contas com o banco que atendia pelo Render não foi comprovada. O serviço Render foi mantido para rollback; não apagar sua base nem as instâncias antes de reconciliar as contas e validar a entrega de e-mail.
+O Auth usa as bases PostgreSQL do servidor `applications`; a consulta encontrou 30 contas em `cliente_portal.portal_clients` e 12 clientes OIDC em `avilaops-auth`. O proprietário confirmou que removeu os serviços do Render e que não há contas a importar da base Render. Não houve cópia de dados entre esses provedores. A entrega real do e-mail de recuperação ainda não foi testada.
 
 A implementação é do login central. Não altera senhas SMTP/IMAP das caixas de e-mail, permissões, papéis ou vínculos corporativos.

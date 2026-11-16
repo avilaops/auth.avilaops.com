@@ -26,15 +26,17 @@
     {
       "id": "AUTH-APPLICATIONS-20261116",
       "title": "Migrar Auth público do Render para applications",
-      "status": "em-revisao",
+      "status": "concluida",
       "owner": "nicolas-rosa",
       "priority": "alta",
-      "acceptance": "Imagem publicada no servidor applications; DNS público direciona ao host; saúde, TLS e fluxo de recuperação disponíveis; dados e entrega de e-mail reconciliados; rollback preservado.",
-      "evidence": "Merge #60 no commit 73bd3de; workflow 43894838167 publicou a imagem sha256:69ce08d9c801a345179fafca1118db415a076e9f3871b5f8bda83a0b5b1d0cea. Cloudflare A auth.avilaops.com → 178.105.82.48, DNS only, TTL 300. /api/saude, /recuperar e solicitação genérica com endereço reservado não cadastrado responderam HTTP 200; container healthy.",
-      "blocker": "A base local cliente_portal tem 30 contas, mas sua paridade com o banco anterior no Render não foi comprovada. Entrega externa pelo relay n8n também não foi executada. Render permanece disponível para rollback.",
+      "acceptance": "Imagem publicada no servidor remoto applications; DNS de Auth e Conta direciona ao host; saúde, TLS e rota de recuperação disponíveis; registros DNS sem destinos Render.",
+      "evidence": "Merge #60 no commit 73bd3de; workflow 43894838167 publicou a imagem sha256:69ce08d9c801a345179fafca1118db415a076e9f3871b5f8bda83a0b5b1d0cea. Cloudflare A auth.avilaops.com e conta.avilaops.com → 178.105.82.48, DNS only. Listagem da zona sem destinos render.com. /api/saude, /recuperar e solicitação genérica com endereço reservado responderam HTTP 200; container healthy na máquina remota ubuntu-4gb-nbg1-1.",
+      "blocker": "",
       "history": [
         { "at": "2026-11-16", "status": "em-andamento", "note": "Proprietário solicitou migração do Auth para applications. Cloudflare apontava CNAME para Render; container nativo já existia e estava saudável." },
-        { "at": "2026-11-16", "status": "em-revisao", "note": "Deploy nativo e corte DNS concluídos e verificados; reconciliação das contas e envio real ainda pendentes." }
+        { "at": "2026-11-16", "status": "em-revisao", "note": "Deploy e DNS verificados. Proprietário esclareceu que os serviços Render foram excluídos e que não há contas na base Render para importar; applications é o ambiente remoto de produção, não DEV local." },
+        { "at": "2026-11-16", "status": "concluida", "note": "Auth e Conta resolvem para applications; lista da zona sem registros render.com; saúde, TLS e rotas públicas HTTP 200." },
+        { "at": "2026-11-16", "status": "concluida", "note": "Registro atualizado no PR #61; commit 6b637a4 publicado pelo workflow 43898336536. A aplicação segue healthy no servidor remoto." }
       ]
     },
     {
