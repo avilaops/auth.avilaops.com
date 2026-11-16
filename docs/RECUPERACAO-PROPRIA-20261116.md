@@ -2,6 +2,8 @@
 
 O login central agora oferece **Esqueci minha senha**. A pessoa informa o e-mail da conta, recebe o link, escolhe uma nova senha e continua pelo fluxo normal de acesso. Não precisa pedir um link à equipe.
 
+Entrega revisável: [PR 60](https://github.com/avilaops/auth.avilaops.com/pull/60). A publicação e sua dependência estão registradas abaixo; esta entrega não significa que o domínio de produção já foi atualizado.
+
 - Pedido: `/recuperar` e `POST /api/auth/recuperar/solicitar`.
 - Redefinição: `/recuperar/[token]` e `POST /api/auth/recuperar`.
 - O link vale por uma hora, guarda somente SHA256 e pode ser usado uma vez.

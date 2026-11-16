@@ -16,7 +16,7 @@
       "owner": "nicolas-rosa",
       "priority": "alta",
       "acceptance": "Usuário solicita seu próprio link, recebe a mensagem e redefine a senha; uso único, expiração, privacidade, limites, conta ativa, política do produto e MFA preservados; prova real em PostgreSQL e navegador DEV.",
-      "evidence": "docs/RECUPERACAO-PROPRIA-20261116.md; docs/superpowers/plans/2026-11-16-recuperacao-propria.md; 428 testes Node, 76 PostgreSQL e seis grupos de navegador aprovados, além de tipos/build. Publicação depende de configurar o transporte no serviço Render do Auth; credencial disponível alcança apenas Conta.",
+      "evidence": "PR draft #60; docs/RECUPERACAO-PROPRIA-20261116.md; docs/superpowers/plans/2026-11-16-recuperacao-propria.md; 428 testes Node, 76 PostgreSQL e seis grupos de navegador aprovados, além de tipos/build. Publicação depende de configurar o transporte no serviço Render do Auth; credencial disponível alcança apenas Conta.",
       "history": [
         { "at": "2026-11-16", "status": "em-andamento", "note": "Pedido explícito do proprietário para autonomia na recuperação. Worktree isolado sem alterar a branch gov.br preexistente." },
         { "at": "2026-11-16", "status": "em-revisao", "note": "Fluxo real com e-mail DEV capturado e mudança de senha confirmada em login independente. Sem envio externo ou alteração de contas reais; produção não anunciada como concluída." }

@@ -24,7 +24,8 @@
 - [x] Implementar pedido e template de e-mail; adicionar formulário e links acessíveis.
 - [x] Validar condições antes de consumir tokens; invalidar links restantes após sucesso; preservar MFA.
 - [x] Executar testes, tipos/lint/build e fluxo completo de navegador com banco e e-mail DEV.
-- [ ] Registrar evidências e entregar mudanças revisáveis no GitHub.
+- [x] Registrar evidências e entregar mudanças revisáveis no GitHub • [PR 60](https://github.com/avilaops/auth.avilaops.com/pull/60).
+- [ ] Configurar o envio e publicar no serviço Render que atende o Auth • acesso da conta correta pendente.
 
 ## Decisões
 
