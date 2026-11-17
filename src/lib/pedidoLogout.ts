@@ -56,12 +56,20 @@ export async function lerPedidoLogout(req: Request): Promise<URLSearchParams> {
   return normalizarPedidoLogout(entrada);
 }
 
-/** Só formulários do próprio serviço executam efeitos; outros passam pela confirmação. */
+/** Origens dos formulários do próprio serviço. O ERP possui uma regra explícita separada. */
 export function origemLocalDoLogout(origin: string | null): boolean {
   const origemAuth = new URL(baseUrl()).origin;
   return origin === origemAuth || (
     origemAuth === `https://${HOST_DO_AUTH}` && origin === `https://${HOST_DA_CONTA}`
   );
+}
+
+/** Continuação do POST protegido do ERP, sem ampliar confiança a outros consumidores. */
+export function origemDiretaErpDoLogout(origin: string | null, pedido: URLSearchParams): boolean {
+  return new URL(baseUrl()).origin === `https://${HOST_DO_AUTH}`
+    && origin === "https://erp.avilaops.com"
+    && pedido.get("client_id") === "erp-next"
+    && pedido.get("post_logout_redirect_uri") === "https://erp.avilaops.com/api/auth/logout/central/callback";
 }
 
 /** Deve resolver antes de apagar cookie, revogar tokens ou emitir eventos. */

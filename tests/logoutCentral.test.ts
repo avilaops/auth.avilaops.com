@@ -4,6 +4,7 @@ import { beforeEach, describe, it } from "node:test";
 
 const identidade = { sub: "conta-teste", email: "pessoa@example.test", nome: "Pessoa", papel: "CLIENTE", foto: null };
 const retorno = "https://produto.example.test/saiu";
+const retornoErp = "https://erp.avilaops.com/api/auth/logout/central/callback";
 const fixture = {
   sessao: { ...identidade } as typeof identidade | null,
   efeitos: [] as string[], tarefas: [] as (() => unknown)[], clienteAtivo: true,
@@ -13,10 +14,10 @@ const fixture = {
 fixture.prisma = {
   clienteOidc: { findUnique: async ({ where }: { where: { id: string } }) => {
     if (fixture.erroBanco) throw fixture.erroBanco;
-    return where.id === "produto" ? { id: "produto", appId: "produto", nome: "Produto", ativo: fixture.clienteAtivo, redirectUris: "", postLogoutRedirectUris: retorno, segredoHash: "nao-utilizado", acessoMeta: false, ssf: false } : null;
+    return ["produto", "erp-next"].includes(where.id) ? { id: where.id, appId: where.id === "erp-next" ? "erp" : "produto", nome: "Produto", ativo: fixture.clienteAtivo, redirectUris: "", postLogoutRedirectUris: where.id === "erp-next" ? retornoErp : retorno, segredoHash: "nao-utilizado", acessoMeta: false, ssf: false } : null;
   } },
   redirectUri: { findMany: async ({ where }: { where: { clienteId: string; tipo: string } }) =>
-    fixture.destinoAtivo && where.clienteId === "produto" && where.tipo === "post_logout" ? [{ uri: retorno }] : [],
+    fixture.destinoAtivo && ["produto", "erp-next"].includes(where.clienteId) && where.tipo === "post_logout" ? [{ uri: where.clienteId === "erp-next" ? retornoErp : retorno }] : [],
   },
   aplicacao: { findUnique: async ({ where }: { where: { id: string } }) => where.id === "produto" ? {
     id: "produto", host: "produto.example.test", nome: "Produto", tipo: "app", login: true,
@@ -68,6 +69,31 @@ beforeEach(() => {
 });
 
 describe("confirmação antes do logout central", () => {
+  it("POST do ERP de produção conclui a saída sem tela intermediária", async () => {
+    const q = new URLSearchParams({ client_id: "erp-next", post_logout_redirect_uri: retornoErp });
+    const resposta = await POST(req("POST", q.toString(), "https://erp.avilaops.com"));
+    assert.equal(resposta.status, 303);
+    assert.equal(resposta.headers.get("location"), retornoErp);
+    assert.equal(fixture.sessao, null);
+    assert.deepEqual(fixture.efeitos, ["cookie", "refresh:conta-teste", "logout:pessoa@example.test"]);
+  });
+  it("GET e origens externas não podem usar o cliente ERP para forçar saída", async () => {
+    const q = new URLSearchParams({ client_id: "erp-next", post_logout_redirect_uri: retornoErp });
+    for (const request of [req("GET", q.toString(), "https://erp.avilaops.com"), req("POST", q.toString(), "https://erp.avilaops.com.evil.test"), req("POST", q.toString(), null)]) {
+      const resposta = await (request.method === "GET" ? GET(request) : POST(request));
+      assert.equal(new URL(resposta.headers.get("location")!).pathname, "/sair");
+      semEfeitos();
+    }
+  });
+  it("saída direta do ERP revalida cliente e retorno ainda ativos", async () => {
+    const q = new URLSearchParams({ client_id: "erp-next", post_logout_redirect_uri: retornoErp });
+    fixture.destinoAtivo = false;
+    assert.equal((await POST(req("POST", q.toString(), "https://erp.avilaops.com"))).status, 400);
+    semEfeitos();
+    fixture.destinoAtivo = true; fixture.clienteAtivo = false;
+    assert.equal((await POST(req("POST", q.toString(), "https://erp.avilaops.com"))).status, 400);
+    semEfeitos();
+  });
   it("GET nunca encerra a sessão, inclusive com cliente e destino válidos", async () => {
     for (const busca of ["", pedido.toString()]) {
       const resposta = await GET(req("GET", busca));

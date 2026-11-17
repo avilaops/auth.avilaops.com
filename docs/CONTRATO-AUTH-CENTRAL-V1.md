@@ -117,9 +117,17 @@ O logout central deve:
 `GET /api/auth/logout` nunca invalida sessão nem revoga tokens. Ele abre
 `/sair`, onde a pessoa pode confirmar a saída ou manter sua sessão. POST vindo
 de consumidor, origem ausente ou origem opaca também passa pela confirmação.
-O POST que executa a saída exige `Origin` exatamente igual à origem pública
+O POST local que executa a saída exige `Origin` exatamente igual à origem pública
 configurada em `SSO_BASE_URL`; em produção o portal `https://conta.avilaops.com`
-também é parte do próprio serviço. Outros subdomínios não recebem essa confiança.
+também é parte do próprio serviço.
+
+A saída iniciada no ERP possui uma exceção explícita: em produção, POST com
+`Origin: https://erp.avilaops.com`, cliente `erp-next` e callback exato
+`https://erp.avilaops.com/api/auth/logout/central/callback` dispensa essa tela.
+Cliente e retorno ativo continuam sendo revalidados antes dos efeitos. GET,
+origem ausente/opaca, outro cliente ou outro callback não recebem essa exceção.
+O ERP protege a iniciação com POST de mesma origem e marcador cifrado curto;
+seu callback conclui em `https://avilaops.com/`.
 
 Parâmetros aceitos: `client_id`, `post_logout_redirect_uri`, `state` e, durante
 a migração, `app`/`returnTo`. POST também aceita formulário URL-encoded, com
