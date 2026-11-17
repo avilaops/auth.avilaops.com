@@ -13,6 +13,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+FROM base AS prod-deps
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma
+RUN npm ci --omit=dev
+
 FROM base AS runtime
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
@@ -21,9 +26,12 @@ ENV NODE_ENV=production \
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
-# O standalone carrega so o node_modules que o build provou necessario. E o que
-# separa uma imagem de ~200 MB de uma de 1,2 GB: antes o runtime copiava o
-# node_modules inteiro, com dependencias de desenvolvimento junto.
+# O entrypoint executa migracoes antes de iniciar o servidor. Portanto, o CLI
+# do Prisma e todo o seu grafo transitivo sao dependencias reais de producao.
+COPY --from=prod-deps /app/node_modules ./node_modules
+
+# O runtime recebe o grafo de producao e os arquivos standalone do Next.
+# Dependencias de desenvolvimento ficam somente no estagio de build.
 COPY --from=build /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -31,13 +39,12 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 # O rastreamento de arquivos do Next nao alcanca o engine nativo do Prisma.
 # Sem estas copias o container sobe normalmente e so quebra na primeira consulta.
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/migrations/portal ./migrations/portal
 COPY --from=build /app/scripts/migrate-portal.mjs /app/scripts/docker-entrypoint.sh ./scripts/
 # Verifica que a dependência usada antes do servidor está no standalone.
-RUN node -e "require.resolve('pg'); require.resolve('prisma/build/index.js'); require.resolve('@prisma/debug')"
+RUN node -e "require.resolve('pg'); require.resolve('prisma/build/index.js')" \
+    && node node_modules/prisma/build/index.js --version
 
 USER nextjs
 EXPOSE 3010
