@@ -10,6 +10,20 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-ERP-SAIDA-DIRETA-20261117",
+      "title": "Sair do ERP diretamente para avilaops.com",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "priority": "alta",
+      "acceptance": "POST protegido do ERP encerra a sessão sem a tela de confirmação do Auth e o callback do ERP retorna ao site fixo; GET e origens externas não encerram sessão.",
+      "evidence": "21 testes de logout, typecheck e lint passaram. Regra limitada a issuer de produção, Origin ERP exato, cliente erp-next e callback exato cadastrado. docs/ERP-SAIDA-DIRETA-20261117.md. Publicação ainda pendente.",
+      "blocker": "",
+      "history": [
+        { "at": "2026-11-17", "status": "em-andamento", "note": "Responsável solicitou retirar a tela informativa e retornar sempre a avilaops.com na saída do ERP. Implementação isolada, preservando alterações do checkout principal." },
+        { "at": "2026-11-17", "status": "em-revisao", "note": "Validações locais concluídas; integração com POST do ERP, CI e conferência após implantação pendentes." }
+      ]
+    },
+    {
       "id": "AUTH-RECUPERACAO-PROPRIA-20261116",
       "title": "Permitir recuperação de senha sem depender da equipe",
       "status": "em-revisao",
