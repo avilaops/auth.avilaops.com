@@ -10,6 +10,34 @@
   ],
   "tasks": [
     {
+      "id": "AUTH-ERP-LOGOUT-20261117",
+      "title": "Corrigir retorno de logout do cliente ERP",
+      "status": "concluida",
+      "owner": "nicolas-rosa",
+      "priority": "alta",
+      "acceptance": "Cliente erp-next aceita somente o callback de logout definido pelo ERP; o fluxo retorna à entrada sem erro e mantém a rejeição de destinos externos ou caminhos diferentes.",
+      "evidence": "Configuração aplicada em applications no cliente erp-next, app erp. Texto legado e redirect normalizado post_logout recebem https://erp.avilaops.com/api/auth/logout/central/callback. Auditoria fcc1a69f-a111-41b7-bca9-dbb404547160. Retorno válido HTTP303; URL externa e caminho adicional HTTP400. Browser em contexto isolado, sem sessão pessoal, concluiu ERP POST → Auth confirmação → callback → /entrar. Ver docs/ERP-LOGOUT-20261117.md. Login, segredo e outros clientes não foram alterados.",
+      "blocker": "",
+      "history": [
+        { "at": "2026-11-17", "status": "em-andamento", "note": "Responsável enviou captura de Destino de saída não autorizado e pediu correção. Leitura de produção confirmou retorno pós-logout vazio no texto e ausente na tabela normalizada." },
+        { "at": "2026-11-17", "status": "concluida", "note": "Manutenção técnica autorizada, backup privado, transação serializada e conferência de concorrência. Callback exato cadastrado e fluxo de navegador sem sessão pessoal conferido; nenhuma sessão real foi encerrada pelo teste." }
+      ]
+    },
+    {
+      "id": "AUTH-RUSTDESK-20261116",
+      "title": "Integrar RustDesk ao Auth e reutilizar o login GitHub",
+      "status": "em-revisao",
+      "owner": "nicolas-rosa",
+      "priority": "normal",
+      "acceptance": "RustDesk oferece Ávila Ops por OIDC, preserva o callback GitHub existente, aplica acesso restrito e retorna ao cliente após autenticação pessoal.",
+      "evidence": "docs/RUSTDESK-AUTH-20261116.md; aplicação suporte, cliente rustdesk-avilaops e provedor OIDC publicados por configuração. Credencial, PKCE S256, rejeição de retorno inválido e percurso de navegador até o Auth verificados. GitHub existente reativado; callback preservado.",
+      "blocker": "Autenticação pessoal e retorno final ao RustDesk ainda não comprovados.",
+      "history": [
+        { "at": "2026-11-16", "status": "em-andamento", "note": "Proprietário pediu reutilização do aplicativo GitHub do Auth no RustDesk; integração configurada por OIDC, sem alterar código nem outros consumidores." },
+        { "at": "2026-11-16", "status": "em-revisao", "note": "Configuração remota e início dos fluxos conferidos; conclusão da autenticação depende do usuário." }
+      ]
+    },
+    {
       "id": "AUTH-RECUPERACAO-PROPRIA-20261116",
       "title": "Permitir recuperação de senha sem depender da equipe",
       "status": "em-revisao",
@@ -197,6 +225,16 @@
     }
   ],
   "integrations": [
+    {
+      "id": "rustdesk-auth-oidc",
+      "consumer": "suporte.avilaops.com",
+      "contract": "docs/RUSTDESK-AUTH-20261116.md",
+      "status": "configured",
+      "name": "RustDesk • Auth Ávila Ops",
+      "environment": "Produção • Auth em applications e RustDesk em apps-noclient",
+      "identity": "Cliente rustdesk-avilaops • aplicação suporte • provedor Ávila Ops",
+      "evidence": "Descoberta, credencial do cliente, PKCE, rejeição de retorno inválido e navegação ao Auth verificados. Retorno autenticado final pendente."
+    },
     {
       "id": "avila-corporativo-v1",
       "consumer": "lojas.avilaops.com",
